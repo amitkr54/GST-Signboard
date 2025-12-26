@@ -116,25 +116,36 @@ function DesignContent() {
     const handleTemplateSelect = (id: TemplateId) => {
         setDesign(prev => ({ ...prev, templateId: id }));
 
-        // Update text with template default if current text is empty or matches another default
-        const defaults = TEMPLATE_DEFAULTS[id];
-        if (defaults) {
-            setData(prev => {
-                // Check if current company name is a "default" name from any template or empty
-                const currentName = prev.companyName;
-                const isDefaultName = !currentName || Object.values(TEMPLATE_DEFAULTS).some(d => d.companyName === currentName);
+        const defaults = TEMPLATE_DEFAULTS[id] || {
+            companyName: '',
+            address: '',
+            additionalText: []
+        };
 
-                if (isDefaultName) {
-                    return {
-                        ...prev,
-                        companyName: defaults.companyName || prev.companyName,
-                        address: defaults.address || prev.address,
-                        additionalText: defaults.additionalText || prev.additionalText
-                    };
-                }
-                return prev;
-            });
-        }
+        setData(prev => {
+            // Check if current company name is a "default" name from any template or empty
+            const currentName = prev.companyName;
+
+            // Collect all possible default names to check against
+            const defaultNames = [
+                ...Object.values(TEMPLATE_DEFAULTS).map(d => d.companyName),
+                'ABC Company Name', // legacy or SVG hardcoded default
+                'YOUR BRAND',       // recently removed global default
+                ''
+            ];
+
+            const isDefaultName = !currentName || defaultNames.includes(currentName);
+
+            if (isDefaultName) {
+                return {
+                    ...prev,
+                    companyName: defaults.companyName || '',
+                    address: defaults.address || '',
+                    additionalText: defaults.additionalText || []
+                };
+            }
+            return prev;
+        });
     };
 
     // Check for template query param
@@ -216,27 +227,6 @@ function DesignContent() {
 
             if (paymentResult.success && paymentResult.url) {
                 // Track referral if code exists
-                if (referralCode && codeValidated) {
-                    await trackReferral(orderId, referralCode);
-                }
-
-                // Store design data for download on success page
-                sessionStorage.setItem('signageDesign', JSON.stringify({
-                    data,
-                    design,
-                    material,
-                    options: {
-                        deliveryType,
-                        includeInstallation,
-                        price,
-                        contactDetails,
-                        paymentScheme,
-                        advanceAmount: paymentScheme === 'part' ? advanceAmount : undefined
-                    }
-                }));
-
-                // Redirect to PhonePe
-                window.location.href = paymentResult.url;
             } else {
                 alert('Payment initiation failed: ' + paymentResult.error);
                 setIsProcessing(false);
@@ -834,7 +824,6 @@ function DesignContent() {
                 }}
             />
 
-            {/* Floating WhatsApp Button */}
             <WhatsAppButton
                 variant="floating"
                 message="Hi! I'm on the design page and need help with my signage. Can you assist?"

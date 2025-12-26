@@ -88,9 +88,14 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         // Traverse all objects
         for (let i = canvasObjects.length; i--;) {
             // @ts-ignore
-            if (canvasObjects[i] === activeObject || !canvasObjects[i].visible || canvasObjects[i].name === 'background' || canvasObjects[i].name === 'safetyGuide') continue;
+            const targetObj = canvasObjects[i];
+            if (targetObj === activeObject || !targetObj.visible ||
+                targetObj.name === 'background' ||
+                targetObj.name === 'safetyGuide' ||
+                targetObj.name === 'template_svg_group' ||
+                targetObj.name === 'template_pdf_background') continue;
 
-            const object = canvasObjects[i];
+            const object = targetObj;
             const objectCenter = object.getCenterPoint();
             const objectBoundingRect = object.getBoundingRect();
 
@@ -125,7 +130,7 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
                 );
                 // Recalculate after snap
                 const newLeft = objectLeft;
-                activeObject.set({ left: newLeft }); // Simple set for left-aligned origin
+                activeObject.set({ left: newLeft });
                 verticalLines.push({
                     x: objectLeft,
                     y1: Math.min(activeObjectTop, objectTop) - aligningLineOffset,

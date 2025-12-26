@@ -443,13 +443,239 @@ export async function uploadTemplate(formData: FormData) {
         const filePath = path.join(publicDir, filename);
         fs.writeFileSync(filePath, buffer);
 
+        // --- NEW: SVG Component Extraction ---
+        let components: any = undefined;
+        if (ext === 'svg') {
+            const svgContent = buffer.toString('utf8');
+
+            // 1. Extract viewBox for normalization
+            const viewBoxMatch = svgContent.match(/viewBox=["']([^"']+)["']/i);
+            const viewBox = viewBoxMatch ? viewBoxMatch[1].split(/[\s,]+/).map(Number) : [0, 0, 1000, 1000];
+
+            components = {
+                text: [],
+                logo: null,
+                backgroundObjects: [], // For paths, rects, etc.
+                originalViewBox: viewBox // Always store viewBox for scaling
+            };
+
+            // --- 1b. Extract CSS Styles from <style> blocks ---
+            const styleMap: Record<string, any> = {};
+            const styleBlocks = svgContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+            if (styleBlocks) {
+                styleBlocks.forEach(block => {
+                    const css = block.replace(/<\/?style[^>]*>/gi, '');
+                    const rules = css.match(/\.([a-z0-9_-]+)\s*\{([^}]*)\}/gi);
+                    if (rules) {
+                        rules.forEach(rule => {
+                            const [full, className, content] = rule.match(/\.([a-z0-9_-]+)\s*\{([^}]*)\}/i) || [];
+                            if (className) {
+                                styleMap[className] = {};
+                                content.split(';').forEach(p => {
+                                    const [k, v] = p.split(':').map(s => s.trim());
+                                    if (k && v) styleMap[className][k.toLowerCase()] = v.replace(/['"]/g, '');
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            const getStyles = (attrStr: string) => {
+                let s: any = {};
+                const styleMatch = attrStr.match(/style=["']([^"']+)["']/i);
+                if (styleMatch) {
+                    styleMatch[1].split(';').forEach(p => {
+                        const [k, v] = p.split(':').map(str => str.trim());
+                        if (k && v) s[k.toLowerCase()] = v.replace(/['"]/g, '');
+                    });
+                }
+                const classMatch = attrStr.match(/class=["']([^"']+)["']/i);
+                if (classMatch) {
+                    classMatch[1].split(/\s+/).forEach(c => {
+                        if (styleMap[c]) Object.assign(s, styleMap[c]);
+                    });
+                }
+                ['font-size', 'font-family', 'font-weight', 'font-style', 'text-anchor', 'fill', 'x', 'y', 'width', 'height', 'cx', 'cy', 'r', 'rx', 'ry', 'points', 'd'].forEach(a => {
+                    const m = attrStr.match(new RegExp(`\\b${a}=["']([^"']+)["']`, 'i'));
+                    if (m) s[a] = m[1];
+                });
+                return s;
+            };
+
+            // --- 1c. Clean content for extraction (Do NOT strip defs, as CorelDraw often puts content there) ---
+            const extractionContent = svgContent;
+
+            // 2. Extract Text elements (from full content to preserve fonts if needed, but extractionContent is safer for shapes)
+            const textRegex = /<text\s+([^>]*?)>([\s\S]*?)<\/text>/gi;
+            let match;
+            while ((match = textRegex.exec(svgContent)) !== null) {
+                const textAttrs = match[1];
+                let textBody = match[2];
+
+                const tspanRegex = /<tspan\s+([^>]*?)>([\s\S]*?)<\/tspan>/gi;
+                let tspanMatch;
+                let lines: string[] = [];
+                let mergedStyles: any = {};
+
+                const baseStyles = getStyles(textAttrs);
+
+                let firstY = NaN;
+                let secondY = NaN;
+
+                while ((tspanMatch = tspanRegex.exec(textBody)) !== null) {
+                    const spanAttrs = tspanMatch[1];
+                    const spanContent = tspanMatch[2].replace(/<[^>]*>?/gm, '').trim();
+                    if (spanContent) {
+                        lines.push(spanContent);
+                        const spanStyles = getStyles(spanAttrs);
+                        const currentY = parseFloat(spanStyles['y']?.toString().replace(/[a-z]/g, '') || 'NaN');
+
+                        if (lines.length === 1) {
+                            Object.assign(mergedStyles, baseStyles, spanStyles);
+                            firstY = currentY;
+                        } else {
+                            if (lines.length === 2) secondY = currentY;
+                            const { x, y, ...otherStyles } = spanStyles;
+                            Object.assign(mergedStyles, otherStyles);
+                        }
+                    }
+                }
+
+                if (lines.length === 0) {
+                    const directContent = textBody.replace(/<[^>]*>?/gm, '').trim();
+                    if (directContent) {
+                        lines.push(directContent);
+                        Object.assign(mergedStyles, baseStyles);
+                        firstY = parseFloat(mergedStyles['y']?.toString().replace(/[a-z]/g, '') || 'NaN');
+                    }
+                }
+
+                if (lines.length > 0) {
+                    const content = lines.join('\n');
+                    let fontSize = parseFloat(mergedStyles['font-size']?.toString().replace(/[a-z]/g, '') || 'NaN');
+
+                    if (isNaN(fontSize)) {
+                        fontSize = viewBox[2] > 5000 ? (viewBox[2] / 40) : 40;
+                    }
+
+                    // Calculate lineHeight if multiple lines
+                    let lineHeight = 1.16;
+                    if (!isNaN(firstY) && !isNaN(secondY) && fontSize > 0) {
+                        lineHeight = (secondY - firstY) / fontSize;
+                        // Sanity check for lineHeight
+                        if (lineHeight < 0.5 || lineHeight > 3) lineHeight = 1.16;
+                    }
+
+                    // --- BASELINE CORRECTION ---
+                    const rawY = isNaN(firstY) ? parseFloat(mergedStyles['y']?.toString().replace(/[a-z]/g, '') || '0') : firstY;
+                    const correctedTop = rawY - (fontSize * 0.82);
+
+                    let textAlign = 'left';
+                    const anchor = mergedStyles['text-anchor'] || '';
+                    if (anchor === 'middle') textAlign = 'center';
+                    else if (anchor === 'end') textAlign = 'right';
+
+                    components.text.push({
+                        text: content,
+                        left: parseFloat(mergedStyles['x']?.toString().replace(/[a-z]/g, '') || '0'),
+                        top: correctedTop,
+                        fontSize: fontSize,
+                        lineHeight: lineHeight,
+                        fontFamily: (mergedStyles['font-family'] || 'Arial').split(',')[0].replace(/['"]/g, '').trim(),
+                        fontWeight: (mergedStyles['font-weight'] || 'normal').toLowerCase(),
+                        fontStyle: (mergedStyles['font-style'] || 'normal').toLowerCase(),
+                        textAlign: textAlign,
+                        fill: mergedStyles['fill'] || '#000000',
+                        originalViewBox: viewBox
+                    });
+                }
+            }
+
+            // 3. Extract Rects and Paths for backgrounds/logos
+            // Improved regex to handle optional namespaces (e.g. svg:path) and 'line' elements
+            const shapeRegex = /<([a-z0-9]+:)?(path|rect|circle|ellipse|polygon|polyline|line)\s*([^>]*?)\/?>/gi;
+            // Note: This is a simple extractor. It doesn't handle groups (<g>) or transforms perfectly,
+            // but for static background elements it's enough to let Fabric render them.
+            while ((match = shapeRegex.exec(extractionContent)) !== null) {
+                const tag = match[2].toLowerCase(); // match[2] is the tag name
+                const attrs = match[3];
+                const styles = getStyles(attrs);
+
+                // Skip if it looks like part of a font definition or metadata
+                if (svgContent.indexOf('<font') < match.index && svgContent.indexOf('</font>') > match.index) continue;
+                if (svgContent.indexOf('<metadata') < match.index && svgContent.indexOf('</metadata>') > match.index) continue;
+                if (svgContent.indexOf('<clipPath') < match.index && svgContent.indexOf('</clipPath>') > match.index) continue; // Skip clip paths
+
+                components.backgroundObjects.push({
+                    type: tag,
+                    attributes: attrs,
+                    styles: styles
+                });
+            }
+        }
+
+        // --- 4. Content-Based Normalization (Actual Size) ---
+        // This ensures the template data tightly fits the design, ignoring CorelDRAW's massive empty workspace.
+        if (components.text.length > 0 || components.backgroundObjects.length > 0) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            components.text.forEach((t: any) => {
+                minX = Math.min(minX, t.left);
+                minY = Math.min(minY, t.top);
+                // Estimate width if not available; 0.6*fontSize*charCount is a rough guide for Arial-like fonts
+                const estimatedWidth = (t.text.split('\n')[0].length * t.fontSize * 0.6);
+                maxX = Math.max(maxX, t.left + estimatedWidth);
+                maxY = Math.max(maxY, t.top + (t.fontSize * (t.lineHeight || 1.16) * t.text.split('\n').length));
+            });
+
+            components.backgroundObjects.forEach((o: any) => {
+                // Basic bounds check for rect, circle etc. 
+                // Paths are hard to parse via regex, so we'll at least use their starting position if nothing else.
+                const s = o.styles;
+                let x = parseFloat(s.x || s.cx || 0);
+                let y = parseFloat(s.y || s.cy || 0);
+                let w = parseFloat(s.width || s.r || 0);
+                let h = parseFloat(s.height || s.r || 0);
+
+                if (o.type === 'path' && s.d) {
+                    // Try to extract first M coordinate as a hint
+                    const m = s.d.match(/M\s*(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/i);
+                    if (m) { x = parseFloat(m[1]); y = parseFloat(m[2]); w = 10; h = 10; }
+                }
+
+                if (!isNaN(x)) {
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x + w);
+                }
+                if (!isNaN(y)) {
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y + h);
+                }
+            });
+
+            // If we found valid bounds, update originalViewBox to "Actual Size"
+            if (minX !== Infinity && maxX > minX && maxY > minY) {
+                const padW = (maxX - minX) * 0.05; // 5% padding
+                const padH = (maxY - minY) * 0.05;
+                components.originalViewBox = [
+                    minX - padW,
+                    minY - padH,
+                    (maxX - minX) + (padW * 2),
+                    (maxY - minY) + (padH * 2)
+                ];
+                console.log('AUTO-CROP (BACKEND):', components.originalViewBox);
+            }
+        }
+
         // Update JSON Database
         const dbPath = path.join(process.cwd(), 'src', 'data', 'templates.json');
         let templates = [];
         try {
-            templates = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+            if (fs.existsSync(dbPath)) {
+                templates = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+            }
         } catch (e) {
-            // If file doesn't exist or is invalid, start with empty array
             console.warn('Could not read templates.json, starting fresh');
         }
 
@@ -460,7 +686,8 @@ export async function uploadTemplate(formData: FormData) {
             thumbnailColor: '#ffffff',
             layoutType: 'centered',
             svgPath: `/templates/${filename}`,
-            isCustom: true
+            isCustom: true,
+            components: ext === 'svg' ? components : undefined
         };
 
         templates.unshift(newTemplate); // Add to top
@@ -493,4 +720,44 @@ export async function getTemplates() {
     return [];
 }
 
+export async function deleteTemplate(templateId: string, pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
 
+    const fs = require('fs');
+    const path = require('path');
+    const dbPath = path.join(process.cwd(), 'src', 'data', 'templates.json');
+
+    try {
+        if (!fs.existsSync(dbPath)) {
+            return { success: false, error: 'Database not found' };
+        }
+
+        const templates = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+        const templateIndex = templates.findIndex((t: any) => t.id === templateId);
+
+        if (templateIndex === -1) {
+            return { success: false, error: 'Template not found' };
+        }
+
+        const template = templates[templateIndex];
+
+        // Delete the file if it exists
+        if (template.svgPath) {
+            const filePath = path.join(process.cwd(), 'public', template.svgPath);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+
+        // Remove from array
+        templates.splice(templateIndex, 1);
+        fs.writeFileSync(dbPath, JSON.stringify(templates, null, 2));
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Delete error:', error);
+        return { success: false, error: error.message };
+    }
+}

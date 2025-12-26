@@ -7,7 +7,24 @@ export interface Template {
     thumbnailColor: string; // CSS color for simple preview
     thumbnail?: string; // Path to thumbnail image
     svgPath?: string; // Optional path to SVG template file
-    layoutType: 'default' | 'split-left' | 'split-right' | 'centered' | 'banner';
+    layoutType: 'default' | 'split-left' | 'split-right' | 'centered' | 'banner' | 'centered';
+    isCustom?: boolean;
+    components?: {
+        text?: Array<{
+            text: string;
+            top: number;
+            left: number;
+            fontSize?: number;
+            lineHeight?: number;
+            fontFamily?: string;
+            fontWeight?: string | number;
+            fontStyle?: string;
+            textAlign?: string;
+            fill?: string;
+            originalViewBox?: number[];
+        }>;
+        logo?: any;
+    };
 }
 
 export const TEMPLATES: Template[] = [

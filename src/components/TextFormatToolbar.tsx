@@ -109,24 +109,32 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
         const newColor = typeof e === 'string' ? e : e.target.value;
         setTextColor(newColor);
 
-        // For text objects, change fill (text color)
         if (isTextObject) {
             updateProperty('fill', newColor);
         } else {
-            // For non-text objects
-            const objectType = selectedObject.type;
+            // For non-text objects (Shapes, Icons, SVG Paths)
+            const obj = selectedObject;
 
-            // For paths/icons (SVG), change stroke only
-            if (objectType === 'path' || objectType === 'group') {
-                updateProperty('stroke', newColor);
-                // Don't change fill for icons
-            } else {
-                // For regular shapes (rect, circle, etc.), change fill
+            // If it has a fill, update it (unless it's explicitly transparent/none)
+            if (obj.fill && obj.fill !== 'transparent' && obj.fill !== 'none') {
                 updateProperty('fill', newColor);
-                // Also update stroke if it exists
-                if (selectedObject.stroke) {
-                    updateProperty('stroke', newColor);
-                }
+            }
+
+            // If it has a stroke, update it
+            if (obj.stroke && obj.stroke !== 'transparent' && obj.stroke !== 'none') {
+                updateProperty('stroke', newColor);
+            }
+
+            // Fallback for paths that might not have fill/stroke set but are visible
+            if (obj.type === 'path' && (!obj.fill || obj.fill === 'transparent') && (!obj.stroke || obj.stroke === 'transparent')) {
+                updateProperty('fill', newColor);
+            }
+
+            // Handle groups recursively if needed (though Fabric usually handles group.set)
+            if (obj.type === 'group') {
+                (obj as fabric.Group).getObjects().forEach(child => {
+                    child.set({ fill: newColor, stroke: newColor });
+                });
             }
         }
     };
