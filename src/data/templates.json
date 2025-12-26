@@ -1,0 +1,151 @@
+[
+  {
+    "id": "custom-1766688691632",
+    "name": "test1",
+    "description": "vkgkh",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/813c902e-1351-435c-bce4-e4d64824a25f.svg",
+    "isCustom": true
+  },
+  {
+    "id": "custom-1766687581624",
+    "name": "GST Board3",
+    "description": "xhhjkjhlhjfh",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/b93a3965-5d79-40c4-8689-ed040e551fca.svg",
+    "isCustom": true
+  },
+  {
+    "id": "custom-1766687340369",
+    "name": "GST Board2",
+    "description": "aasdgagda",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/c2d04616-73ec-4e2b-bc7e-fe5d86b0482f.svg",
+    "isCustom": true
+  },
+  {
+    "id": "custom-1766687008824",
+    "name": "GST Board1",
+    "description": "aasdgagda",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/a7c6aa4e-4e9d-4eaf-ab81-1b925eb01ec6.svg",
+    "isCustom": true
+  },
+  {
+    "id": "custom-1766686884312",
+    "name": "GST Board",
+    "description": "",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/8fcd1b2a-6303-4e5c-a05a-c72cd043a425.pdf",
+    "isCustom": true
+  },
+  {
+    "id": "svg-sample",
+    "name": "Gold Royal Border",
+    "description": "Luxury gold border design from SVG",
+    "thumbnailColor": "#FFD700",
+    "layoutType": "centered",
+    "svgPath": "/templates/fancy-border.svg"
+  },
+  {
+    "id": "modern",
+    "name": "Modern Standard",
+    "description": "Clean vertical layout with centered logo",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "default"
+  },
+  {
+    "id": "classic",
+    "name": "Classic Corporate",
+    "description": "Traditional layout with professional spacing",
+    "thumbnailColor": "#f8f9fa",
+    "layoutType": "default"
+  },
+  {
+    "id": "minimal",
+    "name": "Minimalist",
+    "description": "Simple, clutter-free design",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "default"
+  },
+  {
+    "id": "bold",
+    "name": "Bold Impact",
+    "description": "High contrast, heavy font weights",
+    "thumbnailColor": "#000000",
+    "layoutType": "default"
+  },
+  {
+    "id": "corporate",
+    "name": "Corporate Blue",
+    "description": "Professional blue theme for businesses",
+    "thumbnailColor": "#e3f2fd",
+    "layoutType": "default"
+  },
+  {
+    "id": "luxury",
+    "name": "Luxury Gold",
+    "description": "Premium look with elegant typography",
+    "thumbnailColor": "#fff8e1",
+    "layoutType": "default"
+  },
+  {
+    "id": "tech",
+    "name": "Tech/Startups",
+    "description": "Modern monospaced font style",
+    "thumbnailColor": "#f3e5f5",
+    "layoutType": "default"
+  },
+  {
+    "id": "retail",
+    "name": "Retail/Shop",
+    "description": "Eye-catching layout for shops",
+    "thumbnailColor": "#fff3e0",
+    "layoutType": "default"
+  },
+  {
+    "id": "professional",
+    "name": "Professional Border",
+    "description": "Clean design with professional double border",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "default",
+    "thumbnail": "/templates/professional.png"
+  },
+  {
+    "id": "industrial",
+    "name": "Industrial Dark",
+    "description": "Dark theme with rivet details",
+    "thumbnailColor": "#333333",
+    "layoutType": "centered",
+    "thumbnail": "/templates/industrial.png"
+  },
+  {
+    "id": "modern-split",
+    "name": "Modern Side",
+    "description": "Bold side strip layout",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "split-left",
+    "thumbnail": "/templates/modern-split.png"
+  },
+  {
+    "id": "boxed",
+    "name": "Boxed Frame",
+    "description": "Simple framed layout for formal details",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "default",
+    "thumbnail": "/templates/boxed.png"
+  },
+  {
+    "id": "foundation",
+    "name": "Foundation Blue",
+    "description": "Solid color background with white text",
+    "thumbnailColor": "#1e3a8a",
+    "layoutType": "centered",
+    "thumbnail": "/templates/foundation.png"
+  }
+]
