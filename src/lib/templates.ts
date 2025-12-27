@@ -25,6 +25,7 @@ export interface Template {
         }>;
         logo?: any;
     };
+    fabricConfig?: any;
 }
 
 export const TEMPLATES: Template[] = [

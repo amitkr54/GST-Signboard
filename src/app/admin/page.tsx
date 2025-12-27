@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { uploadTemplate, getTemplates, deleteTemplate } from '@/app/actions';
 import { Loader2, Check, AlertCircle, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { fabric } from 'fabric';
 
 export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +28,37 @@ export default function AdminPage() {
         setMessage(null);
 
         const formData = new FormData(event.currentTarget);
+        const file = formData.get('file') as File;
+
+        if (file && file.name.endsWith('.svg')) {
+            try {
+                const text = await file.text();
+                // We need to wait for Fabric to load the SVG
+                await new Promise<void>((resolve) => {
+                    fabric.loadSVGFromString(text, (objects, options) => {
+                        const tempCanvas = new fabric.Canvas(null, {
+                            width: options.width || 1000,
+                            height: options.height || 1000
+                        });
+
+                        // Add some default names if missing to help the renderer
+                        objects.forEach((obj, i) => {
+                            if (!(obj as any).name) (obj as any).name = `object_${i}`;
+                            tempCanvas.add(obj);
+                        });
+
+                        const json = tempCanvas.toJSON();
+                        formData.append('fabricConfig', JSON.stringify(json));
+                        tempCanvas.dispose();
+                        resolve();
+                    });
+                });
+            } catch (err) {
+                console.error('Error generating Fabric JSON:', err);
+                // Continue anyway, maybe the server-side extraction will work
+            }
+        }
+
         const res = await uploadTemplate(formData);
 
         if (res.success) {

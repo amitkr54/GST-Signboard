@@ -188,7 +188,10 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
                 };
 
                 if (comps?.backgroundObjects && comps.backgroundObjects.length > 0) {
-                    const svgInner = comps.backgroundObjects.map((obj: any) => `<${obj.type} ${obj.attributes} />`).join('');
+                    const svgInner = comps.backgroundObjects.map((obj: any) => {
+                        const styleStr = obj.styles ? Object.entries(obj.styles).map(([k, v]) => `${k}:${v}`).join(';') : '';
+                        return `<${obj.type} ${obj.attributes} style="${styleStr}" />`;
+                    }).join('');
                     const svgFull = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}">${svgInner}</svg>`;
                     fabric.loadSVGFromString(svgFull, (objs) => {
                         objs.forEach(obj => {
@@ -226,6 +229,19 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
                     renderText();
                 }
             };
+
+            if (templateConfig.fabricConfig) {
+                // Load from Fabric JSON (Best for preservation)
+                canvas.loadFromJSON(templateConfig.fabricConfig, () => {
+                    canvas.getObjects().forEach(obj => {
+                        (obj as any).name = `template_${(obj as any).name || 'json_object'}`;
+                        obj.set({ selectable: true, evented: true });
+                    });
+                    updateTemplateContent();
+                    canvas.requestRenderAll();
+                });
+                return;
+            }
 
             if (templateConfig.svgPath?.toLowerCase().endsWith('.pdf')) {
                 import('pdfjs-dist').then(async (pdfjsLib) => {

@@ -416,6 +416,8 @@ export async function uploadTemplate(formData: FormData) {
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const file = formData.get('file') as File;
+    const fabricConfigJson = formData.get('fabricConfig') as string;
+    const fabricConfig = fabricConfigJson ? JSON.parse(fabricConfigJson) : undefined;
 
     if (pin !== '1234') { // Simple PIN for demo
         return { success: false, error: 'Invalid Admin PIN' };
@@ -693,7 +695,8 @@ export async function uploadTemplate(formData: FormData) {
             layoutType: 'centered',
             svgPath: `/templates/${filename}`,
             isCustom: true,
-            components: ext === 'svg' ? components : undefined
+            components: ext === 'svg' ? components : undefined,
+            fabricConfig: fabricConfig
         };
 
         templates.unshift(newTemplate); // Add to top
