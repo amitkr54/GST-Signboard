@@ -392,8 +392,17 @@ function DesignContent() {
                 <div className="flex-1 min-h-0 relative overflow-hidden flex flex-col">
                     {/* Templates Tab */}
                     {mobileTab === 'templates' && (
-                        <div className="w-full h-full bg-gray-50 px-4 py-4 overflow-y-auto pb-24">
+                        <div className={`${isLandscape ? 'fixed right-4 top-4 bottom-4 w-72 h-auto z-40 rounded-2xl shadow-2xl border border-gray-100' : 'w-full h-full pb-24'} bg-white px-4 py-4 overflow-y-auto`}>
                             <div className="max-w-md mx-auto space-y-4">
+                                {/* Close button for side panel in landscape */}
+                                {isLandscape && (
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="font-bold text-gray-900">Templates</h3>
+                                        <button onClick={() => setMobileTab('design')} className="p-2 bg-gray-100 rounded-full">
+                                            <X className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                    </div>
+                                )}
                                 {/* Contextual Hint */}
                                 <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg text-xs text-purple-900 flex items-start gap-2">
                                     <span className="text-base">💡</span>
@@ -444,12 +453,13 @@ function DesignContent() {
                                 </button>
                             )}
 
-                            <div className="flex-1 min-h-0 w-full flex items-center justify-center p-2">
+                            <div className="flex-1 min-h-0 w-full flex flex-col p-2">
                                 <PreviewSection
                                     uploadedDesign={uploadedDesign}
                                     data={data}
                                     design={design}
                                     material={material}
+                                    isLandscape={isLandscape}
                                     compact={true}
                                     onDesignChange={setDesign}
                                     onAddText={(fn) => setAddTextFn(() => fn)}
@@ -498,8 +508,17 @@ function DesignContent() {
 
                     {/* Material Tab - Material Selector */}
                     {mobileTab === 'material' && (
-                        <div className="w-full h-full bg-gray-50 px-4 py-4 overflow-y-auto pb-24">
+                        <div className={`${isLandscape ? 'fixed right-4 top-4 bottom-4 w-72 h-auto z-40 rounded-2xl shadow-2xl border border-gray-100' : 'w-full h-full pb-24'} bg-white px-4 py-4 overflow-y-auto`}>
                             <div className="max-w-md mx-auto space-y-4">
+                                {/* Close button for side panel in landscape */}
+                                {isLandscape && (
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="font-bold text-gray-900">Material</h3>
+                                        <button onClick={() => setMobileTab('design')} className="p-2 bg-gray-100 rounded-full">
+                                            <X className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                    </div>
+                                )}
                                 {/* Contextual Hint */}
                                 <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg text-xs text-purple-900 flex items-start gap-2">
                                     <span className="text-base">💡</span>
@@ -528,8 +547,17 @@ function DesignContent() {
 
                     {/* Order Tab - Checkout Form */}
                     {mobileTab === 'order' && (
-                        <div className="w-full h-full bg-gray-50 px-4 py-4 overflow-y-auto pb-24">
+                        <div className={`${isLandscape ? 'fixed right-4 top-4 bottom-4 w-72 h-auto z-40 rounded-2xl shadow-2xl border border-gray-100' : 'w-full h-full pb-24'} bg-white px-4 py-4 overflow-y-auto`}>
                             <div className="max-w-md mx-auto space-y-4">
+                                {/* Close button for side panel in landscape */}
+                                {isLandscape && (
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="font-bold text-gray-900">Order</h3>
+                                        <button onClick={() => setMobileTab('design')} className="p-2 bg-gray-100 rounded-full">
+                                            <X className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                    </div>
+                                )}
                                 {/* Contextual Hint */}
                                 <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg text-xs text-purple-900 flex items-start gap-2">
                                     <span className="text-base">💡</span>

@@ -15,6 +15,7 @@ interface PreviewSectionProps {
     onAddImage?: (fn: (url: string) => void) => void;
     onDataChange?: (data: Partial<SignageData>) => void;
     compact?: boolean;
+    isLandscape?: boolean;
 }
 
 export function PreviewSection({
@@ -28,7 +29,8 @@ export function PreviewSection({
     onAddShape,
     onAddImage,
     onDataChange,
-    compact = false
+    compact = false,
+    isLandscape = false
 }: PreviewSectionProps) {
 
     if (uploadedDesign) {
@@ -47,7 +49,7 @@ export function PreviewSection({
     }
 
     return (
-        <div className="w-full flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden">
             <FabricPreview
                 data={data}
                 design={design}
@@ -59,6 +61,7 @@ export function PreviewSection({
                 onAddImage={onAddImage}
                 onDataChange={onDataChange}
                 compact={compact}
+                isLandscape={isLandscape}
             />
         </div>
     );

@@ -5,7 +5,6 @@ import {
     X,
     Keyboard,
     Type,
-    Palette,
     Bold,
     Copy,
     Trash2,
@@ -24,9 +23,10 @@ interface TextFormatToolbarProps {
     onDelete?: () => void;
     onLockToggle?: () => void;
     compact?: boolean;
+    isLandscape?: boolean;
 }
 
-export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, onDuplicate, onDelete, onLockToggle, compact = false }: TextFormatToolbarProps) {
+export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, onDuplicate, onDelete, onLockToggle, compact = false, isLandscape = false }: TextFormatToolbarProps) {
     const [fontFamily, setFontFamily] = useState('Arial');
     const [fontSize, setFontSize] = useState(30);
     const [isBold, setIsBold] = useState(false);
@@ -158,19 +158,32 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
     if (compact) {
         if (typeof document === 'undefined') return null;
 
+        const sidebarClasses = isLandscape
+            ? "fixed top-0 bottom-0 right-0 w-[48px] bg-white z-[9999] shadow-[-4px_0_20px_rgba(0,0,0,0.1)] flex flex-col pt-safe pb-safe rounded-l-2xl animate-in slide-in-from-right-4 duration-200"
+            : "fixed bottom-0 left-0 right-0 bg-white z-[9999] rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] flex flex-col animate-in slide-in-from-bottom-4 duration-200 pb-safe";
+
+        const contentClasses = isLandscape
+            ? "flex-1 p-0.5 flex flex-col gap-2 overflow-y-auto overflow-x-hidden no-scrollbar items-center"
+            : "p-2 overflow-x-auto";
+
+        const menuWrapperClasses = "flex items-center gap-4 min-w-max px-1";
+        const verticalMenuClasses = "flex flex-col items-center gap-4 py-2 w-full";
+
         return ReactDOM.createPortal(
-            <div className="fixed bottom-0 left-0 right-0 bg-white z-[9999] rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] flex flex-col animate-in slide-in-from-bottom-4 duration-200 pb-safe">
+            <div className={sidebarClasses}>
                 {/* Header - Compact */}
-                <div className="flex justify-between items-center px-3 py-2 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
+                <div className={`flex justify-between items-center px-1 py-1 border-b border-gray-100 ${isLandscape ? 'flex-col gap-2' : ''}`}>
+                    <div className={`flex items-center gap-1 ${isLandscape ? 'flex-col' : ''}`}>
                         {activeTool && (
-                            <button onClick={() => setActiveTool(null)} className="p-1 -ml-1 rounded-full hover:bg-gray-100">
-                                <ChevronLeft className="w-4 h-4 text-gray-600" />
+                            <button onClick={() => setActiveTool(null)} className="p-1 rounded-full hover:bg-gray-100">
+                                {isLandscape ? <ChevronLeft className="w-5 h-5 text-gray-400 rotate-90" /> : <ChevronLeft className="w-4 h-4 text-gray-600" />}
                             </button>
                         )}
-                        <span className="text-xs font-semibold text-gray-800 capitalize">
-                            {activeTool ? activeTool : (isTextObject ? 'Text' : 'Element')}
-                        </span>
+                        {!isLandscape && (
+                            <span className="text-[10px] font-bold text-gray-800 uppercase tracking-wider">
+                                {activeTool ? activeTool : (isTextObject ? 'Text' : 'Element')}
+                            </span>
+                        )}
                     </div>
                     <button
                         onClick={() => {
@@ -186,10 +199,10 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
                 </div>
 
                 {/* Content Area */}
-                <div className="p-2 overflow-x-auto">
+                <div className={contentClasses}>
                     {activeTool === null ? (
-                        // Main Menu - Horizontal Scroll
-                        <div className="flex items-center gap-4 min-w-max px-1">
+                        // Main Menu
+                        <div className={isLandscape ? verticalMenuClasses : menuWrapperClasses}>
                             {isTextObject && (
                                 <>
                                     <button onClick={() => {
@@ -198,156 +211,173 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
                                             textObject.canvas?.requestRenderAll();
                                         }
                                     }} className="flex flex-col items-center gap-1 group">
-                                        <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
+                                        <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
                                             <Keyboard className="w-4 h-4 text-gray-700" />
                                         </div>
-                                        <span className="text-[10px] text-gray-600 font-medium">Edit</span>
+                                        {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Edit</span>}
                                     </button>
 
                                     <button onClick={() => setActiveTool('font')} className="flex flex-col items-center gap-1 group">
-                                        <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
+                                        <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
                                             <span className="font-serif text-sm text-gray-700">Aa</span>
                                         </div>
-                                        <span className="text-[10px] text-gray-600 font-medium">Font</span>
+                                        {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Font</span>}
                                     </button>
 
                                     <button onClick={() => setActiveTool('size')} className="flex flex-col items-center gap-1 group">
-                                        <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
+                                        <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
                                             <Type className="w-4 h-4 text-gray-700" />
                                         </div>
-                                        <span className="text-[10px] text-gray-600 font-medium">Size</span>
+                                        {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Size</span>}
                                     </button>
                                 </>
                             )}
 
                             <button onClick={() => setActiveTool('color')} className="flex flex-col items-center gap-1 group">
-                                <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
+                                <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
                                     <div className="w-4 h-4 rounded-full border border-gray-300 shadow-sm" style={{ backgroundColor: textColor }}></div>
                                 </div>
-                                <span className="text-[10px] text-gray-600 font-medium">Color</span>
+                                {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Color</span>}
                             </button>
 
                             {isTextObject && (
                                 <button onClick={() => setActiveTool('format')} className="flex flex-col items-center gap-1 group">
-                                    <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
+                                    <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
                                         <Bold className="w-4 h-4 text-gray-700" />
                                     </div>
-                                    <span className="text-[10px] text-gray-600 font-medium">Format</span>
+                                    {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Format</span>}
                                 </button>
                             )}
 
-                            <div className="w-px h-6 bg-gray-200 mx-1" />
+                            <div className={isLandscape ? "w-8 h-px bg-gray-200 my-1" : "w-px h-6 bg-gray-200 mx-1"} />
 
                             <button onClick={onDuplicate} className="flex flex-col items-center gap-1 group">
-                                <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
+                                <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
                                     <Copy className="w-4 h-4 text-gray-700" />
                                 </div>
-                                <span className="text-[10px] text-gray-600 font-medium">Clone</span>
+                                {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Clone</span>}
                             </button>
 
                             <button onClick={onDelete} className="flex flex-col items-center gap-1 group">
-                                <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-red-50 group-active:border-red-200">
+                                <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-red-50 group-active:border-red-200">
                                     <Trash2 className="w-4 h-4 text-red-600" />
                                 </div>
-                                <span className="text-[10px] text-red-600 font-medium">Delete</span>
+                                {!isLandscape && <span className="text-[10px] text-red-600 font-medium">Delete</span>}
                             </button>
                         </div>
                     ) : (
                         // Sub Menus
-                        <div className="w-full">
-                            {activeTool === 'font' && (
-                                <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto">
-                                    {fontOptions.map(font => (
-                                        <button
-                                            key={font}
-                                            onClick={() => handleFontFamilyChange(font)}
-                                            className={`px-4 py-3 text-left rounded-lg ${fontFamily === font ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                                            style={{ fontFamily: font }}
-                                        >
-                                            {font}
-                                        </button>
-                                    ))}
+                        <div className={`${isLandscape ? 'fixed right-[52px] top-4 bottom-4 w-32 overflow-hidden flex flex-col' : 'w-full'} bg-white shadow-2xl rounded-2xl p-1.5 border border-gray-100 animate-in fade-in slide-in-from-right-4`}>
+                            {isLandscape && (
+                                <div className="flex justify-between items-center px-1.5 py-0.5 border-b border-gray-50 mb-1 flex-shrink-0">
+                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{activeTool}</span>
+                                    <button
+                                        onClick={() => setActiveTool(null)}
+                                        className="p-0.5 rounded-full hover:bg-gray-50 text-gray-400"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
                             )}
-
-                            {activeTool === 'size' && (
-                                <div className="flex items-center gap-4 py-4 px-2">
-                                    <span className="text-sm text-gray-500">8px</span>
-                                    <input
-                                        type="range"
-                                        min="8"
-                                        max="200"
-                                        value={fontSize}
-                                        onChange={(e) => handleFontSizeChange(parseInt(e.target.value))}
-                                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                    />
-                                    <span className="text-sm text-gray-500">200px</span>
-                                    <div className="w-12 h-10 flex items-center justify-center bg-gray-100 rounded border border-gray-200 font-medium text-gray-700">
-                                        {fontSize}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTool === 'color' && (
-                                <div className="flex flex-col gap-4">
-                                    <div className="flex gap-4 overflow-x-auto pb-2">
-                                        {/* Preset Colors */}
-                                        {['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#808080'].map(color => (
+                            <div className="flex-1 overflow-y-auto no-scrollbar">
+                                {activeTool === 'font' && (
+                                    <div className="flex flex-col gap-0.5 max-h-[200px] overflow-y-auto">
+                                        {fontOptions.map(font => (
                                             <button
-                                                key={color}
-                                                onClick={() => handleColorChange(color)}
-                                                className={`w-10 h-10 rounded-full border-2 flex-shrink-0 ${textColor === color ? 'border-blue-500 shadow-md scale-110' : 'border-gray-200'}`}
-                                                style={{ backgroundColor: color }}
-                                            />
+                                                key={font}
+                                                onClick={() => handleFontFamilyChange(font)}
+                                                className={`px-1.5 py-0.5 text-left rounded text-[11px] ${fontFamily === font ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                style={{ fontFamily: font }}
+                                            >
+                                                {font}
+                                            </button>
                                         ))}
                                     </div>
-                                    <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
-                                        <label className="text-sm font-medium text-gray-700">Custom:</label>
-                                        <input
-                                            type="color"
-                                            value={textColor}
-                                            onChange={handleColorChange}
-                                            className="w-full h-10 rounded cursor-pointer border border-gray-300"
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                                )}
 
-                            {activeTool === 'format' && (
-                                <div className="flex justify-center gap-6 py-2">
-                                    <button
-                                        onClick={toggleBold}
-                                        className={`w-12 h-12 flex items-center justify-center rounded-lg border ${isBold ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
-                                    >
-                                        <Bold className="w-6 h-6" />
-                                    </button>
-                                    <button
-                                        onClick={toggleItalic}
-                                        className={`w-12 h-12 flex items-center justify-center rounded-lg border ${isItalic ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
-                                    >
-                                        <Italic className="w-6 h-6" />
-                                    </button>
-                                    <div className="w-px h-12 bg-gray-200" />
-                                    <button
-                                        onClick={() => handleAlignChange('left')}
-                                        className={`w-12 h-12 flex items-center justify-center rounded-lg border ${textAlign === 'left' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
-                                    >
-                                        <AlignLeft className="w-6 h-6" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleAlignChange('center')}
-                                        className={`w-12 h-12 flex items-center justify-center rounded-lg border ${textAlign === 'center' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
-                                    >
-                                        <AlignCenter className="w-6 h-6" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleAlignChange('right')}
-                                        className={`w-12 h-12 flex items-center justify-center rounded-lg border ${textAlign === 'right' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
-                                    >
-                                        <AlignRight className="w-6 h-6" />
-                                    </button>
-                                </div>
-                            )}
+                                {activeTool === 'size' && (
+                                    <div className={`flex items-center gap-2 py-2 px-1 ${isLandscape ? 'flex-col h-full justify-center' : ''}`}>
+                                        <span className="text-[10px] text-gray-500">{isLandscape ? '200' : '8px'}</span>
+                                        <input
+                                            type="range"
+                                            min="8"
+                                            max="200"
+                                            value={fontSize}
+                                            onChange={(e) => handleFontSizeChange(parseInt(e.target.value))}
+                                            className={isLandscape
+                                                ? "h-32 w-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                                : "flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                            }
+                                            style={isLandscape ? { writingMode: 'bt-lr' as any, WebkitAppearance: 'slider-vertical' } : {}}
+                                        />
+                                        <span className="text-[10px] text-gray-500">{isLandscape ? '8' : '200px'}</span>
+                                        <div className="w-10 h-8 flex items-center justify-center bg-gray-100 rounded border border-gray-200 font-medium text-xs text-gray-700">
+                                            {fontSize}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTool === 'color' && (
+                                    <div className="flex flex-col gap-4">
+                                        <div className={`flex gap-3 p-1 ${isLandscape ? 'flex-wrap justify-center' : 'overflow-x-auto pb-2'}`}>
+                                            {/* Preset Colors */}
+                                            {['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#808080', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'].map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => handleColorChange(color)}
+                                                    className={`w-7 h-7 rounded-full border flex-shrink-0 ${textColor === color ? 'border-blue-500 shadow-sm scale-110' : 'border-gray-200'}`}
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <div className={`flex items-center gap-2 border-t border-gray-50 pt-2 ${isLandscape ? 'flex-col' : ''}`}>
+                                            <label className="text-sm font-medium text-gray-700">Custom:</label>
+                                            <input
+                                                type="color"
+                                                value={textColor}
+                                                onChange={handleColorChange}
+                                                className="w-full h-10 rounded cursor-pointer border border-gray-300"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTool === 'format' && (
+                                    <div className={`flex gap-4 py-2 ${isLandscape ? 'flex-col items-center' : 'justify-center'}`}>
+                                        <button
+                                            onClick={toggleBold}
+                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border ${isBold ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
+                                        >
+                                            <Bold className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={toggleItalic}
+                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border ${isItalic ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
+                                        >
+                                            <Italic className="w-5 h-5" />
+                                        </button>
+                                        <div className={isLandscape ? "w-10 h-px bg-gray-200" : "w-px h-10 bg-gray-200"} />
+                                        <button
+                                            onClick={() => handleAlignChange('left')}
+                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border ${textAlign === 'left' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
+                                        >
+                                            <AlignLeft className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleAlignChange('center')}
+                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border ${textAlign === 'center' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
+                                        >
+                                            <AlignCenter className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleAlignChange('right')}
+                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border ${textAlign === 'right' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
+                                        >
+                                            <AlignRight className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

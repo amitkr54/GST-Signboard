@@ -22,6 +22,7 @@ interface FabricPreviewProps {
     onAddImage?: (addFn: (imageUrl: string) => void) => void;
     onDataChange?: (data: Partial<SignageData>) => void;
     compact?: boolean;
+    isLandscape?: boolean;
 }
 
 export function FabricPreview({
@@ -35,7 +36,8 @@ export function FabricPreview({
     onAddShape,
     onAddImage,
     onDataChange,
-    compact = false
+    compact = false,
+    isLandscape = false
 }: FabricPreviewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
@@ -433,6 +435,7 @@ export function FabricPreview({
                     <TextFormatToolbar
                         selectedObject={selectedObject}
                         compact={compact}
+                        isLandscape={isLandscape}
                         onUpdate={() => {
                             if (fabricCanvasRef.current) {
                                 fabricCanvasRef.current.requestRenderAll();
