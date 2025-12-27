@@ -1,5 +1,308 @@
 [
   {
+    "id": "custom-1766811444656",
+    "name": "test18",
+    "description": "",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/a1b803c2-7010-4eb9-bae3-44e29e8859ff.svg",
+    "isCustom": true,
+    "components": {
+      "text": [
+        {
+          "text": "Anything Company Name",
+          "left": 6331,
+          "top": 3288.1946000000003,
+          "fontSize": 2981.47,
+          "lineHeight": 1.16,
+          "fontFamily": "Garamond",
+          "fontWeight": "bold",
+          "fontStyle": "normal",
+          "textAlign": "left",
+          "fill": "#2B2A29",
+          "originalViewBox": [
+            0,
+            0,
+            45720,
+            30480
+          ]
+        }
+      ],
+      "logo": null,
+      "backgroundObjects": [
+        {
+          "type": "rect",
+          "attributes": "class=\"fil0 str0\" x=\"601\" y=\"477\" width=\"44450\" height=\"29210\"",
+          "styles": {
+            "fill": "none",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "x": "601",
+            "y": "477",
+            "width": "44450",
+            "height": "29210"
+          },
+          "left": 601,
+          "top": 477,
+          "width": 44450,
+          "height": 29210
+        },
+        {
+          "type": "rect",
+          "attributes": "class=\"fil1 str0\" x=\"601\" y=\"22561\" width=\"44450\" height=\"7761\"",
+          "styles": {
+            "fill": "#393185",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "x": "601",
+            "y": "22561",
+            "width": "44450",
+            "height": "7761"
+          },
+          "left": 601,
+          "top": 22561,
+          "width": 44450,
+          "height": 7761
+        },
+        {
+          "type": "line",
+          "attributes": "class=\"fil0 str1\" x1=\"4623\" y1=\"8344\" x2=\"41030\" y2= \"8344\" ",
+          "styles": {
+            "fill": "none",
+            "stroke": "#FEFEFE",
+            "stroke-width": "300"
+          },
+          "left": 0,
+          "top": 0,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "type": "path",
+          "attributes": "class=\"fil3 str0\" d=\"M22826 11660c3118,0 5645,2148 5645,4797 0,2650 -2527,4798 -5645,4798 -3117,0 -5644,-2148 -5644,-4798 0,-2649 2527,-4797 5644,-4797z\"",
+          "styles": {
+            "fill": "#009846",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "d": "M22826 11660c3118,0 5645,2148 5645,4797 0,2650 -2527,4798 -5645,4798 -3117,0 -5644,-2148 -5644,-4798 0,-2649 2527,-4797 5644,-4797z"
+          },
+          "left": 22826,
+          "top": 11660,
+          "width": 10,
+          "height": 10
+        }
+      ],
+      "originalViewBox": [
+        -2252.55,
+        -1516.1000000000001,
+        49556.1,
+        33354.2
+      ]
+    }
+  },
+  {
+    "id": "custom-1766809437869",
+    "name": "test17",
+    "description": "",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/e356f433-bc59-4043-bb2d-49e29958dcf1.svg",
+    "isCustom": true,
+    "components": {
+      "text": [
+        {
+          "text": "Anything Company Name",
+          "left": 6331,
+          "top": 3288.1946000000003,
+          "fontSize": 2981.47,
+          "lineHeight": 1.16,
+          "fontFamily": "Garamond",
+          "fontWeight": "bold",
+          "fontStyle": "normal",
+          "textAlign": "left",
+          "fill": "#2B2A29",
+          "originalViewBox": [
+            0,
+            0,
+            45720,
+            30480
+          ]
+        }
+      ],
+      "logo": null,
+      "backgroundObjects": [
+        {
+          "type": "rect",
+          "attributes": "class=\"fil0 str0\" x=\"601\" y=\"477\" width=\"44450\" height=\"29210\"",
+          "styles": {
+            "fill": "#EF7F1A",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "x": "601",
+            "y": "477",
+            "width": "44450",
+            "height": "29210"
+          },
+          "left": 601,
+          "top": 477,
+          "width": 44450,
+          "height": 29210
+        },
+        {
+          "type": "rect",
+          "attributes": "class=\"fil1 str0\" x=\"601\" y=\"22561\" width=\"44450\" height=\"7761\"",
+          "styles": {
+            "fill": "#393185",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "x": "601",
+            "y": "22561",
+            "width": "44450",
+            "height": "7761"
+          },
+          "left": 601,
+          "top": 22561,
+          "width": 44450,
+          "height": 7761
+        },
+        {
+          "type": "line",
+          "attributes": "class=\"fil3 str1\" x1=\"4623\" y1=\"8344\" x2=\"41030\" y2= \"8344\" ",
+          "styles": {
+            "fill": "none",
+            "stroke": "#FEFEFE",
+            "stroke-width": "300"
+          },
+          "left": 0,
+          "top": 0,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "type": "path",
+          "attributes": "class=\"fil4 str0\" d=\"M22826 11660c3118,0 5645,2148 5645,4797 0,2650 -2527,4798 -5645,4798 -3117,0 -5644,-2148 -5644,-4798 0,-2649 2527,-4797 5644,-4797z\"",
+          "styles": {
+            "fill": "#009846",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "d": "M22826 11660c3118,0 5645,2148 5645,4797 0,2650 -2527,4798 -5645,4798 -3117,0 -5644,-2148 -5644,-4798 0,-2649 2527,-4797 5644,-4797z"
+          },
+          "left": 22826,
+          "top": 11660,
+          "width": 10,
+          "height": 10
+        }
+      ],
+      "originalViewBox": [
+        -2252.55,
+        -1516.1000000000001,
+        49556.1,
+        33354.2
+      ]
+    }
+  },
+  {
+    "id": "custom-1766808396295",
+    "name": "test14",
+    "description": "",
+    "thumbnailColor": "#ffffff",
+    "layoutType": "centered",
+    "svgPath": "/templates/1b0b609c-d752-4cf0-8dfb-fd641163afe5.svg",
+    "isCustom": true,
+    "components": {
+      "text": [
+        {
+          "text": "Anything Company Name",
+          "left": 6331,
+          "top": 3288.1946000000003,
+          "fontSize": 2981.47,
+          "lineHeight": 1.16,
+          "fontFamily": "Garamond",
+          "fontWeight": "bold",
+          "fontStyle": "normal",
+          "textAlign": "left",
+          "fill": "#2B2A29",
+          "originalViewBox": [
+            0,
+            0,
+            45720,
+            30480
+          ]
+        }
+      ],
+      "logo": null,
+      "backgroundObjects": [
+        {
+          "type": "rect",
+          "attributes": "class=\"fil0 str0\" x=\"601\" y=\"477\" width=\"44450\" height=\"29210\"",
+          "styles": {
+            "fill": "#EF7F1A",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "x": "601",
+            "y": "477",
+            "width": "44450",
+            "height": "29210"
+          },
+          "left": 601,
+          "top": 477,
+          "width": 44450,
+          "height": 29210
+        },
+        {
+          "type": "rect",
+          "attributes": "class=\"fil1 str0\" x=\"601\" y=\"22561\" width=\"44450\" height=\"7761\"",
+          "styles": {
+            "fill": "#393185",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "x": "601",
+            "y": "22561",
+            "width": "44450",
+            "height": "7761"
+          },
+          "left": 601,
+          "top": 22561,
+          "width": 44450,
+          "height": 7761
+        },
+        {
+          "type": "line",
+          "attributes": "class=\"fil3 str1\" x1=\"4623\" y1=\"8344\" x2=\"41030\" y2= \"8344\" ",
+          "styles": {
+            "fill": "none",
+            "stroke": "#FEFEFE",
+            "stroke-width": "300"
+          },
+          "left": 0,
+          "top": 0,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "type": "path",
+          "attributes": "class=\"fil4 str0\" d=\"M22826 11660c3118,0 5645,2148 5645,4797 0,2650 -2527,4798 -5645,4798 -3117,0 -5644,-2148 -5644,-4798 0,-2649 2527,-4797 5644,-4797z\"",
+          "styles": {
+            "fill": "#009846",
+            "stroke": "#2B2A29",
+            "stroke-width": "20",
+            "d": "M22826 11660c3118,0 5645,2148 5645,4797 0,2650 -2527,4798 -5645,4798 -3117,0 -5644,-2148 -5644,-4798 0,-2649 2527,-4797 5644,-4797z"
+          },
+          "left": 22826,
+          "top": 11660,
+          "width": 10,
+          "height": 10
+        }
+      ],
+      "originalViewBox": [
+        -2252.55,
+        -1516.1000000000001,
+        49556.1,
+        33354.2
+      ]
+    }
+  },
+  {
     "id": "custom-1766777386005",
     "name": "test13",
     "description": "",

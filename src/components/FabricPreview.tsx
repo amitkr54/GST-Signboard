@@ -30,6 +30,8 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(0.2);
     const [hasWarning, setHasWarning] = useState(false);
+    const [canvasInstance, setCanvasInstance] = useState<fabric.Canvas | null>(null);
+    const lastScaleRef = useRef<number>(0.2);
     const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
     const [dynamicTemplates, setDynamicTemplates] = useState<typeof TEMPLATES>(TEMPLATES);
 
@@ -70,6 +72,7 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
         });
 
         fabricCanvasRef.current = canvas;
+        setCanvasInstance(canvas);
         (window as any).canvas = canvas;
         if (onMount) onMount(canvas);
 
@@ -77,6 +80,7 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
             delete (window as any).canvas;
             canvas.dispose();
             fabricCanvasRef.current = null;
+            setCanvasInstance(null);
         };
     }, []);
 
@@ -107,22 +111,28 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
             const availH = (parent.clientHeight || window.innerHeight - 200) - vPad;
 
             const sc = Math.min(availW / LAYOUT.WIDTH, availH / LAYOUT.HEIGHT);
-            setScale(sc);
 
-            if (fabricCanvasRef.current) {
-                fabricCanvasRef.current.setDimensions({
-                    width: LAYOUT.WIDTH * sc,
-                    height: LAYOUT.HEIGHT * sc
-                }, { cssOnly: true });
-                fabricCanvasRef.current.setZoom(sc);
-                fabricCanvasRef.current.calcOffset();
-                fabricCanvasRef.current.requestRenderAll();
+            // Only update if scale actually changed (using ref to avoid stale closure)
+            if (Math.abs(sc - lastScaleRef.current) > 0.001) {
+                lastScaleRef.current = sc;
+                setScale(sc);
+
+                if (canvasInstance) {
+                    canvasInstance.setDimensions({
+                        width: LAYOUT.WIDTH * sc,
+                        height: LAYOUT.HEIGHT * sc
+                    });
+                    canvasInstance.setZoom(sc);
+                    canvasInstance.calcOffset();
+                    canvasInstance.requestRenderAll();
+                }
             }
         };
         updateScale();
         window.addEventListener('resize', updateScale);
         return () => window.removeEventListener('resize', updateScale);
-    }, [compact]);
+    }, [compact, canvasInstance]);
+
 
     // 1. Template SVG/PDF Loading
     useEffect(() => {
@@ -130,13 +140,94 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
         if (!canvas) return;
 
         const templateId = design.templateId || '';
-        const isCustomTemplate = templateId.startsWith('custom-');
         const templateConfig = dynamicTemplates.find(t => t.id === templateId);
-        // Clear old template objects
-        canvas.getObjects().forEach(obj => { if ((obj as any).name?.startsWith('template_')) canvas.remove(obj); });
 
-        if (templateConfig?.svgPath) {
-            if (templateConfig.svgPath.toLowerCase().endsWith('.pdf')) {
+        // Clear old template objects
+        canvas.getObjects().forEach(obj => {
+            if ((obj as any).name?.startsWith('template_')) canvas.remove(obj);
+        });
+
+        if (templateConfig) {
+            const renderTemplate = (comps: any, isSvgFallback: boolean = false, svgText?: string) => {
+                const { WIDTH, HEIGHT } = LAYOUT;
+                const hasExtText = !!comps?.text;
+
+                let vbX = 0, vbY = 0, vbW = WIDTH, vbH = HEIGHT;
+                if (comps?.originalViewBox) {
+                    [vbX, vbY, vbW, vbH] = comps.originalViewBox;
+                } else if (isSvgFallback && svgText) {
+                    const vbMatch = svgText.match(/viewBox=["']([^"']+)["']/i);
+                    if (vbMatch) [vbX, vbY, vbW, vbH] = vbMatch[1].split(/[\s,]+/).map(Number);
+                }
+
+                const sc = Math.min(WIDTH / vbW, HEIGHT / vbH);
+                const ox = (WIDTH - vbW * sc) / 2;
+                const oy = (HEIGHT - vbH * sc) / 2;
+
+                const renderText = () => {
+                    if (hasExtText && comps.text) {
+                        comps.text.forEach((c: any, j: number) => {
+                            const txt = new fabric.Textbox(c.text, {
+                                left: (c.left - vbX) * sc + ox,
+                                top: (c.top - vbY) * sc + oy,
+                                fontSize: (c.fontSize || 40) * sc,
+                                fontFamily: c.fontFamily || 'Arial',
+                                textAlign: c.textAlign || 'left',
+                                fill: c.fill || '#000',
+                                width: (c.width || (vbW * 0.8)) * sc,
+                                selectable: true,
+                                evented: true,
+                                name: j === 0 ? 'template_company' : 'template_svg_text',
+                                splitByGrapheme: false
+                            });
+                            canvas.add(txt);
+                            txt.bringToFront();
+                        });
+                    }
+                    updateTemplateContent();
+                };
+
+                if (comps?.backgroundObjects && comps.backgroundObjects.length > 0) {
+                    const svgInner = comps.backgroundObjects.map((obj: any) => `<${obj.type} ${obj.attributes} />`).join('');
+                    const svgFull = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}">${svgInner}</svg>`;
+                    fabric.loadSVGFromString(svgFull, (objs) => {
+                        objs.forEach(obj => {
+                            (obj as any).name = 'template_svg_background_object';
+                            obj.set({
+                                selectable: true,
+                                evented: true,
+                                left: (obj.left || 0) * sc + ox,
+                                top: (obj.top || 0) * sc + oy,
+                                scaleX: sc,
+                                scaleY: sc
+                            });
+                            canvas.add(obj);
+                        });
+                        renderText();
+                    });
+                } else if (isSvgFallback && svgText) {
+                    fabric.loadSVGFromString(svgText, (objs) => {
+                        objs.forEach(obj => {
+                            if (hasExtText && (obj.type?.includes('text') || obj.type === 'tspan')) return;
+                            (obj as any).name = 'template_svg_background_object';
+                            obj.set({
+                                selectable: true,
+                                evented: true,
+                                left: (obj.left || 0) * sc + ox,
+                                top: (obj.top || 0) * sc + oy,
+                                scaleX: sc,
+                                scaleY: sc
+                            });
+                            canvas.add(obj);
+                        });
+                        renderText();
+                    });
+                } else {
+                    renderText();
+                }
+            };
+
+            if (templateConfig.svgPath?.toLowerCase().endsWith('.pdf')) {
                 import('pdfjs-dist').then(async (pdfjsLib) => {
                     pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
                     const loadingTask = pdfjsLib.getDocument(templateConfig.svgPath!);
@@ -144,68 +235,35 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
                     const page = await pdf.getPage(1);
                     const viewport = page.getViewport({ scale: 2.0 });
                     const canvasEl = document.createElement('canvas');
-                    canvasEl.height = viewport.height; canvasEl.width = viewport.width;
-                    await page.render({ canvasContext: canvasEl.getContext('2d')!, viewport }).promise;
+                    canvasEl.height = viewport.height;
+                    canvasEl.width = viewport.width;
+                    await page.render({ canvasContext: canvasEl.getContext('2d')!, viewport, canvas: canvasEl }).promise;
                     fabric.Image.fromURL(canvasEl.toDataURL(), (img) => {
                         const sc = Math.min(LAYOUT.WIDTH / img.width!, LAYOUT.HEIGHT / img.height!);
-                        img.set({ left: LAYOUT.WIDTH / 2, top: LAYOUT.HEIGHT / 2, originX: 'center', originY: 'center', scaleX: sc, scaleY: sc, selectable: false, evented: false, name: 'template_pdf_background' });
-                        canvas.add(img); canvas.sendToBack(img);
+                        img.set({
+                            left: LAYOUT.WIDTH / 2,
+                            top: LAYOUT.HEIGHT / 2,
+                            originX: 'center',
+                            originY: 'center',
+                            scaleX: sc,
+                            scaleY: sc,
+                            selectable: false,
+                            evented: false,
+                            name: 'template_pdf_background'
+                        });
+                        canvas.add(img);
+                        canvas.sendToBack(img);
                         updateTemplateContent();
                     });
+                });
+            } else if ((templateConfig.components as any)?.backgroundObjects || templateConfig.components?.text) {
+                renderTemplate(templateConfig.components);
+            } else if (templateConfig.svgPath) {
+                fetch(templateConfig.svgPath).then(r => r.text()).then(svgText => {
+                    renderTemplate(templateConfig.components, true, svgText);
                 });
             } else {
-                fetch(templateConfig.svgPath!).then(r => r.text()).then(svgText => {
-                    fabric.loadSVGFromString(svgText, (objs, options) => {
-                        const { WIDTH, HEIGHT } = LAYOUT;
-                        const comps = templateConfig.components as any;
-                        const hasExtText = !!comps?.text;
-
-                        const vbRaw = options.viewBox;
-                        let vbW = WIDTH, vbH = HEIGHT, vbX = 0, vbY = 0;
-
-                        if (comps?.originalViewBox) {
-                            [vbX, vbY, vbW, vbH] = comps.originalViewBox;
-                        } else if (Array.isArray(vbRaw) && (vbRaw as any[]).length >= 4) {
-                            [vbX, vbY, vbW, vbH] = vbRaw;
-                        }
-
-                        const sc = Math.min(WIDTH / vbW, HEIGHT / vbH);
-                        const ox = (WIDTH - vbW * sc) / 2;
-                        const oy = (HEIGHT - vbH * sc) / 2;
-
-                        objs.forEach((obj, i) => {
-                            if (hasExtText && (obj.type?.includes('text') || obj.type === 'tspan')) return;
-                            (obj as any).name = 'template_svg_background_object';
-                            obj.set({
-                                selectable: true, evented: true,
-                                scaleX: sc, scaleY: sc,
-                                left: ((obj.left || 0) - vbX) * sc + ox,
-                                top: ((obj.top || 0) - vbY) * sc + oy
-                            });
-                            canvas.add(obj);
-                        });
-
-                        if (hasExtText && comps.text) {
-                            comps.text.forEach((c: any, j: number) => {
-                                const txt = new fabric.Textbox(c.text, {
-                                    left: (c.left - vbX) * sc + ox,
-                                    top: (c.top - vbY) * sc + oy,
-                                    fontSize: (c.fontSize || 40) * sc,
-                                    fontFamily: c.fontFamily || 'Arial',
-                                    textAlign: c.textAlign || 'left',
-                                    fill: c.fill || '#000',
-                                    width: (c.width || (vbW * 0.8)) * sc,
-                                    selectable: true, evented: true,
-                                    name: j === 0 ? 'template_company' : 'template_svg_text',
-                                    splitByGrapheme: false
-                                });
-                                canvas.add(txt);
-                                txt.bringToFront();
-                            });
-                        }
-                        updateTemplateContent();
-                    });
-                });
+                updateTemplateContent();
             }
         } else {
             updateTemplateContent();
@@ -213,7 +271,7 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
     }, [design.templateId, dynamicTemplates]);
 
     // 2. Data & Style Sync (Updates without re-adding)
-    const updateTemplateContent = () => {
+    function updateTemplateContent() {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
 
@@ -335,7 +393,7 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
             initCanvasEvents(canvas);
             canvas.requestRenderAll();
         }
-    };
+    }
 
     useEffect(() => {
         updateTemplateContent();
@@ -477,212 +535,6 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
         if (onAddImage) onAddImage(addImageToCanvas);
     }, []);
 
-    // --- CORE RENDERING LOGIC ---
-
-    function renderLayout(canvas: fabric.Canvas, data: SignageData, design: DesignConfig, logoImg: fabric.Image | null) {
-        const { WIDTH, HEIGHT } = LAYOUT;
-        const templateConfig = dynamicTemplates.find(t => t.id === design.templateId);
-        canvas.getObjects().forEach(obj => { if ((obj as any).name?.startsWith('template_')) canvas.remove(obj); });
-
-        if (templateConfig?.svgPath) {
-            if (templateConfig.svgPath.toLowerCase().endsWith('.pdf')) {
-                import('pdfjs-dist').then(async (pdfjsLib) => {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-                    const loadingTask = pdfjsLib.getDocument(templateConfig.svgPath!);
-                    const pdf = await loadingTask.promise;
-                    const page = await pdf.getPage(1);
-                    const viewport = page.getViewport({ scale: 2.0 });
-                    const canvasEl = document.createElement('canvas');
-                    canvasEl.height = viewport.height; canvasEl.width = viewport.width;
-                    await page.render({ canvasContext: canvasEl.getContext('2d')!, viewport }).promise;
-                    fabric.Image.fromURL(canvasEl.toDataURL(), (img) => {
-                        const sc = Math.min(WIDTH / img.width!, HEIGHT / img.height!);
-                        img.set({ left: WIDTH / 2, top: HEIGHT / 2, originX: 'center', originY: 'center', scaleX: sc, scaleY: sc, selectable: false, evented: false, name: 'template_pdf_background' });
-                        canvas.add(img); canvas.sendToBack(img);
-                        renderTemplateText(canvas, data, design, logoImg, templateConfig);
-                    });
-                });
-            } else {
-                fetch(templateConfig.svgPath!).then(r => r.text()).then(svgText => {
-                    fabric.loadSVGFromString(svgText, (objs, options) => {
-                        const comps = templateConfig.components as any;
-                        const hasExtText = !!comps?.text;
-
-
-                        // 0. Inject Background Objects from JSON if present
-                        if (comps?.backgroundObjects && Array.isArray(comps.backgroundObjects)) {
-                            comps.backgroundObjects.forEach((bo: any) => {
-                                let fabricObj: fabric.Object | null = null;
-                                const style = { ...bo.styles };
-
-                                // Map keys
-                                if (style['stroke-width']) { style.strokeWidth = parseFloat(style['stroke-width']); delete style['stroke-width']; }
-                                if (style.x !== undefined) { style.left = parseFloat(style.x); delete style.x; }
-                                if (style.y !== undefined) { style.top = parseFloat(style.y); delete style.y; }
-                                if (style.width !== undefined) { style.width = parseFloat(style.width); }
-                                if (style.height !== undefined) { style.height = parseFloat(style.height); }
-                                if (style.rx !== undefined) { style.rx = parseFloat(style.rx); }
-                                if (style.ry !== undefined) { style.ry = parseFloat(style.ry); }
-
-                                if (style.fill === 'none') style.fill = 'transparent';
-
-                                if (bo.type === 'path' && style.d) {
-                                    fabricObj = new fabric.Path(style.d, { ...style });
-                                } else if (bo.type === 'rect') {
-                                    fabricObj = new fabric.Rect({ ...style });
-                                }
-
-                                if (fabricObj) {
-                                    (fabricObj as any).id = 'json_bg_obj';
-                                    objs.push(fabricObj);
-                                }
-                            });
-                        }
-
-                        // Use groupSVGElements to preserve relative layout
-                        const group = fabric.util.groupSVGElements(objs, options);
-
-                        // 1. Get ViewBox and Scale (trusting document layout)
-                        const vbRaw = options.viewBox;
-                        let vbW = WIDTH, vbH = HEIGHT, vbX = 0, vbY = 0;
-
-                        if (comps?.originalViewBox) {
-                            vbX = comps.originalViewBox[0];
-                            vbY = comps.originalViewBox[1];
-                            vbW = comps.originalViewBox[2];
-                            vbH = comps.originalViewBox[3];
-                        } else if (Array.isArray(vbRaw) && (vbRaw as any[]).length >= 4) {
-                            vbX = vbRaw[0]; vbY = vbRaw[1]; vbW = vbRaw[2]; vbH = vbRaw[3];
-                        } else if (vbRaw && typeof vbRaw === 'object') {
-                            vbX = (vbRaw as any).x ?? (vbRaw as any).minX ?? 0;
-                            vbY = (vbRaw as any).y ?? (vbRaw as any).minY ?? 0;
-                            vbW = (vbRaw as any).width ?? WIDTH;
-                            vbH = (vbRaw as any).height ?? HEIGHT;
-                        } else {
-                            vbW = options.width || WIDTH;
-                            vbH = options.height || HEIGHT;
-                        }
-
-                        // Scaling factors to fit the 1800x1200 canvas
-                        const sc = Math.min(WIDTH / vbW, HEIGHT / vbH);
-                        const ox = (WIDTH - vbW * sc) / 2;
-                        const oy = (HEIGHT - vbH * sc) / 2;
-
-                        // Correctly position the Group relative to the ViewBox
-                        group.set({ originX: 'left', originY: 'top' });
-                        const groupSvgLeft = group.left || 0;
-                        const groupSvgTop = group.top || 0;
-
-                        group.set({
-                            left: ox + (groupSvgLeft - vbX) * sc,
-                            top: oy + (groupSvgTop - vbY) * sc,
-                            scaleX: sc,
-                            scaleY: sc,
-                            selectable: false,
-                            evented: false,
-                            name: 'template_svg_group'
-                        });
-
-                        canvas.add(group);
-                        canvas.sendToBack(group); // Send group to back
-
-                        // 3. Render External Text (still manual because it's dynamic)
-                        if (hasExtText && comps.text) {
-                            // Valid ViewBox for text positioning relative to the original SVG coordinate space
-                            const vbRaw = options.viewBox;
-                            let vbX = 0, vbY = 0, vbW = options.width || WIDTH, vbH = options.height || HEIGHT;
-
-                            if (Array.isArray(vbRaw) && vbRaw.length === 4) {
-                                [vbX, vbY, vbW, vbH] = vbRaw;
-                            } else if (vbRaw && typeof vbRaw === 'object') {
-                                vbX = (vbRaw as any).x || 0; vbY = (vbRaw as any).y || 0;
-                                vbW = (vbRaw as any).width || WIDTH; vbH = (vbRaw as any).height || HEIGHT;
-                            }
-
-
-                            // Text positioning must also respect the ViewBox on canvas (ox, oy)
-                            comps.text.forEach((c: any, j: number) => {
-                                const scaledWidth = (c.width || (vbW * 0.8)) * sc;
-                                const txt = new fabric.Textbox(c.text, {
-                                    left: ox + (c.left - vbX) * sc,
-                                    top: oy + (c.top - vbY) * sc,
-                                    fontSize: (c.fontSize || 40) * sc,
-                                    fontFamily: c.fontFamily || 'Arial',
-                                    textAlign: c.textAlign || 'left',
-                                    fill: c.fill || '#000',
-                                    width: scaledWidth,
-                                    selectable: true,
-                                    evented: true,
-                                    name: j === 0 ? 'template_company' : 'template_svg_text',
-                                    splitByGrapheme: false
-                                });
-                                shrinkToFit(txt, (vbW * 0.9) * sc);
-                                canvas.add(txt);
-                                txt.bringToFront();
-                            });
-                        }
-                        renderTemplateText(canvas, data, design, logoImg, templateConfig);
-                    });
-                });
-            }
-        } else {
-            renderTemplateText(canvas, data, design, logoImg, templateConfig);
-        }
-    }
-
-    function renderTemplateText(canvas: fabric.Canvas, data: SignageData, design: DesignConfig, logoImg: fabric.Image | null, templateConfig?: any) {
-        const { WIDTH, PADDING, LOGO_MB, COMPANY_MB, DETAILS_GAP } = LAYOUT;
-        const safetyInset = 25, maxWidth = WIDTH - (safetyInset * 2);
-        const existing = canvas.getObjects();
-
-        // 1. Logo
-        let logo = existing.find(o => (o as any).name === 'template_logo') as fabric.Image;
-        if (data.logoUrl && logoImg) {
-            if (logo) logo.set({ ...logoImg.toObject(), name: 'template_logo' }); else { logoImg.set({ name: 'template_logo' }); canvas.add(logoImg); logo = logoImg; }
-        } else if (logo) canvas.remove(logo);
-
-        // 2. Company Name
-        let compTxt = existing.find(o => (o as any).name === 'template_company') as fabric.Textbox;
-        if (data.companyName) {
-            const fontS = design.companyNameSize || (templateConfig?.svgPath ? 80 : 120);
-            const content = String(data.companyName).toUpperCase();
-            if (compTxt) compTxt.set({ text: content, fontSize: fontS, fontFamily: design.fontFamily || 'Arial', fill: design.textColor || (templateConfig?.svgPath ? '#000' : '#FFF') });
-            else { compTxt = new fabric.Textbox(content, { width: maxWidth, fontSize: fontS, fontFamily: design.fontFamily || 'Arial', fontWeight: 'bold', fill: design.textColor || (templateConfig?.svgPath ? '#000' : '#FFF'), textAlign: 'center', originX: 'center', editable: true, name: 'template_company' }); canvas.add(compTxt); }
-            shrinkToFit(compTxt, maxWidth);
-        } else if (compTxt) canvas.remove(compTxt);
-
-        // 3. Details
-        const details = [];
-        if (data.gstin || data.cin) details.push({ text: `GSTIN: ${data.gstin || ''}${data.cin ? ' | CIN: ' + data.cin : ''}` });
-        if (data.address) details.push({ text: `Address:\n${data.address}` });
-        if (data.mobile) details.push({ text: `Contact: ${data.mobile}` });
-
-        const oldDetails = existing.filter(o => (o as any).name === 'template_details') as fabric.Textbox[];
-        oldDetails.slice(details.length).forEach(o => canvas.remove(o));
-        details.forEach((d, i) => {
-            let t = oldDetails[i];
-            if (t) t.set({ text: d.text, fill: design.textColor || (templateConfig?.svgPath ? '#000' : '#FFF') });
-            else { t = new fabric.Textbox(d.text, { width: maxWidth, fontSize: 30, textAlign: 'center', originX: 'center', editable: true, name: 'template_details', fill: design.textColor || (templateConfig?.svgPath ? '#000' : '#FFF') }); canvas.add(t); }
-            shrinkToFit(t, maxWidth);
-        });
-
-        // Positioning logic (Only for standard templates)
-        if (!templateConfig?.isCustom) {
-            let curY = PADDING + 50;
-            const allT = [logo, compTxt, ...canvas.getObjects().filter(o => (o as any).name === 'template_details')].filter(Boolean);
-            allT.forEach((obj: any) => {
-                obj.set({ left: WIDTH / 2, top: curY, originY: 'top' });
-                curY += obj.getScaledHeight() + (obj.name === 'template_logo' ? LOGO_MB : obj.name === 'template_company' ? COMPANY_MB : DETAILS_GAP);
-                obj.setCoords();
-            });
-        } else {
-            // For custom templates, just ensure they have coords updated
-            canvas.getObjects().forEach(o => o.setCoords());
-        }
-
-        initCanvasEvents(canvas);
-        canvas.requestRenderAll();
-    }
 
     function shrinkToFit(textbox: fabric.Textbox, maxWidth: number) {
         const ctx = textbox.canvas?.getContext() || document.createElement('canvas').getContext('2d');
@@ -707,7 +559,7 @@ export function FabricPreview({ data, design, material = 'flex', onMount, onDesi
     }
 
     function initCanvasEvents(canvas: fabric.Canvas) {
-        initAligningGuidelines(canvas);
+        // initAligningGuidelines(canvas);
         canvas.on('selection:created', (e) => setSelectedObject(e.selected?.[0] || null));
         canvas.on('selection:updated', (e) => setSelectedObject(e.selected?.[0] || null));
         canvas.on('selection:cleared', () => setSelectedObject(null));

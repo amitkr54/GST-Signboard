@@ -644,6 +644,12 @@ export async function uploadTemplate(formData: FormData) {
                     if (m) { x = parseFloat(m[1]); y = parseFloat(m[2]); w = 10; h = 10; }
                 }
 
+                // Store calculated position in the object
+                o.left = x;
+                o.top = y;
+                o.width = w;
+                o.height = h;
+
                 if (!isNaN(x)) {
                     minX = Math.min(minX, x);
                     maxX = Math.max(maxX, x + w);
