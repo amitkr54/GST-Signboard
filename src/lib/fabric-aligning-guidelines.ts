@@ -5,13 +5,9 @@ import { fabric } from 'fabric';
  * This adds event listeners to show dashed lines when objects align.
  */
 export function initAligningGuidelines(canvas: fabric.Canvas) {
-    const ctx = canvas.getSelectionContext();
     const aligningLineOffset = 5;
-    const aligningLineMargin = 4;
-    const aligningLineWidth = 2; // Thicker line for better visibility
-    const aligningLineColor = '#eb2416ff'; // Canva-like orange/red color
-    const viewportTransform = canvas.viewportTransform;
-    const zoom = canvas.getZoom();
+    const aligningLineWidth = 1;
+    const aligningLineColor = '#ff00ff'; // Canva magenta
 
     let verticalLines: { x: number; y1: number; y2: number }[] = [];
     let horizontalLines: { y: number; x1: number; x2: number }[] = [];
@@ -33,8 +29,6 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         const activeObject = e.target;
         const canvasObjects = canvas.getObjects();
         const activeObjectCenter = activeObject.getCenterPoint();
-        const activeObjectWidth = activeObject.getScaledWidth();
-        const activeObjectHeight = activeObject.getScaledHeight();
         const activeObjectBoundingRect = activeObject.getBoundingRect();
 
         // @ts-ignore
@@ -44,205 +38,132 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         verticalLines = [];
         horizontalLines = [];
 
-        // It's important to use the bounding rect for snapping to edges
-        // But for center snapping, we use center points
-
         const activeObjectLeft = activeObjectBoundingRect.left;
         const activeObjectRight = activeObjectBoundingRect.left + activeObjectBoundingRect.width;
         const activeObjectTop = activeObjectBoundingRect.top;
         const activeObjectBottom = activeObjectBoundingRect.top + activeObjectBoundingRect.height;
+        const activeObjectCenterX = activeObjectCenter.x;
+        const activeObjectCenterY = activeObjectCenter.y;
 
-        // Snap threshold
-        const snappingDistance = 10;
+        // Dynamic snap threshold: 4 physical pixels on screen
+        const zoom = canvas.getZoom();
+        const snappingDistance = 4 / zoom;
 
-        let isInVerticalCenter = false;
-        let isInHorizontalCenter = false;
+        const canvasWidth = canvas.width! / zoom;
+        const canvasHeight = canvas.height! / zoom;
 
-        const canvasWidth = canvas.width || 0;
-        const canvasHeight = canvas.height || 0;
+        // Potential Snapping Points
+        let bestSnapX: { snapTo: number; value: number; type: 'left' | 'center' | 'right' } | null = null;
+        let bestSnapY: { snapTo: number; value: number; type: 'top' | 'center' | 'bottom' } | null = null;
 
-        // SNAP TO CANVAS CENTER (Vertical)
-        if (Math.abs(activeObjectCenter.x - canvasWidth / 2) < snappingDistance) {
-            activeObject.set({ left: canvasWidth / 2 });
-            activeObject.setCoords();
-            verticalLines.push({
-                x: canvasWidth / 2,
-                y1: 0,
-                y2: canvasHeight
-            });
-            isInVerticalCenter = true;
+        function updateBestX(snapTo: number, value: number, type: any) {
+            const dist = Math.abs(snapTo - value);
+            if (dist < snappingDistance) {
+                if (!bestSnapX || dist < Math.abs(bestSnapX.snapTo - bestSnapX.value)) {
+                    bestSnapX = { snapTo, value, type };
+                }
+            }
         }
 
-        // SNAP TO CANVAS CENTER (Horizontal)
-        if (Math.abs(activeObjectCenter.y - canvasHeight / 2) < snappingDistance) {
-            activeObject.set({ top: canvasHeight / 2 });
-            activeObject.setCoords();
-            horizontalLines.push({
-                y: canvasHeight / 2,
-                x1: 0,
-                x2: canvasWidth
-            });
-            isInHorizontalCenter = true;
+        function updateBestY(snapTo: number, value: number, type: any) {
+            const dist = Math.abs(snapTo - value);
+            if (dist < snappingDistance) {
+                if (!bestSnapY || dist < Math.abs(bestSnapY.snapTo - bestSnapY.value)) {
+                    bestSnapY = { snapTo, value, type };
+                }
+            }
         }
 
-        // Traverse all objects
+        // 1. Snap to Canvas Center
+        updateBestX(canvasWidth / 2, activeObjectCenterX, 'center');
+        updateBestY(canvasHeight / 2, activeObjectCenterY, 'center');
+
+        // 2. Snap to other objects
         for (let i = canvasObjects.length; i--;) {
-            // @ts-ignore
-            const targetObj = canvasObjects[i];
-            if (targetObj === activeObject || !targetObj.visible ||
-                targetObj.name === 'background' ||
-                targetObj.name === 'safetyGuide' ||
-                targetObj.name === 'template_svg_group' ||
-                targetObj.name === 'template_pdf_background') continue;
+            const object = canvasObjects[i];
+            if (object === activeObject || !object.visible ||
+                object.name === 'background' ||
+                object.name?.includes('template_')) continue;
 
-            const object = targetObj;
-            const objectCenter = object.getCenterPoint();
-            const objectBoundingRect = object.getBoundingRect();
+            const br = object.getBoundingRect();
+            const center = object.getCenterPoint();
 
-            const objectLeft = objectBoundingRect.left;
-            const objectRight = objectBoundingRect.left + objectBoundingRect.width;
-            const objectTop = objectBoundingRect.top;
-            const objectBottom = objectBoundingRect.top + objectBoundingRect.height;
+            // X-axis Snapping
+            updateBestX(center.x, activeObjectCenterX, 'center');
+            updateBestX(br.left, activeObjectLeft, 'left');
+            updateBestX(br.left + br.width, activeObjectRight, 'right');
+            updateBestX(br.left, activeObjectCenterX, 'center'); // Edge to center
+            updateBestX(br.left + br.width, activeObjectCenterX, 'center');
 
-            // SNAP VERTICAL (X-axis alignment)
+            // Y-axis Snapping
+            updateBestY(center.y, activeObjectCenterY, 'center');
+            updateBestY(br.top, activeObjectTop, 'top');
+            updateBestY(br.top + br.height, activeObjectBottom, 'bottom');
+            updateBestY(br.top, activeObjectCenterY, 'center');
+            updateBestY(br.top + br.height, activeObjectCenterY, 'center');
+        }
 
-            // 1. Center to Center
-            if (Math.abs(activeObjectCenter.x - objectCenter.x) < snappingDistance) {
-                activeObject.setPositionByOrigin(
-                    new fabric.Point(objectCenter.x, activeObjectCenter.y),
-                    'center',
-                    'center'
-                );
-                verticalLines.push({
-                    x: objectCenter.x,
-                    y1: Math.min(activeObjectTop, objectTop) - aligningLineOffset,
-                    y2: Math.max(activeObjectBottom, objectBottom) + aligningLineOffset
-                });
-                isInVerticalCenter = true;
+        // Apply best snaps
+        if (bestSnapX) {
+            let newLeft = activeObject.left!;
+            if (bestSnapX.type === 'center') {
+                // If snapping center, we need to adjust based on where the center is relative to left
+                const offsetX = activeObjectCenterX - activeObject.left!;
+                newLeft = bestSnapX.snapTo - offsetX;
+            } else if (bestSnapX.type === 'left') {
+                newLeft = bestSnapX.snapTo;
+            } else if (bestSnapX.type === 'right') {
+                newLeft = bestSnapX.snapTo - activeObjectBoundingRect.width;
             }
+            activeObject.set({ left: newLeft });
+            verticalLines.push({ x: bestSnapX.snapTo, y1: 0, y2: canvasHeight });
+        }
 
-            // 2. Left to Left
-            if (Math.abs(activeObjectLeft - objectLeft) < snappingDistance) {
-                activeObject.setPositionByOrigin(
-                    new fabric.Point(objectLeft + activeObjectWidth / 2 + (activeObjectCenter.x - activeObjectLeft), activeObjectCenter.y),
-                    'center',
-                    'center'
-                );
-                // Recalculate after snap
-                const newLeft = objectLeft;
-                activeObject.set({ left: newLeft });
-                verticalLines.push({
-                    x: objectLeft,
-                    y1: Math.min(activeObjectTop, objectTop) - aligningLineOffset,
-                    y2: Math.max(activeObjectBottom, objectBottom) + aligningLineOffset
-                });
+        if (bestSnapY) {
+            let newTop = activeObject.top!;
+            if (bestSnapY.type === 'center') {
+                const offsetY = activeObjectCenterY - activeObject.top!;
+                newTop = bestSnapY.snapTo - offsetY;
+            } else if (bestSnapY.type === 'top') {
+                newTop = bestSnapY.snapTo;
+            } else if (bestSnapY.type === 'bottom') {
+                newTop = bestSnapY.snapTo - activeObjectBoundingRect.height;
             }
+            activeObject.set({ top: newTop });
+            horizontalLines.push({ y: bestSnapY.snapTo, x1: 0, x2: canvasWidth });
+        }
 
-            // 3. Right to Right
-            if (Math.abs(activeObjectRight - objectRight) < snappingDistance) {
-                verticalLines.push({
-                    x: objectRight,
-                    y1: Math.min(activeObjectTop, objectTop) - aligningLineOffset,
-                    y2: Math.max(activeObjectBottom, objectBottom) + aligningLineOffset
-                });
-                activeObject.set({ left: objectRight - activeObjectBoundingRect.width });
-            }
-
-
-            // SNAP HORIZONTAL (Y-axis alignment)
-
-            // 1. Center to Center
-            if (Math.abs(activeObjectCenter.y - objectCenter.y) < snappingDistance) {
-                activeObject.setPositionByOrigin(
-                    new fabric.Point(activeObjectCenter.x, objectCenter.y),
-                    'center',
-                    'center'
-                );
-                horizontalLines.push({
-                    y: objectCenter.y,
-                    x1: Math.min(activeObjectLeft, objectLeft) - aligningLineOffset,
-                    x2: Math.max(activeObjectRight, objectRight) + aligningLineOffset
-                });
-                isInHorizontalCenter = true;
-            }
-
-            // 2. Top to Top
-            if (Math.abs(activeObjectTop - objectTop) < snappingDistance) {
-                activeObject.setPositionByOrigin(
-                    new fabric.Point(activeObjectCenter.x, objectTop + activeObjectHeight / 2 - (activeObjectCenter.y - activeObjectTop)),
-                    'center',
-                    'center'
-                );
-                activeObject.set({ top: objectTop });
-                horizontalLines.push({
-                    y: objectTop,
-                    x1: Math.min(activeObjectLeft, objectLeft) - aligningLineOffset,
-                    x2: Math.max(activeObjectRight, objectRight) + aligningLineOffset
-                });
-            }
-
-            // 3. Bottom to Bottom
-            if (Math.abs(activeObjectBottom - objectBottom) < snappingDistance) {
-                activeObject.setPositionByOrigin(
-                    new fabric.Point(activeObjectCenter.x, objectBottom - activeObjectHeight / 2 - (activeObjectBottom - activeObjectCenter.y)),
-                    'center',
-                    'center'
-                );
-                activeObject.set({ top: objectBottom - activeObjectBoundingRect.height });
-                horizontalLines.push({
-                    y: objectBottom,
-                    x1: Math.min(activeObjectLeft, objectLeft) - aligningLineOffset,
-                    x2: Math.max(activeObjectRight, objectRight) + aligningLineOffset
-                });
-            }
+        if (bestSnapX || bestSnapY) {
+            activeObject.setCoords();
         }
     });
 
     canvas.on('after:render', () => {
         // @ts-ignore
-        if (!canvas.contextTop) return;
-
-        // @ts-ignore
         const ctx = canvas.contextTop;
+        if (!ctx) return;
 
         // @ts-ignore
-        canvas.clearContext(canvas.contextTop);
+        canvas.clearContext(ctx);
 
         ctx.save();
         ctx.lineWidth = aligningLineWidth;
         ctx.strokeStyle = aligningLineColor;
-        ctx.setLineDash([8, 8]); // Dashed line
+        ctx.setLineDash([4, 4]);
         ctx.beginPath();
 
-        // Draw vertical lines
-        for (let i = verticalLines.length; i--;) {
-            const line = verticalLines[i];
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
 
-            // Convert canvas coordinates to viewport coordinates
-            // This is crucial because contextTop sits above the canvas and isn't transformed by viewportTransform automatically in the same way for custom drawing sometimes, 
-            // BUT usually after:render is in the transformed context? 
-            // Actually, contextTop is the upper canvas. We need to draw in canvas coordinates but transformed.
-            // Fabric's drawing usually handles this if we use the main context, but contextTop is overlay.
-
-            // Let's try drawing directly using fabric's coordinate system transform
-            const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-
+        for (const line of verticalLines) {
             const origin = fabric.util.transformPoint(new fabric.Point(line.x, line.y1), vpt);
             const end = fabric.util.transformPoint(new fabric.Point(line.x, line.y2), vpt);
-
             ctx.moveTo(origin.x, origin.y);
             ctx.lineTo(end.x, end.y);
         }
 
-        // Draw horizontal lines
-        for (let i = horizontalLines.length; i--;) {
-            const line = horizontalLines[i];
-
-            const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-
+        for (const line of horizontalLines) {
             const origin = fabric.util.transformPoint(new fabric.Point(line.x1, line.y), vpt);
             const end = fabric.util.transformPoint(new fabric.Point(line.x2, line.y), vpt);
-
             ctx.moveTo(origin.x, origin.y);
             ctx.lineTo(end.x, end.y);
         }

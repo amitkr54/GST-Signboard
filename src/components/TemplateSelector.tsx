@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { TEMPLATES } from '@/lib/templates';
-import { TemplateId, Template } from '@/lib/types';
+import { TEMPLATES, Template } from '@/lib/templates';
+import { TemplateId } from '@/lib/types';
 import { Check } from 'lucide-react';
 import { getTemplates } from '@/app/actions';
 
 interface TemplateSelectorProps {
-    selectedTemplateId: TemplateId;
+    selectedTemplateId: TemplateId | undefined;
     onSelect: (id: TemplateId) => void;
 }
 

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft } from 'lucide-react';
+import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft, Palette, Download, X } from 'lucide-react';
 import { TemplateSelector } from './TemplateSelector';
-import { TemplateId } from '@/lib/types';
+import { TemplateId, DesignConfig } from '@/lib/types';
 import { Button } from './ui/Button';
 
 // Reusing icons from DesignSidebar
@@ -19,9 +19,14 @@ interface EditorSidebarProps {
     onAddIcon: (iconName: string) => void;
     onAddShape: (type: 'rect' | 'circle' | 'line' | 'triangle') => void;
     onAddImage: (imageUrl: string) => void;
+
+    // Design Controls Props
+    design: DesignConfig;
+    onDesignChange: (design: DesignConfig) => void;
+    onDownload: (format: 'svg' | 'pdf') => void;
 }
 
-type TabType = 'templates' | 'text' | 'elements' | 'uploads';
+type TabType = 'templates' | 'text' | 'elements' | 'uploads' | 'design';
 
 const ICONS = [
     { name: 'phone', icon: Phone, label: 'Phone' },
@@ -42,14 +47,18 @@ export function EditorSidebar({
     onAddText,
     onAddIcon,
     onAddShape,
-    onAddImage
+    onAddImage,
+    design,
+    onDesignChange,
+    onDownload
 }: EditorSidebarProps) {
-    const [activeTab, setActiveTab] = useState<TabType | null>('templates');
+    const [activeTab, setActiveTab] = useState<TabType | null>(null);
     const [uploadedImages, setUploadedImages] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const tabs = [
         { id: 'templates' as TabType, icon: Layout, label: 'Templates' },
+        { id: 'design' as TabType, icon: Palette, label: 'Design' },
         { id: 'text' as TabType, icon: Type, label: 'Text' },
         { id: 'elements' as TabType, icon: Grid3X3, label: 'Elements' },
         { id: 'uploads' as TabType, icon: Upload, label: 'Uploads' },
@@ -75,10 +84,10 @@ export function EditorSidebar({
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                        onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
                         className={`w-14 h-14 flex flex-col items-center justify-center rounded-lg transition-all duration-200 group ${activeTab === tab.id
-                                ? 'bg-slate-800 text-white'
-                                : 'hover:bg-slate-800/50 hover:text-slate-200'
+                            ? 'bg-slate-800 text-white'
+                            : 'hover:bg-slate-800/50 hover:text-slate-200'
                             }`}
                         title={tab.label}
                     >
@@ -90,34 +99,116 @@ export function EditorSidebar({
 
             {/* 2. Side Panel Content Area */}
             {activeTab && (
-                <div className="w-[320px] bg-white border-r border-gray-200 flex flex-col h-full animate-slide-in-right">
-
+                <div className="w-[320px] bg-white border-r border-gray-200 flex flex-col h-full animate-in slide-in-from-left duration-200">
                     {/* Panel Header */}
                     <div className="h-14 px-4 border-b border-gray-100 flex items-center justify-between shrink-0">
                         <h2 className="font-bold text-gray-900 text-lg capitalize">{activeTab}</h2>
                         <button
                             onClick={() => setActiveTab(null)}
-                            className="p-1 hover:bg-gray-100 rounded-full md:hidden"
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
                         >
-                            <ChevronLeft className="w-5 h-5 text-gray-500" />
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
                     {/* Scrollable Content */}
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-
-                        {/* TEMPLATES PANEL */}
                         {activeTab === 'templates' && (
                             <div className="space-y-4">
                                 <p className="text-sm text-gray-500">Choose a layout to start designed.</p>
                                 <TemplateSelector
                                     selectedTemplateId={selectedTemplateId}
-                                    onSelect={onSelectTemplate}
+                                    onSelect={(id) => {
+                                        onSelectTemplate(id);
+                                        // Auto-collapse on mobile, but maybe keep on desktop?
+                                        if (window.innerWidth < 1024) setActiveTab(null);
+                                    }}
                                 />
                             </div>
                         )}
 
-                        {/* TEXT PANEL */}
+                        {activeTab === 'design' && (
+                            <div className="space-y-6">
+                                <div className="space-y-4">
+                                    <p className="text-sm font-semibold text-gray-900">Signage Background</p>
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
+                                            <button
+                                                key={color}
+                                                onClick={() => onDesignChange({ ...design, backgroundColor: color })}
+                                                className={`aspect-square rounded-lg border-2 transition-all ${design.backgroundColor === color ? 'border-indigo-600 scale-110 shadow-sm' : 'border-transparent hover:border-gray-300'}`}
+                                                style={{ backgroundColor: color }}
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-3 pt-2">
+                                        <label className="text-xs font-medium text-gray-500">Custom Color:</label>
+                                        <input
+                                            type="color"
+                                            value={design.backgroundColor}
+                                            onChange={(e) => onDesignChange({ ...design, backgroundColor: e.target.value })}
+                                            className="w-10 h-8 rounded cursor-pointer border border-gray-200"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-semibold text-gray-900">Export Options</p>
+                                    <div className="grid gap-3">
+                                        <Button
+                                            onClick={() => onDownload('svg')}
+                                            className="w-full justify-start gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-none h-12"
+                                        >
+                                            <Download className="w-5 h-5 text-indigo-600" />
+                                            <div className="text-left">
+                                                <div className="text-sm font-bold">Download SVG</div>
+                                                <div className="text-[10px] text-gray-500 font-medium">For high quality printing</div>
+                                            </div>
+                                        </Button>
+
+                                        <Button
+                                            onClick={() => onDownload('pdf')}
+                                            className="w-full justify-start gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-none h-12"
+                                        >
+                                            <Download className="w-5 h-5 text-red-600" />
+                                            <div className="text-left">
+                                                <div className="text-sm font-bold">Download PDF</div>
+                                                <div className="text-[10px] text-gray-500 font-medium">Standard document format</div>
+                                            </div>
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-semibold text-gray-900">Advanced Controls</p>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="text-xs font-medium text-gray-500 mb-1 block">Company Name Size: {design.companyNameSize}px</label>
+                                            <input
+                                                type="range"
+                                                min="40"
+                                                max="300"
+                                                value={design.companyNameSize}
+                                                onChange={(e) => onDesignChange({ ...design, companyNameSize: parseInt(e.target.value) })}
+                                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-medium text-gray-500 mb-1 block">Logo Size: {design.logoSize}px</label>
+                                            <input
+                                                type="range"
+                                                min="50"
+                                                max="400"
+                                                value={design.logoSize}
+                                                onChange={(e) => onDesignChange({ ...design, logoSize: parseInt(e.target.value) })}
+                                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {activeTab === 'text' && (
                             <div className="space-y-6">
                                 <button
@@ -127,18 +218,14 @@ export function EditorSidebar({
                                     <Type className="w-5 h-5" />
                                     Add a text box
                                 </button>
-
                                 <div className="space-y-3 pt-2">
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Default Styles</p>
-
                                     <button onClick={() => onAddText('heading')} className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all group">
                                         <h1 className="text-3xl font-black text-gray-800 group-hover:text-indigo-600">Add a heading</h1>
                                     </button>
-
                                     <button onClick={() => onAddText('subheading')} className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all group">
                                         <h2 className="text-xl font-bold text-gray-700 group-hover:text-indigo-600">Add a subheading</h2>
                                     </button>
-
                                     <button onClick={() => onAddText('body')} className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all group">
                                         <p className="text-base text-gray-600 group-hover:text-indigo-600">Add a little bit of body text</p>
                                     </button>
@@ -146,10 +233,8 @@ export function EditorSidebar({
                             </div>
                         )}
 
-                        {/* ELEMENTS PANEL */}
                         {activeTab === 'elements' && (
                             <div className="space-y-6">
-                                {/* Search Placeholder */}
                                 <div className="relative">
                                     <input
                                         type="text"
@@ -158,8 +243,6 @@ export function EditorSidebar({
                                     />
                                     <Grid3X3 className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                                 </div>
-
-                                {/* Basic Shapes */}
                                 <div>
                                     <p className="text-sm font-semibold text-gray-900 mb-3">Shapes</p>
                                     <div className="grid grid-cols-4 gap-3">
@@ -177,8 +260,6 @@ export function EditorSidebar({
                                         ))}
                                     </div>
                                 </div>
-
-                                {/* Icons */}
                                 <div>
                                     <p className="text-sm font-semibold text-gray-900 mb-3">Icons</p>
                                     <div className="grid grid-cols-4 gap-3">
@@ -197,7 +278,6 @@ export function EditorSidebar({
                             </div>
                         )}
 
-                        {/* UPLOADS PANEL */}
                         {activeTab === 'uploads' && (
                             <div className="space-y-6">
                                 <button
@@ -214,7 +294,6 @@ export function EditorSidebar({
                                     onChange={handleFileUpload}
                                     className="hidden"
                                 />
-
                                 {uploadedImages.length > 0 ? (
                                     <div className="grid grid-cols-2 gap-3">
                                         {uploadedImages.map((img, idx) => (
@@ -239,7 +318,6 @@ export function EditorSidebar({
                                 )}
                             </div>
                         )}
-
                     </div>
                 </div>
             )}

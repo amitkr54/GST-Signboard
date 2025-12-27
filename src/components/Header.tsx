@@ -6,10 +6,16 @@ import { useAuth } from './AuthProvider';
 import { Menu, X, User, LogOut, LayoutDashboard, ChevronDown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
+import { usePathname } from 'next/navigation';
+
 export function Header() {
     const { user, signInWithGoogle, signOut } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const pathname = usePathname();
+
+    // Do not show the main floating header on the design page
+    if (pathname?.startsWith('/design')) return null;
 
     return (
         <header className="sticky top-0 z-50 bg-white border-b border-gray-100">

@@ -1,0 +1,22 @@
+﻿
+> signage@0.1.0 lint
+> eslint src/app/design/page.tsx
+
+
+C:\Users\Admin\Desktop\signage - Copy\src\app\design\page.tsx
+    3:48   warning  'useRef' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+   10:10   warning  'DesignUpload' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   11:10   warning  'DesignSidebar' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   15:23   warning  'processPayment' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+   15:39   warning  'trackReferral' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   16:106  warning  'X' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+  159:13   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  169:11   warning  'handleLogoUpload' is assigned a value but never used                                                                @typescript-eslint/no-unused-vars
+  173:11   warning  'handleDesignUpload' is assigned a value but never used                                                              @typescript-eslint/no-unused-vars
+  196:9    error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  705:64   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                      react/no-unescaped-entities
+  707:66   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                      react/no-unescaped-entities
+  859:47   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                      react/no-unescaped-entities
+
+Γ£û 13 problems (5 errors, 8 warnings)
+
