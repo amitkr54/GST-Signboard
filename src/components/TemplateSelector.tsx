@@ -26,6 +26,32 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
 
     return (
         <div className="grid grid-cols-2 gap-3 p-1">
+            {/* Custom Design Option */}
+            <button
+                key="custom-blank"
+                onClick={() => onSelect('custom' as TemplateId)}
+                className={`relative group rounded-xl border-2 transition-all overflow-hidden text-left bg-gray-50
+                    ${selectedTemplateId === 'custom' || !selectedTemplateId
+                        ? 'border-purple-600 shadow-md ring-1 ring-purple-600'
+                        : 'border-gray-200 hover:border-purple-300 hover:shadow-sm'
+                    }`}
+            >
+                <div className="h-24 w-full relative flex items-center justify-center bg-white">
+                    <div className="w-16 h-12 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400">
+                        <span className="text-xl font-light">+</span>
+                    </div>
+                    {/* Validated Badge */}
+                    {(selectedTemplateId === 'custom' || !selectedTemplateId) && (
+                        <div className="absolute top-2 right-2 bg-purple-600 text-white p-1 rounded-full">
+                            <Check className="w-3 h-3" />
+                        </div>
+                    )}
+                </div>
+                <div className="p-3 bg-white">
+                    <h4 className="text-sm font-semibold text-gray-900">Custom Design</h4>
+                    <p className="text-[10px] text-gray-500 line-clamp-2 mt-0.5">Start from scratch</p>
+                </div>
+            </button>
             {templates.map((template) => (
                 <button
                     key={template.id}

@@ -12,7 +12,12 @@ import {
     AlignLeft,
     AlignCenter,
     AlignRight,
-    Italic
+    Italic,
+    Layers,
+    ArrowUp,
+    ArrowDown,
+    ArrowUpToLine,
+    ArrowDownToLine
 } from 'lucide-react';
 
 interface TextFormatToolbarProps {
@@ -36,7 +41,7 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
     const [isLocked, setIsLocked] = useState(false);
 
     // Mobile Toolbar State
-    const [activeTool, setActiveTool] = useState<null | 'font' | 'size' | 'color' | 'format'>(null);
+    const [activeTool, setActiveTool] = useState<null | 'font' | 'size' | 'color' | 'format' | 'layers'>(null);
 
     // Check if selected object is a text object
     const isTextObject = selectedObject instanceof fabric.IText || selectedObject instanceof fabric.Textbox || selectedObject instanceof fabric.Text;
@@ -145,6 +150,41 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
         updateProperty('textAlign', align);
     };
 
+    const handleLayerAction = (action: 'front' | 'back' | 'forward' | 'backward') => {
+        if (!selectedObject || isLocked) return;
+        const canvas = selectedObject.canvas;
+        if (!canvas) return;
+
+        switch (action) {
+            case 'front':
+                selectedObject.bringToFront();
+                break;
+            case 'back':
+                // Send back but keep above background
+                const objects = canvas.getObjects();
+                const backgroundIndex = objects.findIndex(obj => obj.name === 'background');
+                if (backgroundIndex !== -1) {
+                    selectedObject.moveTo(backgroundIndex + 1);
+                } else {
+                    selectedObject.sendToBack();
+                }
+                break;
+            case 'forward':
+                selectedObject.bringForward();
+                break;
+            case 'backward':
+                // Don't go below background
+                const currentIdx = canvas.getObjects().indexOf(selectedObject);
+                const bgIdx = canvas.getObjects().findIndex(obj => obj.name === 'background');
+                if (currentIdx > bgIdx + 1) {
+                    selectedObject.sendBackwards();
+                }
+                break;
+        }
+        canvas.requestRenderAll();
+        onUpdate();
+    };
+
     const fontOptions = [
         "Arial", "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway",
         "PT Sans", "Merriweather", "Nunito", "Playfair Display", "Poppins",
@@ -159,7 +199,7 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
         if (typeof document === 'undefined') return null;
 
         const sidebarClasses = isLandscape
-            ? "fixed top-0 bottom-0 right-0 w-[48px] bg-white z-[9999] shadow-[-4px_0_20px_rgba(0,0,0,0.1)] flex flex-col pt-safe pb-safe rounded-l-2xl animate-in slide-in-from-right-4 duration-200"
+            ? `fixed top-0 bottom-0 right-0 w-[48px] bg-white z-[9999] shadow-[-4px_0_20px_rgba(0,0,0,0.1)] flex flex-col pt-safe pb-safe rounded-l-2xl duration-200 transition-transform ${activeTool ? 'translate-x-full' : 'translate-x-0'}`
             : "fixed bottom-0 left-0 right-0 bg-white z-[9999] rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] flex flex-col animate-in slide-in-from-bottom-4 duration-200 pb-safe";
 
         const contentClasses = isLandscape
@@ -240,14 +280,12 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
                                 {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Color</span>}
                             </button>
 
-                            {isTextObject && (
-                                <button onClick={() => setActiveTool('format')} className="flex flex-col items-center gap-1 group">
-                                    <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
-                                        <Bold className="w-4 h-4 text-gray-700" />
-                                    </div>
-                                    {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Format</span>}
-                                </button>
-                            )}
+                            <button onClick={() => setActiveTool('layers')} className="flex flex-col items-center gap-1 group">
+                                <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center group-active:bg-blue-50 group-active:border-blue-200">
+                                    <Layers className="w-4 h-4 text-gray-700" />
+                                </div>
+                                {!isLandscape && <span className="text-[10px] text-gray-600 font-medium">Layers</span>}
+                            </button>
 
                             <div className={isLandscape ? "w-8 h-px bg-gray-200 my-1" : "w-px h-6 bg-gray-200 mx-1"} />
 
@@ -267,21 +305,21 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
                         </div>
                     ) : (
                         // Sub Menus
-                        <div className={`${isLandscape ? 'fixed right-[52px] top-4 bottom-4 w-32 overflow-hidden flex flex-col' : 'w-full'} bg-white shadow-2xl rounded-2xl p-1.5 border border-gray-100 animate-in fade-in slide-in-from-right-4`}>
+                        <div className={`${isLandscape ? 'fixed right-0 top-0 bottom-0 w-36 overflow-hidden flex flex-col rounded-l-2xl' : 'w-full'} bg-white shadow-2xl p-1.5 border-l border-gray-100 animate-in fade-in slide-in-from-right-4`}>
                             {isLandscape && (
-                                <div className="flex justify-between items-center px-1.5 py-0.5 border-b border-gray-50 mb-1 flex-shrink-0">
-                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{activeTool}</span>
+                                <div className="flex justify-between items-center px-2 py-2 border-b border-gray-50 mb-1 flex-shrink-0">
                                     <button
                                         onClick={() => setActiveTool(null)}
-                                        className="p-0.5 rounded-full hover:bg-gray-50 text-gray-400"
+                                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
                                     >
-                                        <X className="w-3.5 h-3.5" />
+                                        <ChevronLeft className="w-4 h-4" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
                                     </button>
                                 </div>
                             )}
                             <div className="flex-1 overflow-y-auto no-scrollbar">
                                 {activeTool === 'font' && (
-                                    <div className="flex flex-col gap-0.5 max-h-[200px] overflow-y-auto">
+                                    <div className="flex flex-col gap-0.5">
                                         {fontOptions.map(font => (
                                             <button
                                                 key={font}
@@ -374,6 +412,42 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
                                             className={`w-10 h-10 flex items-center justify-center rounded-lg border ${textAlign === 'right' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-700'}`}
                                         >
                                             <AlignRight className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                )}
+                                {activeTool === 'layers' && (
+                                    <div className={`flex gap-4 py-2 ${isLandscape ? 'flex-col items-center' : 'justify-center'}`}>
+                                        <button
+                                            onClick={() => handleLayerAction('front')}
+                                            className="w-10 h-10 flex flex-col items-center justify-center rounded-lg border bg-white border-gray-200 text-gray-700"
+                                            title="Bring to Front"
+                                        >
+                                            <ArrowUpToLine className="w-5 h-5" />
+                                            {!isLandscape && <span className="text-[8px] mt-1">To Front</span>}
+                                        </button>
+                                        <button
+                                            onClick={() => handleLayerAction('forward')}
+                                            className="w-10 h-10 flex flex-col items-center justify-center rounded-lg border bg-white border-gray-200 text-gray-700"
+                                            title="Bring Forward"
+                                        >
+                                            <ArrowUp className="w-5 h-5" />
+                                            {!isLandscape && <span className="text-[8px] mt-1">Forward</span>}
+                                        </button>
+                                        <button
+                                            onClick={() => handleLayerAction('backward')}
+                                            className="w-10 h-10 flex flex-col items-center justify-center rounded-lg border bg-white border-gray-200 text-gray-700"
+                                            title="Send Backward"
+                                        >
+                                            <ArrowDown className="w-5 h-5" />
+                                            {!isLandscape && <span className="text-[8px] mt-1">Backward</span>}
+                                        </button>
+                                        <button
+                                            onClick={() => handleLayerAction('back')}
+                                            className="w-10 h-10 flex flex-col items-center justify-center rounded-lg border bg-white border-gray-200 text-gray-700"
+                                            title="Send to Back"
+                                        >
+                                            <ArrowDownToLine className="w-5 h-5" />
+                                            {!isLandscape && <span className="text-[8px] mt-1">To Back</span>}
                                         </button>
                                     </div>
                                 )}
@@ -506,6 +580,44 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
                     className="w-10 h-8 rounded cursor-pointer border border-gray-300 disabled:opacity-50"
                     title="Color"
                 />
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Layers */}
+            <div className="flex gap-1">
+                <button
+                    onClick={() => handleLayerAction('front')}
+                    disabled={isLocked}
+                    className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                    title="Bring to Front"
+                >
+                    <ArrowUpToLine className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={() => handleLayerAction('forward')}
+                    disabled={isLocked}
+                    className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                    title="Bring Forward"
+                >
+                    <ArrowUp className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={() => handleLayerAction('backward')}
+                    disabled={isLocked}
+                    className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                    title="Send Backward"
+                >
+                    <ArrowDown className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={() => handleLayerAction('back')}
+                    disabled={isLocked}
+                    className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                    title="Send to Back"
+                >
+                    <ArrowDownToLine className="w-4 h-4" />
+                </button>
             </div>
 
             <div className="w-px h-6 bg-gray-300" />

@@ -99,9 +99,16 @@ export function FabricPreview({
 
         fabricCanvasRef.current = canvas;
         setCanvasInstance(canvas);
+        // Expose for DesignControls download
+        (window as any).fabricCanvas = canvas;
+
+        // Enable smart alignment guidelines (fixed: no longer breaks text editing)
+        initAligningGuidelines(canvas);
+
         if (onMount) onMount(canvas);
 
         return () => {
+            (window as any).fabricCanvas = null;
             canvas.dispose();
             fabricCanvasRef.current = null;
             setCanvasInstance(null);
@@ -146,12 +153,7 @@ export function FabricPreview({
             const roundedSc = Math.round(sc * 10000) / 10000;
 
             // diagnostic log
-            console.log('[Scaling Debug]', {
-                container: { w: containerW, h: containerH },
-                avail: { w: trueAvailW, h: trueAvailH },
-                target: { w: targetW, h: targetH },
-                scale: roundedSc
-            });
+            // console.log('[Scaling Debug]', { ... });
 
             setDebug({
                 win: { w: winW, h: winH },
@@ -198,6 +200,15 @@ export function FabricPreview({
         }
     }, [canvasInstance, scale]);
 
+    // Sync background color
+    useEffect(() => {
+        if (canvasInstance) {
+            canvasInstance.setBackgroundColor(design.backgroundColor, () => {
+                canvasInstance.requestRenderAll();
+            });
+        }
+    }, [canvasInstance, design.backgroundColor]);
+
     // Template Loading & Logic
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
@@ -239,6 +250,9 @@ export function FabricPreview({
                                 width: (c.width || (vbW * 0.8)) * sc,
                                 selectable: true,
                                 evented: true,
+                                editable: true,
+                                lockScalingY: false,
+                                objectCaching: false,
                                 name: j === 0 ? 'template_company' : 'template_svg_text'
                             });
                             canvas.add(txt);
@@ -274,8 +288,37 @@ export function FabricPreview({
 
             if (templateConfig.fabricConfig) {
                 canvas.loadFromJSON(templateConfig.fabricConfig, () => {
-                    canvas.getObjects().forEach(obj => {
-                        obj.set({ selectable: true, evented: true });
+                    const objects = canvas.getObjects();
+                    objects.forEach((obj: any) => {
+                        // FORCE UPGRADE TEXT TO EDITABLE TEXTBOX
+                        if (obj.type === 'text' && obj.text) {
+                            const newTextbox = new fabric.Textbox(obj.text, {
+                                ...obj.toObject(),
+                                type: 'textbox',
+                                selectable: true,
+                                evented: true,
+                                editable: true,
+                                lockScalingY: false,
+                                objectCaching: false,
+                                name: obj.name || 'template_text_upgraded'
+                            });
+                            // Preserve position/scale which might get reset by toObject defaults sometimes
+                            newTextbox.set({
+                                left: obj.left,
+                                top: obj.top,
+                                scaleX: obj.scaleX,
+                                scaleY: obj.scaleY,
+                                width: obj.width, // Textbox needs width
+                            });
+
+                            canvas.remove(obj);
+                            canvas.add(newTextbox);
+                            // Ensure it stays in correct z-index relative to others if needed, 
+                            // but simplistic add moves to top. 
+                            // For templates, usually text is on top anyway.
+                        } else {
+                            obj.set({ selectable: true, evented: true });
+                        }
                     });
                     updateTemplateContent();
                 });
@@ -378,6 +421,12 @@ export function FabricPreview({
             mail: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6',
             location: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
             star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+            heart: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z',
+            globe: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20 M2 12h20',
+            clock: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 6v6l4 2',
+            calendar: 'M3 4h18v18H3V4z M16 2v4 M8 2v4 M3 10h18',
+            user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2 M12 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+            building: 'M2 6h20v16H2V6z M10 2v4 M14 2v4 M18 2v4 M6 2v4 M2 22v-4 M22 22v-4'
         };
 
         const pathData = iconPaths[iconName] || iconPaths['star'];
@@ -399,7 +448,8 @@ export function FabricPreview({
 
         if (type === 'circle') shape = new fabric.Circle({ ...common, radius: 80 });
         else if (type === 'triangle') shape = new fabric.Triangle({ ...common, width: 150, height: 130 });
-        else shape = new fabric.Rect({ ...common, width: 200, height: 150 });
+        else if (type === 'line') shape = new fabric.Rect({ ...common, width: 200, height: 4 });
+        else shape = new fabric.Rect({ ...common, width: 200, height: 150, rx: 10, ry: 10 });
 
         canvas.add(shape);
         canvas.setActiveObject(shape);
@@ -422,7 +472,7 @@ export function FabricPreview({
     }, []);
 
     function initCanvasEvents(canvas: fabric.Canvas) {
-        initAligningGuidelines(canvas);
+        // initAligningGuidelines(canvas); // Disabled per user request to fix text jump
         canvas.on('selection:created', (e) => setSelectedObject(e.selected?.[0] || null));
         canvas.on('selection:updated', (e) => setSelectedObject(e.selected?.[0] || null));
         canvas.on('selection:cleared', () => setSelectedObject(null));
@@ -494,18 +544,6 @@ export function FabricPreview({
                     }}
                 >
                     <canvas ref={canvasRef} />
-                </div>
-
-                {/* DEBUG TOOLS - REMOVE ONCE RESOLVED */}
-                <div className="absolute top-4 left-4 bg-black/90 text-white text-[11px] p-3 rounded-lg z-[9999] pointer-events-none font-mono shadow-xl border border-white/20">
-                    <div className="text-[#00ff00] font-bold mb-1 border-b border-white/20 pb-1">CANVAS DEBUGGER</div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                        <span className="opacity-60 text-[10px]">WIN:</span> <span>{debug.win.w}x{debug.win.h}</span>
-                        <span className="opacity-60 text-[10px]">CONT:</span> <span>{debug.container.w}x{debug.container.h}</span>
-                        <span className="opacity-60 text-[10px]">AVAIL:</span> <span className="text-[#00ffff]">{debug.avail.w}x{debug.avail.h}</span>
-                        <span className="opacity-60 text-[10px]">SCALE:</span> <span className="text-[#ff00ff]">{debug.scale.toFixed(4)}</span>
-                        <span className="opacity-60 text-[10px]">BOARD:</span> <span>{Math.round(LAYOUT.WIDTH * debug.scale)}x{Math.round(LAYOUT.HEIGHT * debug.scale)}</span>
-                    </div>
                 </div>
             </div>
         </div>

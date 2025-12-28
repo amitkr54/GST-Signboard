@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft, Palette, Download, X } from 'lucide-react';
+import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft, Palette, Download, X, QrCode, Loader2 } from 'lucide-react';
+import { generateQRCode } from '@/app/actions';
 import { TemplateSelector } from './TemplateSelector';
 import { TemplateId, DesignConfig } from '@/lib/types';
 import { Button } from './ui/Button';
@@ -54,6 +55,8 @@ export function EditorSidebar({
 }: EditorSidebarProps) {
     const [activeTab, setActiveTab] = useState<TabType | null>(null);
     const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+    const [qrText, setQrText] = useState('');
+    const [isGeneratingQR, setIsGeneratingQR] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const tabs = [
@@ -63,6 +66,24 @@ export function EditorSidebar({
         { id: 'elements' as TabType, icon: Grid3X3, label: 'Elements' },
         { id: 'uploads' as TabType, icon: Upload, label: 'Uploads' },
     ];
+
+    const handleQRSubmit = async () => {
+        if (!qrText.trim()) return;
+        setIsGeneratingQR(true);
+        try {
+            const result = await generateQRCode(qrText);
+            if (result.success && result.dataUrl) {
+                onAddImage(result.dataUrl);
+                setQrText('');
+            } else {
+                alert('Failed to generate QR Code');
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsGeneratingQR(false);
+        }
+    };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -120,8 +141,8 @@ export function EditorSidebar({
                                     selectedTemplateId={selectedTemplateId}
                                     onSelect={(id) => {
                                         onSelectTemplate(id);
-                                        // Auto-collapse on mobile, but maybe keep on desktop?
-                                        if (window.innerWidth < 1024) setActiveTab(null);
+                                        // Auto-switch to design tab
+                                        setActiveTab('design');
                                     }}
                                 />
                             </div>
@@ -273,6 +294,34 @@ export function EditorSidebar({
                                                 <iconItem.icon className="w-5 h-5" />
                                             </button>
                                         ))}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-semibold text-gray-900 mb-2">QR Code</p>
+                                    <div className="space-y-3">
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={qrText}
+                                                onChange={(e) => setQrText(e.target.value)}
+                                                placeholder="Enter URL or text..."
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm outline-none"
+                                                onKeyDown={(e) => e.key === 'Enter' && handleQRSubmit()}
+                                            />
+                                        </div>
+                                        <Button
+                                            onClick={handleQRSubmit}
+                                            disabled={!qrText.trim() || isGeneratingQR}
+                                            className="w-full justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white h-10 shadow-sm"
+                                        >
+                                            {isGeneratingQR ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <QrCode className="w-4 h-4" />
+                                            )}
+                                            {isGeneratingQR ? 'Generating...' : 'Add QR Code'}
+                                        </Button>
                                     </div>
                                 </div>
                             </div>

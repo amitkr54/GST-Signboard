@@ -12,10 +12,32 @@ import { DesignSidebar } from '@/components/DesignSidebar';
 import { ReviewApproval } from '@/components/ReviewApproval';
 import { SignageData, DesignConfig, DEFAULT_DESIGN, TemplateId } from '@/lib/types';
 import { calculatePrice, MaterialId } from '@/lib/utils';
-import { createOrder, processPayment, trackReferral, initiatePhonePePayment } from '@/app/actions';
-import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize } from 'lucide-react';
+import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode } from '@/app/actions';
+import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3 } from 'lucide-react';
 import { PreviewSection } from '@/components/PreviewSection';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { Circle, Triangle, Minus } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
+
+const MOBILE_SHAPES = [
+    { id: 'rect', icon: Square, label: 'Square' },
+    { id: 'circle', icon: Circle, label: 'Circle' },
+    { id: 'triangle', icon: Triangle, label: 'Triangle' },
+    { id: 'line', icon: Minus, label: 'Line' },
+];
+
+const MOBILE_ICONS = [
+    { id: 'phone', icon: Phone, label: 'Phone' },
+    { id: 'mail', icon: Mail, label: 'Email' },
+    { id: 'location', icon: MapPin, label: 'Location' },
+    { id: 'globe', icon: Globe, label: 'Globe' },
+    { id: 'star', icon: Star, label: 'Star' },
+    { id: 'heart', icon: Heart, label: 'Heart' },
+    { id: 'clock', icon: Clock, label: 'Clock' },
+    { id: 'calendar', icon: Calendar, label: 'Date' },
+    { id: 'user', icon: User, label: 'User' },
+    { id: 'building', icon: Building, label: 'Office' },
+];
 
 export default function DesignPage() {
     return (
@@ -63,6 +85,10 @@ function DesignContent() {
     const [addShapeFn, setAddShapeFn] = useState<((type: 'rect' | 'circle' | 'line' | 'triangle') => void) | null>(null);
     const [addImageFn, setAddImageFn] = useState<((imageUrl: string) => void) | null>(null);
     const [mobileTab, setMobileTab] = useState<'templates' | 'design' | 'material' | 'order'>('templates');
+    const [activePicker, setActivePicker] = useState<'shapes' | 'icons' | 'background' | null>(null);
+    const [showQRInput, setShowQRInput] = useState(false);
+    const [qrText, setQrText] = useState('');
+    const [isGeneratingQR, setIsGeneratingQR] = useState(false);
 
     // Responsive State
     const [isMobile, setIsMobile] = useState(false);
@@ -71,6 +97,49 @@ function DesignContent() {
 
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { user } = useAuth();
+    const [isSaving, setIsSaving] = useState(false);
+
+    // 1. Initial Load from localStorage
+    useEffect(() => {
+        const savedDesign = localStorage.getItem('signage_draft_design');
+        const savedData = localStorage.getItem('signage_draft_data');
+
+        if (savedDesign) {
+            try {
+                setDesign(JSON.parse(savedDesign));
+            } catch (e) {
+                console.error('Failed to parse saved design', e);
+            }
+        }
+        if (savedData) {
+            try {
+                setData(JSON.parse(savedData));
+            } catch (e) {
+                console.error('Failed to parse saved data', e);
+            }
+        }
+    }, []);
+
+    // 2. Auto-save to localStorage (Debounced)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsSaving(true);
+            localStorage.setItem('signage_draft_design', JSON.stringify(design));
+            localStorage.setItem('signage_draft_data', JSON.stringify(data));
+
+            // If user exists, sync to Supabase
+            if (user) {
+                syncDesign(user.id, data, design).catch(err => {
+                    console.error('Failed to sync to Supabase', err);
+                });
+            }
+
+            setTimeout(() => setIsSaving(false), 800);
+        }, 2000); // 2 second debounce
+
+        return () => clearTimeout(timer);
+    }, [design, data, user]);
 
     // Handle Fullscreen Toggle
     const toggleFullscreen = () => {
@@ -84,12 +153,25 @@ function DesignContent() {
     };
 
     useEffect(() => {
-        const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
+        const handleFullscreenChange = async () => {
+            const isFS = !!document.fullscreenElement;
+            setIsFullscreen(isFS);
+
+            if (isFS && isMobile && screen.orientation?.lock) {
+                try {
+                    // @ts-expect-error - orientation.lock is not standard in all types
+                    await screen.orientation.lock('landscape');
+                } catch (err) {
+                    console.error('Orientation lock failed:', err);
+                }
+            } else if (!isFS && screen.orientation?.unlock) {
+                // @ts-expect-error - orientation.unlock is not standard in all types
+                screen.orientation.unlock();
+            }
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    }, []);
+    }, [isMobile]);
 
     // Handle Resize for Responsive Layout
     useEffect(() => {
@@ -140,6 +222,11 @@ function DesignContent() {
     const handleTemplateSelect = (id: TemplateId) => {
         setDesign(prev => ({ ...prev, templateId: id }));
 
+        // Automatically switch to design tab on mobile
+        if (isMobile) {
+            setMobileTab('design');
+        }
+
         const defaults = TEMPLATE_DEFAULTS[id] || {
             companyName: '',
             address: '',
@@ -185,6 +272,25 @@ function DesignContent() {
             }
         }
     }, [searchParams, isMobile]);
+
+    const handleQRGenerate = async () => {
+        if (!qrText.trim()) return;
+        setIsGeneratingQR(true);
+        try {
+            const result = await generateQRCode(qrText);
+            if (result.success && result.dataUrl) {
+                addImageFn?.(result.dataUrl);
+                setShowQRInput(false);
+                setQrText('');
+            } else {
+                alert('Failed to generate QR Code');
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsGeneratingQR(false);
+        }
+    };
 
     const handleLogoUpload = (file: File, tempUrl: string) => {
         setData(prev => ({ ...prev, logoUrl: tempUrl }));
@@ -293,6 +399,19 @@ function DesignContent() {
 
         setIsProcessing(true);
         try {
+            // 0. Capture Approval Proof (SVG)
+            // @ts-expect-error - fabricCanvas is globally attached to window
+            const canvas = window.fabricCanvas;
+            let approvalProof = undefined;
+            if (canvas) {
+                approvalProof = canvas.toSVG({
+                    suppressPreamble: false,
+                    width: 1800,
+                    height: 1200,
+                    viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
+                });
+            }
+
             // 1. Create Order
             const { success, orderId, error, payableAmount } = await createOrder(data, design, material, {
                 deliveryType,
@@ -300,7 +419,8 @@ function DesignContent() {
                 referralCode: codeValidated ? referralCode : undefined,
                 contactDetails,
                 paymentScheme,
-                advanceAmount: paymentScheme === 'part' ? advanceAmount : undefined
+                advanceAmount: paymentScheme === 'part' ? advanceAmount : undefined,
+                approvalProof
             });
 
             if (!success || !orderId) {
@@ -341,6 +461,18 @@ function DesignContent() {
                         {!isLandscape && <p className="text-[10px] text-gray-500">Canvas editor for this playlist</p>}
                     </div>
                     <div className="flex items-center gap-3">
+                        {isSaving && (
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Saving...</span>
+                            </div>
+                        )}
+                        {!isSaving && typeof window !== 'undefined' && localStorage.getItem('signage_draft_design') && (
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+                                <Check className="w-3 h-3 text-gray-400" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Saved</span>
+                            </div>
+                        )}
                         <div className="flex gap-1">
                             <button className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"><Undo2 className="w-5 h-5" /></button>
                             <button className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"><Redo2 className="w-5 h-5" /></button>
@@ -468,6 +600,27 @@ function DesignContent() {
                                     onAddImage={(fn) => setAddImageFn(() => fn)}
                                 />
                             </div>
+
+                            {/* Rotation Notification Banner - Non-intrusive */}
+                            {!isLandscape && (
+                                <div className="absolute top-4 left-4 right-4 z-[60] animate-in fade-in slide-in-from-top duration-500">
+                                    <div className="bg-slate-900/90 backdrop-blur text-white px-4 py-3 rounded-2xl shadow-xl border border-white/10 flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
+                                            <div className="w-4 h-2 border-2 border-indigo-400 rounded-sm rotate-90 animate-pulse"></div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-bold">Best in Landscape</p>
+                                            <p className="text-[10px] text-slate-400">Rotate phone for better design view</p>
+                                        </div>
+                                        <button
+                                            onClick={toggleFullscreen}
+                                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-[10px] font-bold transition-colors"
+                                        >
+                                            Fullscreen
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -481,28 +634,172 @@ function DesignContent() {
                             </button>
 
                             {/* Image */}
-                            <button onClick={() => document.getElementById('mobile-image-upload')?.click()} className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
+                            <button onClick={() => { setActivePicker(null); document.getElementById('mobile-image-upload')?.click(); }} className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
                                 <ImageIcon className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
                                 <span className="text-[10px] font-medium">Image</span>
                             </button>
 
-                            <button onClick={() => addShapeFn?.('rect')} className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
-                                <Square className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                                <span className="text-[10px] font-medium">Shapes</span>
-                            </button>
+                            {/* Shapes Picker Toggle */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setActivePicker(activePicker === 'shapes' ? null : 'shapes')}
+                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'shapes' ? 'text-purple-600' : 'text-gray-500'} hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}
+                                >
+                                    <Square className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                                    <span className="text-[10px] font-medium">Shapes</span>
+                                </button>
+                                {activePicker === 'shapes' && (
+                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 grid grid-cols-4 gap-2 min-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                        {MOBILE_SHAPES.map(shape => (
+                                            <button
+                                                key={shape.id}
+                                                onClick={() => {
+                                                    // @ts-expect-error - shape.id is compatible
+                                                    addShapeFn?.(shape.id);
+                                                    setActivePicker(null);
+                                                }}
+                                                className="flex flex-col items-center gap-1 p-2 hover:bg-purple-50 rounded-xl transition-colors group"
+                                            >
+                                                <shape.icon className="w-5 h-5 text-gray-600 group-hover:text-purple-600" />
+                                                <span className="text-[9px] text-gray-500 uppercase font-bold">{shape.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
-                            <button onClick={() => addIconFn?.('star')} className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
+                            {/* Icons Picker Toggle */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setActivePicker(activePicker === 'icons' ? null : 'icons')}
+                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'icons' ? 'text-purple-600' : 'text-gray-500'} hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}
+                                >
+                                    <Grid3X3 className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                                    <span className="text-[10px] font-medium">Icons</span>
+                                </button>
+                                {activePicker === 'icons' && (
+                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 grid grid-cols-5 gap-2 min-w-[250px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                        {MOBILE_ICONS.map(icon => (
+                                            <button
+                                                key={icon.id}
+                                                onClick={() => {
+                                                    addIconFn?.(icon.id);
+                                                    setActivePicker(null);
+                                                }}
+                                                className="flex flex-col items-center gap-1 p-2 hover:bg-purple-50 rounded-xl transition-colors group"
+                                            >
+                                                <icon.icon className="w-5 h-5 text-gray-600 group-hover:text-purple-600" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Background Color Picker Toggle */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setActivePicker(activePicker === 'background' ? null : 'background')}
+                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'background' ? 'text-purple-600' : 'text-gray-500'} hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}
+                                >
+                                    <Palette className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                                    <span className="text-[10px] font-medium">Board</span>
+                                </button>
+                                {activePicker === 'background' && (
+                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 min-w-[280px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Board Color</p>
+                                        <div className="grid grid-cols-5 gap-2 mb-4">
+                                            {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => {
+                                                        setDesign({ ...design, backgroundColor: color });
+                                                        setActivePicker(null);
+                                                    }}
+                                                    className={`aspect-square rounded-lg border-2 transition-all ${design.backgroundColor === color ? 'border-purple-600 scale-110 shadow-sm' : 'border-gray-100 hover:border-gray-300'}`}
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
+                                            <label className="text-xs font-medium text-gray-500">Custom:</label>
+                                            <input
+                                                type="color"
+                                                value={design.backgroundColor}
+                                                onChange={(e) => setDesign({ ...design, backgroundColor: e.target.value })}
+                                                className="flex-1 h-8 rounded cursor-pointer border border-gray-200"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* QR Code Tool */}
+                            <button
+                                onClick={() => setShowQRInput(true)}
+                                className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}
+                            >
                                 <QrCode className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                                <span className="text-[10px] font-medium">QR / Logo</span>
+                                <span className="text-[10px] font-medium">QR</span>
                             </button>
 
-                            {/* Next Step Button (Integrated to toolbar on small screens) */}
+                            <button onClick={toggleFullscreen} className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
+                                {isFullscreen ? <Minimize className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} /> : <Maximize className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />}
+                                <span className="text-[10px] font-medium">{isFullscreen ? 'Exit' : 'Full'}</span>
+                            </button>
+
+                            {/* Continue to Material Button */}
                             <button
                                 onClick={() => setMobileTab('material')}
-                                className={`${isLandscape ? 'p-1.5' : 'p-2'} bg-[#7D2AE8] text-white rounded-lg shadow-md flex items-center justify-center transition-all hover:bg-[#6a23c4]`}
+                                className={`${isLandscape ? 'px-4 py-2' : 'px-5 py-2.5'} bg-[#7D2AE8] text-white rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all hover:bg-[#6a23c4] active:scale-95 font-bold text-sm`}
                             >
-                                <ArrowRight className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                                Continue
+                                <ArrowRight className="w-4 h-4" />
                             </button>
+                        </div>
+                    )}
+
+                    {/* QR Code Input Modal */}
+                    {showQRInput && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                                <div className="p-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-xl font-bold text-gray-900">Add QR Code</h3>
+                                        <button onClick={() => setShowQRInput(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                            <X className="w-5 h-5 text-gray-500" />
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mb-4">Enter a URL or text to generate a QR code for your signage.</p>
+                                    <div className="space-y-4">
+                                        <input
+                                            type="text"
+                                            value={qrText}
+                                            onChange={(e) => setQrText(e.target.value)}
+                                            placeholder="https://example.com"
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all outline-none"
+                                            autoFocus
+                                            onKeyDown={(e) => e.key === 'Enter' && handleQRGenerate()}
+                                        />
+                                        <button
+                                            onClick={handleQRGenerate}
+                                            disabled={!qrText.trim() || isGeneratingQR}
+                                            className="w-full py-3.5 bg-[#7D2AE8] text-white rounded-xl font-bold shadow-lg shadow-purple-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                                        >
+                                            {isGeneratingQR ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    Generating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <QrCode className="w-5 h-5" />
+                                                    Generate QR Code
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -709,10 +1006,22 @@ function DesignContent() {
                     <span className="font-bold text-gray-900 tracking-tight">Signage Studio</span>
                 </div>
                 <div className="flex items-center gap-4">
+                    {isSaving && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Saving to Cloud...</span>
+                        </div>
+                    )}
+                    {!isSaving && typeof window !== 'undefined' && localStorage.getItem('signage_draft_design') && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+                            <Check className="w-3 h-3 text-gray-400" />
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">All changes saved</span>
+                        </div>
+                    )}
                     <div className="text-sm text-gray-500">
                         {design.width}in x {design.height}in
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => { }}>Save Draft</Button>
+                    <Button variant="outline" size="sm" onClick={() => { }}>Saved to Local</Button>
                 </div>
             </div>
 

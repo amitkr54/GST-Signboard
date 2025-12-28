@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { SignageData, DesignConfig } from '@/lib/types';
+import QRCode from 'qrcode';
 import { calculatePrice } from '@/lib/utils';
 import {
     PHONEPE_MERCHANT_ID,
@@ -34,6 +35,7 @@ export async function createOrder(
         };
         paymentScheme?: 'full' | 'part';
         advanceAmount?: number;
+        approvalProof?: string;
     },
     userId?: string
 ) {
@@ -87,6 +89,7 @@ export async function createOrder(
             material: materialId,
             amount: totalAmount,
             status: 'pending',
+            visual_proof: options?.approvalProof || null, // Storing SVG proof in visual_proof column
         });
 
     if (error) {
@@ -769,4 +772,56 @@ export async function deleteTemplate(templateId: string, pin: string) {
         console.error('Delete error:', error);
         return { success: false, error: error.message };
     }
+}
+
+export async function syncDesign(userId: string, data: SignageData, design: DesignConfig) {
+    const { error } = await supabase
+        .from('user_designs')
+        .upsert({
+            user_id: userId,
+            data: data,
+            design: design,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+
+    if (error) {
+        console.error('Error syncing design:', error);
+        return { success: false, error: error.message };
+    }
+
+    return { success: true };
+}
+
+export async function generateQRCode(text: string) {
+    try {
+        const dataUrl = await QRCode.toDataURL(text, {
+            errorCorrectionLevel: 'H',
+            margin: 1,
+            width: 512,
+            color: {
+                dark: '#000000',
+                light: '#ffffff',
+            },
+        });
+        return { success: true, dataUrl };
+    } catch (error: any) {
+        console.error('QR Generation error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+
+export async function getOrder(orderId: string) {
+    const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+    if (error) {
+        console.error('Error fetching order:', error);
+        return { success: false, error: error.message };
+    }
+
+    return { success: true, order: data };
 }

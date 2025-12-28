@@ -12,11 +12,9 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
     let verticalLines: { x: number; y1: number; y2: number }[] = [];
     let horizontalLines: { y: number; x1: number; x2: number }[] = [];
 
-    // Clear existing listeners to prevent duplicates
-    canvas.off('mouse:down');
-    canvas.off('object:moving');
-    canvas.off('after:render');
-    canvas.off('mouse:up');
+    // Fixed: Do NOT clear all event listeners - this breaks canvas functionality
+    // Fabric.js can safely handle multiple listeners for the same event
+    // The previous .off() calls were removing critical listeners set by FabricPreview
 
     canvas.on('mouse:down', () => {
         verticalLines = [];
@@ -45,9 +43,9 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         const activeObjectCenterX = activeObjectCenter.x;
         const activeObjectCenterY = activeObjectCenter.y;
 
-        // Dynamic snap threshold: 4 physical pixels on screen
+        // Dynamic snap threshold: 8 physical pixels on screen (increased for easier mobile usage)
         const zoom = canvas.getZoom();
-        const snappingDistance = 4 / zoom;
+        const snappingDistance = 8 / zoom;
 
         const canvasWidth = canvas.width! / zoom;
         const canvasHeight = canvas.height! / zoom;
@@ -56,7 +54,7 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         let bestSnapX: { snapTo: number; value: number; type: 'left' | 'center' | 'right' } | null = null;
         let bestSnapY: { snapTo: number; value: number; type: 'top' | 'center' | 'bottom' } | null = null;
 
-        function updateBestX(snapTo: number, value: number, type: any) {
+        function updateBestX(snapTo: number, value: number, type: 'left' | 'center' | 'right') {
             const dist = Math.abs(snapTo - value);
             if (dist < snappingDistance) {
                 if (!bestSnapX || dist < Math.abs(bestSnapX.snapTo - bestSnapX.value)) {
@@ -65,7 +63,7 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
             }
         }
 
-        function updateBestY(snapTo: number, value: number, type: any) {
+        function updateBestY(snapTo: number, value: number, type: 'top' | 'center' | 'bottom') {
             const dist = Math.abs(snapTo - value);
             if (dist < snappingDistance) {
                 if (!bestSnapY || dist < Math.abs(bestSnapY.snapTo - bestSnapY.value)) {
@@ -109,28 +107,28 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
             if (bestSnapX.type === 'center') {
                 // If snapping center, we need to adjust based on where the center is relative to left
                 const offsetX = activeObjectCenterX - activeObject.left!;
-                newLeft = bestSnapX.snapTo - offsetX;
+                newLeft = bestSnapX!.snapTo - offsetX;
             } else if (bestSnapX.type === 'left') {
-                newLeft = bestSnapX.snapTo;
+                newLeft = bestSnapX!.snapTo;
             } else if (bestSnapX.type === 'right') {
-                newLeft = bestSnapX.snapTo - activeObjectBoundingRect.width;
+                newLeft = bestSnapX!.snapTo - activeObjectBoundingRect.width;
             }
             activeObject.set({ left: newLeft });
-            verticalLines.push({ x: bestSnapX.snapTo, y1: 0, y2: canvasHeight });
+            verticalLines.push({ x: bestSnapX!.snapTo, y1: 0, y2: canvasHeight });
         }
 
         if (bestSnapY) {
             let newTop = activeObject.top!;
             if (bestSnapY.type === 'center') {
                 const offsetY = activeObjectCenterY - activeObject.top!;
-                newTop = bestSnapY.snapTo - offsetY;
+                newTop = bestSnapY!.snapTo - offsetY;
             } else if (bestSnapY.type === 'top') {
-                newTop = bestSnapY.snapTo;
+                newTop = bestSnapY!.snapTo;
             } else if (bestSnapY.type === 'bottom') {
-                newTop = bestSnapY.snapTo - activeObjectBoundingRect.height;
+                newTop = bestSnapY!.snapTo - activeObjectBoundingRect.height;
             }
             activeObject.set({ top: newTop });
-            horizontalLines.push({ y: bestSnapY.snapTo, x1: 0, x2: canvasWidth });
+            horizontalLines.push({ y: bestSnapY!.snapTo, x1: 0, x2: canvasWidth });
         }
 
         if (bestSnapX || bestSnapY) {

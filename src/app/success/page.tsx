@@ -3,16 +3,17 @@
 import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, Download, Home, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Download, Home, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SignageData, DesignConfig } from '@/lib/types';
 import { MaterialId } from '@/lib/utils';
 import { generateSVG, downloadSVG } from '@/lib/svg-export';
 import { SignagePreview } from '@/components/SignagePreview';
+import { getOrder } from '@/app/actions';
 
 export default function SuccessPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen" />}> 
+        <Suspense fallback={<div className="min-h-screen" />}>
             <SuccessContent />
         </Suspense>
     );
@@ -27,20 +28,44 @@ function SuccessContent() {
         material: MaterialId;
         options?: any;
     } | null>(null);
+    const [orderInfo, setOrderInfo] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Load design data from sessionStorage
-        const stored = sessionStorage.getItem('signageDesign');
-        if (stored) {
-            try {
-                setDesignData(JSON.parse(stored));
-            } catch (error) {
-                console.error('Failed to parse design data:', error);
+        const loadOrder = async () => {
+            if (!orderId) {
+                setIsLoading(false);
+                return;
             }
-        }
-    }, []);
+
+            // 1. Fetch order from DB
+            const result = await getOrder(orderId);
+            if (result.success) {
+                setOrderInfo(result.order);
+            }
+
+            // 2. Load design data from sessionStorage
+            const stored = sessionStorage.getItem('signageDesign');
+            if (stored) {
+                try {
+                    setDesignData(JSON.parse(stored));
+                } catch (error) {
+                    console.error('Failed to parse design data:', error);
+                }
+            }
+            setIsLoading(false);
+        };
+
+        loadOrder();
+    }, [orderId]);
 
     const handleDownload = () => {
+        // Use stored visual proof if available, otherwise regenerate
+        if (orderInfo?.visual_proof) {
+            downloadSVG(orderInfo.visual_proof, `approved-signage-${orderId}.svg`);
+            return;
+        }
+
         if (!designData) return;
 
         try {
@@ -55,6 +80,17 @@ function SuccessContent() {
             alert('Failed to download. Please try again.');
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="flex flex-col items-center">
+                    <Loader2 className="w-12 h-12 text-purple-600 animate-spin mb-4" />
+                    <p className="text-gray-600">Loading order summary...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!orderId) {
         return (
@@ -111,7 +147,7 @@ function SuccessContent() {
                         onClick={handleDownload}
                         className="w-full group bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                         size="lg"
-                        disabled={!designData}
+                        disabled={!designData && !orderInfo}
                     >
                         <Download className="w-5 h-5 mr-2 group-hover:animate-bounce" />
                         Download Your Design (Vector SVG)

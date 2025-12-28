@@ -41,11 +41,88 @@ export default function AdminPage() {
                             height: options.height || 1000
                         });
 
-                        // Add some default names if missing to help the renderer
+                        // --- SMART TEXT MERGER ---
+                        // CorelDRAW/Illustrator often export paragraphs as separate lines.
+                        // We try to merge them back into a single Textbox.
+
+                        // Add objects to canvas first to get dimensions
                         objects.forEach((obj, i) => {
                             if (!(obj as any).name) (obj as any).name = `object_${i}`;
                             tempCanvas.add(obj);
                         });
+
+                        const textObjects = tempCanvas.getObjects().filter(o => o.type === 'text' || o.type === 'i-text');
+
+                        // Sort by Y position to process top-down
+                        textObjects.sort((a, b) => (a.top || 0) - (b.top || 0));
+
+                        const mergedGroups: fabric.Object[][] = [];
+                        let currentGroup: fabric.Object[] = [];
+
+                        textObjects.forEach((obj, index) => {
+                            if (currentGroup.length === 0) {
+                                currentGroup.push(obj);
+                                return;
+                            }
+
+                            const prev = currentGroup[currentGroup.length - 1] as any;
+                            const curr = obj as any;
+
+                            // Check compatibility
+                            const isSameFont = prev.fontFamily === curr.fontFamily;
+                            const isSameSize = Math.abs((prev.fontSize || 0) - (curr.fontSize || 0)) < 2;
+                            const isSameColor = prev.fill === curr.fill;
+
+                            // Check layout (Vertical proximity & Horizontal alignment)
+                            // Line height factor approx 1.2 to 1.5
+                            const verticalGap = (curr.top || 0) - ((prev.top || 0) + (prev.height || 0));
+                            const isCloseVertically = verticalGap > -5 && verticalGap < ((prev.fontSize || 20) * 1.5);
+                            const isAlignedLeft = Math.abs((prev.left || 0) - (curr.left || 0)) < 10;
+                            const isAlignedCenter = Math.abs(((prev.left || 0) + (prev.width || 0) / 2) - ((curr.left || 0) + (curr.width || 0) / 2)) < 10;
+
+                            if (isSameFont && isSameSize && isSameColor && isCloseVertically && (isAlignedLeft || isAlignedCenter)) {
+                                currentGroup.push(curr);
+                            } else {
+                                mergedGroups.push([...currentGroup]);
+                                currentGroup = [curr];
+                            }
+                        });
+                        if (currentGroup.length > 0) mergedGroups.push(currentGroup);
+
+                        // Process groups and replace with Textbox
+                        mergedGroups.forEach(group => {
+                            if (group.length > 1) {
+                                const first = group[0];
+                                const combinedText = group.map((o: any) => o.text).join('\n');
+
+                                // Create new Textbox
+                                const newTextbox = new fabric.Textbox(combinedText, {
+                                    ...first.toObject(['left', 'top', 'fill', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'shadow', 'opacity']),
+                                    width: Math.max(...group.map(o => o.getScaledWidth())), // Use widest line
+                                    splitByGrapheme: false
+                                });
+
+                                // Remove old objects
+                                group.forEach(o => tempCanvas.remove(o));
+
+                                // Add new merged object
+                                tempCanvas.add(newTextbox);
+                            }
+                        });
+
+                        // Re-render to ensure bounds are correct before export
+                        tempCanvas.renderAll();
+
+                        let textCount = 0;
+                        let pathCount = 0;
+                        tempCanvas.getObjects().forEach(obj => {
+                            if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') textCount++;
+                            if (obj.type === 'path') pathCount++;
+                        });
+
+                        if (textCount === 0 && pathCount > 0) {
+                            alert('⚠️ Warning: No editable text found in this SVG.\n\nIt looks like all text has been converted to shapes (paths).\n\nTo keep text editable:\n1. Open your design software (Illustrator/Inkscape)\n2. Export as SVG\n3. Ensure "Convert to Outlines" is UNCHECKED\n4. Select "Embed Fonts" or "SVG" for font options.');
+                        }
 
                         const json = tempCanvas.toJSON();
                         formData.append('fabricConfig', JSON.stringify(json));
@@ -143,7 +220,14 @@ export default function AdminPage() {
                                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                 required
                             />
-                            <p className="text-xs text-gray-500 mt-1">Accepts .svg and .pdf files.</p>
+                            <div className="mt-2 text-xs text-blue-800 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                <p className="font-semibold mb-1">💡 For Editable Text:</p>
+                                <ul className="list-disc pl-4 space-y-1">
+                                    <li>Export as <strong>SVG</strong></li>
+                                    <li>Fonts: Set to <strong>"SVG"</strong> or <strong>"Embed"</strong></li>
+                                    <li><strong>DO NOT</strong> use "Create Outlines" or "Convert to Curves"</li>
+                                </ul>
+                            </div>
                         </div>
 
                         {message && (
