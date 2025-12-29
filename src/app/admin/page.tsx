@@ -72,15 +72,31 @@ export default function AdminPage() {
                             const isSameFont = prev.fontFamily === curr.fontFamily;
                             const isSameSize = Math.abs((prev.fontSize || 0) - (curr.fontSize || 0)) < 2;
                             const isSameColor = prev.fill === curr.fill;
+                            const isSameWeight = prev.fontWeight === curr.fontWeight;
+                            const isSameStyle = prev.fontStyle === curr.fontStyle;
 
-                            // Check layout (Vertical proximity & Horizontal alignment)
-                            // Line height factor approx 1.2 to 1.5
-                            const verticalGap = (curr.top || 0) - ((prev.top || 0) + (prev.height || 0));
-                            const isCloseVertically = verticalGap > -5 && verticalGap < ((prev.fontSize || 20) * 1.5);
-                            const isAlignedLeft = Math.abs((prev.left || 0) - (curr.left || 0)) < 10;
-                            const isAlignedCenter = Math.abs(((prev.left || 0) + (prev.width || 0) / 2) - ((curr.left || 0) + (curr.width || 0) / 2)) < 10;
+                            // IMPROVED: Check layout (Vertical proximity & Horizontal alignment)
+                            // Calculate expected line height based on fontSize and lineHeight property
+                            const fontSize = prev.fontSize || 20;
+                            const lineHeight = prev.lineHeight || 1.16; // Default lineHeight in fabric
+                            const expectedLineGap = fontSize * lineHeight;
 
-                            if (isSameFont && isSameSize && isSameColor && isCloseVertically && (isAlignedLeft || isAlignedCenter)) {
+                            // Calculate actual gap from TOP to TOP (more reliable than using height)
+                            const actualGap = (curr.top || 0) - (prev.top || 0);
+
+                            // Allow gap to be within 80% to 150% of expected line height
+                            // This handles both tight and loose line spacing
+                            const isCloseVertically = actualGap > (expectedLineGap * 0.8) && actualGap < (expectedLineGap * 1.5);
+
+                            // Check alignment with increased tolerance for export variations
+                            const alignTolerance = 30; // Increased from 10 to handle CorelDraw/Illustrator
+                            const isAlignedLeft = Math.abs((prev.left || 0) - (curr.left || 0)) < alignTolerance;
+                            const isAlignedCenter = Math.abs(((prev.left || 0) + (prev.width || 0) / 2) - ((curr.left || 0) + (curr.width || 0) / 2)) < alignTolerance;
+                            const isAlignedRight = Math.abs(((prev.left || 0) + (prev.width || 0)) - ((curr.left || 0) + (curr.width || 0))) < alignTolerance;
+
+                            // Merge if all formatting matches AND properly aligned AND vertically adjacent
+                            if (isSameFont && isSameSize && isSameColor && isSameWeight && isSameStyle &&
+                                isCloseVertically && (isAlignedLeft || isAlignedCenter)) {
                                 currentGroup.push(curr);
                             } else {
                                 mergedGroups.push([...currentGroup]);

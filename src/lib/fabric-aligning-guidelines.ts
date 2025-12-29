@@ -101,39 +101,38 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
             updateBestY(br.top + br.height, activeObjectCenterY, 'center');
         }
 
-        // Apply best snaps
+        // Visual guidelines only - snapping disabled per user request
         if (bestSnapX) {
-            let newLeft = activeObject.left!;
-            if (bestSnapX.type === 'center') {
-                // If snapping center, we need to adjust based on where the center is relative to left
-                const offsetX = activeObjectCenterX - activeObject.left!;
-                newLeft = bestSnapX!.snapTo - offsetX;
-            } else if (bestSnapX.type === 'left') {
-                newLeft = bestSnapX!.snapTo;
-            } else if (bestSnapX.type === 'right') {
-                newLeft = bestSnapX!.snapTo - activeObjectBoundingRect.width;
-            }
-            activeObject.set({ left: newLeft });
+            // Removed auto-snap: just show the line
+            // let newLeft = activeObject.left!;
+            // if (bestSnapX.type === 'center') {
+            //     const offsetX = activeObjectCenterX - activeObject.left!;
+            //     newLeft = bestSnapX!.snapTo - offsetX;
+            // } else if (bestSnapX.type === 'left') {
+            //     newLeft = bestSnapX!.snapTo;
+            // } else if (bestSnapX.type === 'right') {
+            //     newLeft = bestSnapX!.snapTo - activeObjectBoundingRect.width;
+            // }
+            // activeObject.set({ left: newLeft });
             verticalLines.push({ x: bestSnapX!.snapTo, y1: 0, y2: canvasHeight });
         }
 
         if (bestSnapY) {
-            let newTop = activeObject.top!;
-            if (bestSnapY.type === 'center') {
-                const offsetY = activeObjectCenterY - activeObject.top!;
-                newTop = bestSnapY!.snapTo - offsetY;
-            } else if (bestSnapY.type === 'top') {
-                newTop = bestSnapY!.snapTo;
-            } else if (bestSnapY.type === 'bottom') {
-                newTop = bestSnapY!.snapTo - activeObjectBoundingRect.height;
-            }
-            activeObject.set({ top: newTop });
+            // Removed auto-snap: just show the line
+            // let newTop = activeObject.top!;
+            // if (bestSnapY.type === 'center') {
+            //     const offsetY = activeObjectCenterY - activeObject.top!;
+            //     newTop = bestSnapY!.snapTo - offsetY;
+            // } else if (bestSnapY.type === 'top') {
+            //     newTop = bestSnapY!.snapTo;
+            // } else if (bestSnapY.type === 'bottom') {
+            //     newTop = bestSnapY!.snapTo - activeObjectBoundingRect.height;
+            // }
+            // activeObject.set({ top: newTop });
             horizontalLines.push({ y: bestSnapY!.snapTo, x1: 0, x2: canvasWidth });
         }
 
-        if (bestSnapX || bestSnapY) {
-            activeObject.setCoords();
-        }
+        // Removed: activeObject.setCoords() - no position changes
     });
 
     canvas.on('after:render', () => {
