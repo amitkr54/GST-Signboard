@@ -117,8 +117,8 @@ function DesignContent() {
                 height: parseFloat(heightParam),
                 unit: unitParam as 'in' | 'cm' | 'mm' | 'px'
             }));
-            // Also clear old local storage if starting fresh to avoid conflicts? 
-            // Or just let it overwrite on next autosave. Overwriting is safer.
+            // Also clear old local storage if starting fresh to avoid conflicts
+            localStorage.removeItem('signage_canvas_json');
         } else if (savedDesign) {
             // Restore from local storage only if no URL params
             try {

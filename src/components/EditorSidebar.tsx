@@ -62,9 +62,11 @@ export function EditorSidebar({
 }: EditorSidebarProps) {
     const [activeTab, setActiveTab] = useState<TabType | null>(null);
     const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+    const [customIcons, setCustomIcons] = useState<string[]>([]);
     const [qrText, setQrText] = useState('');
     const [isGeneratingQR, setIsGeneratingQR] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const iconFileInputRef = useRef<HTMLInputElement>(null);
 
     const tabs = [
         { id: 'templates' as TabType, icon: Layout, label: 'Templates' },
@@ -97,8 +99,20 @@ export function EditorSidebar({
             const reader = new FileReader();
             reader.onload = (event) => {
                 const imageUrl = event.target?.result as string;
-                // Simple pass-through for now, can add bg removal logic if needed
                 setUploadedImages(prev => [...prev, imageUrl]);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imageUrl = event.target?.result as string;
+                setCustomIcons(prev => [...prev, imageUrl]);
+                onAddImage(imageUrl); // Automatically add to canvas
             };
             reader.readAsDataURL(file);
         }
@@ -200,9 +214,42 @@ export function EditorSidebar({
                                     <Grid3X3 className="w-5 h-5 text-gray-400 absolute left-4 top-3.5 group-focus-within:text-indigo-500 transition-colors" />
                                 </div>
 
+                                <input
+                                    ref={iconFileInputRef}
+                                    type="file"
+                                    accept="image/*,image/svg+xml"
+                                    onChange={handleIconUpload}
+                                    className="hidden"
+                                />
+
+                                {customIcons.length > 0 && (
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-900 mb-4">Custom Elements</p>
+                                        <div className="grid grid-cols-4 gap-3">
+                                            {customIcons.map((icon, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => onAddImage(icon)}
+                                                    className="aspect-square bg-white border border-gray-100 rounded-xl flex items-center justify-center p-2 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm hover:shadow-md"
+                                                >
+                                                    <img src={icon} alt="Custom" className="w-full h-full object-contain" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div>
                                     <div className="flex items-center justify-between mb-4">
                                         <p className="text-sm font-bold text-gray-900">Basic Shapes</p>
+                                        <button
+                                            onClick={() => iconFileInputRef.current?.click()}
+                                            className="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-colors flex items-center gap-1.5"
+                                            title="Upload custom shape"
+                                        >
+                                            <Upload className="w-3.5 h-3.5" />
+                                            <span className="text-xs font-semibold">Upload</span>
+                                        </button>
                                     </div>
                                     <div className="grid grid-cols-4 gap-3">
                                         {['rect', 'rect-sharp', 'circle', 'triangle', 'pentagon', 'hexagon', 'star', 'line', 'arrow', 'arrow-left', 'arrow-up', 'arrow-down', 'chevron'].map((shape: any) => (
@@ -231,7 +278,17 @@ export function EditorSidebar({
                                 </div>
 
                                 <div className="pt-4 border-t border-gray-100">
-                                    <p className="text-sm font-bold text-gray-900 mb-4">Social Media</p>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <p className="text-sm font-bold text-gray-900">Social Media</p>
+                                        <button
+                                            onClick={() => iconFileInputRef.current?.click()}
+                                            className="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-colors flex items-center gap-1.5"
+                                            title="Upload custom social icon"
+                                        >
+                                            <Upload className="w-3.5 h-3.5" />
+                                            <span className="text-xs font-semibold">Upload</span>
+                                        </button>
+                                    </div>
                                     <div className="grid grid-cols-4 gap-3">
                                         {SOCIAL_ICONS.map((iconItem) => (
                                             <button
@@ -280,7 +337,17 @@ export function EditorSidebar({
                                 </div>
 
                                 <div className="pt-4 border-t border-gray-100">
-                                    <p className="text-sm font-bold text-gray-900 mb-4">Icons</p>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <p className="text-sm font-bold text-gray-900">Icons</p>
+                                        <button
+                                            onClick={() => iconFileInputRef.current?.click()}
+                                            className="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-colors flex items-center gap-1.5"
+                                            title="Upload custom icon"
+                                        >
+                                            <Upload className="w-3.5 h-3.5" />
+                                            <span className="text-xs font-semibold">Upload</span>
+                                        </button>
+                                    </div>
                                     <div className="grid grid-cols-4 gap-3">
                                         {GENERIC_ICONS.map((iconItem) => (
                                             <button
