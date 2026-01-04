@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { SignageData, DesignConfig } from '@/lib/types';
 import { MaterialId } from '@/lib/utils';
@@ -49,20 +49,6 @@ export function FabricPreview({
     const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
     const [dynamicTemplates, setDynamicTemplates] = useState<typeof TEMPLATES>(TEMPLATES);
     const [isStabilized, setIsStabilized] = useState(false);
-
-    // Dynamic Canvas Dimensions
-    const { width: baseWidth, height: baseHeight } = useMemo(() => {
-        const DPI = 75; // Standardized for 1800px = 24in
-        let w = design.width;
-        let h = design.height;
-        const u = design.unit || 'in';
-
-        if (u === 'in') { w *= DPI; h *= DPI; }
-        else if (u === 'cm') { w *= (DPI / 2.54); h *= (DPI / 2.54); }
-        else if (u === 'mm') { w *= (DPI / 25.4); h *= (DPI / 25.4); }
-
-        return { width: Math.round(w), height: Math.round(h) };
-    }, [design.width, design.height, design.unit]);
 
     // History State
     const historyRef = useRef<string[]>([]);
@@ -246,8 +232,8 @@ export function FabricPreview({
     useEffect(() => {
         if (!canvasRef.current || fabricCanvasRef.current) return;
         const canvas = new fabric.Canvas(canvasRef.current, {
-            width: baseWidth,
-            height: baseHeight,
+            width: LAYOUT.WIDTH,
+            height: LAYOUT.HEIGHT,
             backgroundColor: design.backgroundColor,
             selection: true,
             renderOnAddRemove: true,
@@ -313,7 +299,7 @@ export function FabricPreview({
             const targetW = trueAvailW * paddingScale;
             const targetH = trueAvailH * paddingScale;
 
-            let sc = Math.min(targetW / baseWidth, targetH / baseHeight);
+            let sc = Math.min(targetW / LAYOUT.WIDTH, targetH / LAYOUT.HEIGHT);
 
             // 5. HARD CAPS
             sc = Math.min(sc, 1.0);
@@ -361,8 +347,8 @@ export function FabricPreview({
     useEffect(() => {
         if (canvasInstance) {
             canvasInstance.setDimensions({
-                width: baseWidth * scale,
-                height: baseHeight * scale
+                width: LAYOUT.WIDTH * scale,
+                height: LAYOUT.HEIGHT * scale
             });
             canvasInstance.setZoom(scale);
             canvasInstance.calcOffset();
@@ -396,8 +382,7 @@ export function FabricPreview({
 
         if (templateConfig) {
             const renderTemplate = (comps: any, isSvgFallback: boolean = false, svgText?: string) => {
-                const WIDTH = baseWidth;
-                const HEIGHT = baseHeight;
+                const { WIDTH, HEIGHT } = LAYOUT;
                 let vbX = 0, vbY = 0, vbW = WIDTH, vbH = HEIGHT;
 
                 if (comps?.originalViewBox) {
@@ -509,9 +494,7 @@ export function FabricPreview({
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
 
-        const { PADDING } = LAYOUT;
-        const WIDTH = baseWidth;
-        const HEIGHT = baseHeight;
+        const { WIDTH, HEIGHT, PADDING } = LAYOUT;
         const existing = canvas.getObjects();
 
         // Background
@@ -556,8 +539,7 @@ export function FabricPreview({
     function finalizeStandardLayout() {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
-        const { PADDING } = LAYOUT;
-        const WIDTH = baseWidth;
+        const { WIDTH, PADDING } = LAYOUT;
 
         let curY = PADDING + 50;
 
@@ -581,7 +563,7 @@ export function FabricPreview({
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
         const textbox = new fabric.Textbox(type === 'heading' ? 'Heading' : 'Text', {
-            left: baseWidth / 2, top: baseHeight / 2,
+            left: LAYOUT.WIDTH / 2, top: LAYOUT.HEIGHT / 2,
             fontSize: type === 'heading' ? 80 : 40,
             originX: 'center', originY: 'center',
             name: 'user_added_text'
@@ -599,120 +581,30 @@ export function FabricPreview({
             mail: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6',
             location: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
             star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
-            heart: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7 Z',
+            heart: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z',
             globe: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20 M2 12h20',
             clock: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 6v6l4 2',
             calendar: 'M3 4h18v18H3V4z M16 2v4 M8 2v4 M3 10h18',
             user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2 M12 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
-            building: 'M2 6h20v16H2V6z M10 2v4 M14 2v4 M18 2v4 M6 2v4 M2 22v-4 M22 22v-4',
-            // Simplified, centered brand logos
-            facebook: 'M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z',
-            instagram: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z',
-            twitter: 'M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z',
-            linkedin: 'M4.98 3.5c0 1.381-1.11 2.5-2.48 2.5s-2.48-1.119-2.48-2.5c0-1.38 1.11-2.5 2.48-2.5s2.48 1.12 2.48 2.5zm.02 4.5h-5v16h5v-16zm7.982 0h-4.968v16h4.969v-8.399c0-4.67 6.029-5.052 6.029 0v8.399h4.988v-10.131c0-7.88-8.922-7.593-11.018-3.714v-2.155z',
-            youtube: 'M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z',
-            whatsapp: 'M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z'
-        };
-
-        // Shape and color configuration for each icon
-        const iconConfig: Record<string, {
-            shape: 'circle' | 'roundedSquare',
-            color: string,
-            useGradient?: boolean
-        }> = {
-            facebook: { shape: 'circle', color: '#1877F2' },
-            instagram: { shape: 'roundedSquare', color: '#E4405F', useGradient: true },
-            twitter: { shape: 'circle', color: '#1DA1F2' },
-            linkedin: { shape: 'circle', color: '#0A66C2' },
-            youtube: { shape: 'circle', color: '#FF0000' },
-            whatsapp: { shape: 'roundedSquare', color: '#25D366' }
+            building: 'M2 6h20v16H2V6z M10 2v4 M14 2v4 M18 2v4 M6 2v4 M2 22v-4 M22 22v-4'
         };
 
         const pathData = iconPaths[iconName] || iconPaths['star'];
-        const config = iconConfig[iconName];
-
-        // Brand Icons (Social Media) - Render with appropriate shape
-        if (config) {
-            let background: fabric.Object;
-
-            if (config.shape === 'roundedSquare') {
-                background = new fabric.Rect({
-                    width: 80,
-                    height: 80,
-                    rx: 14,
-                    ry: 14,
-                    originX: 'center',
-                    originY: 'center',
-                    fill: config.color
-                });
-
-                // Apply Instagram gradient
-                if (config.useGradient && iconName === 'instagram') {
-                    const gradient = new fabric.Gradient({
-                        type: 'linear',
-                        coords: { x1: -40, y1: -40, x2: 40, y2: 40 },
-                        colorStops: [
-                            { offset: 0, color: '#833AB4' },
-                            { offset: 0.5, color: '#E1306C' },
-                            { offset: 1, color: '#FCAF45' }
-                        ]
-                    });
-                    background.set('fill', gradient);
-                }
-            } else {
-                background = new fabric.Circle({
-                    radius: 40,
-                    fill: config.color,
-                    originX: 'center',
-                    originY: 'center'
-                });
-            }
-
-            const logoPath = new fabric.Path(pathData, {
-                fill: '#ffffff',
-                stroke: 'transparent',
-                scaleX: 2.5,
-                scaleY: 2.5,
-                originX: 'center',
-                originY: 'center'
-            });
-
-            const group = new fabric.Group([background, logoPath], {
-                left: baseWidth / 2,
-                top: baseHeight / 2,
-                originX: 'center',
-                originY: 'center',
-                name: `social_${iconName}`
-            });
-
-            canvas.add(group);
-            canvas.setActiveObject(group);
-        } else {
-            // Standard Line Icons - Black Outline
-            const iconPath = new fabric.Path(pathData, {
-                left: baseWidth / 2,
-                top: baseHeight / 2,
-                originX: 'center',
-                originY: 'center',
-                fill: 'transparent',
-                stroke: '#000000',
-                strokeWidth: 2,
-                scaleX: 3,
-                scaleY: 3,
-                name: 'user_added_icon'
-            });
-            canvas.add(iconPath);
-            canvas.setActiveObject(iconPath);
-        }
+        const iconPath = new fabric.Path(pathData, {
+            left: LAYOUT.WIDTH / 2, top: LAYOUT.HEIGHT / 2,
+            originX: 'center', originY: 'center',
+            fill: 'transparent', stroke: '#000000', strokeWidth: 2, scaleX: 3, scaleY: 3,
+            name: 'user_added_icon'
+        });
+        canvas.add(iconPath);
+        canvas.setActiveObject(iconPath);
     };
-
-
 
     const addShape = (type: string) => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
         let shape: fabric.Object;
-        const common = { left: baseWidth / 2, top: baseHeight / 2, fill: '#7D2AE8', originX: 'center', originY: 'center', name: 'user_added_shape' };
+        const common = { left: LAYOUT.WIDTH / 2, top: LAYOUT.HEIGHT / 2, fill: '#7D2AE8', originX: 'center', originY: 'center', name: 'user_added_shape' };
 
         if (type === 'circle') shape = new fabric.Circle({ ...common, radius: 80 });
         else if (type === 'triangle') shape = new fabric.Triangle({ ...common, width: 150, height: 130 });
@@ -760,8 +652,8 @@ export function FabricPreview({
 
     const addImage = (url: string) => {
         fabric.Image.fromURL(url, (img) => {
-            const sc = Math.min((baseWidth * 0.4) / (img.width || 1), (baseHeight * 0.4) / (img.height || 1));
-            img.set({ left: baseWidth / 2, top: baseHeight / 2, originX: 'center', originY: 'center', scaleX: sc, scaleY: sc, name: 'user_added_image' });
+            const sc = Math.min((LAYOUT.WIDTH * 0.4) / (img.width || 1), (LAYOUT.HEIGHT * 0.4) / (img.height || 1));
+            img.set({ left: LAYOUT.WIDTH / 2, top: LAYOUT.HEIGHT / 2, originX: 'center', originY: 'center', scaleX: sc, scaleY: sc, name: 'user_added_image' });
             fabricCanvasRef.current?.add(img);
             fabricCanvasRef.current?.setActiveObject(img);
         }, { crossOrigin: 'anonymous' });

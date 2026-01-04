@@ -96,7 +96,7 @@ export default function AdminPage() {
 
                             // Merge if all formatting matches AND properly aligned AND vertically adjacent
                             if (isSameFont && isSameSize && isSameColor && isSameWeight && isSameStyle &&
-                                isCloseVertically && (isAlignedLeft || isAlignedCenter)) {
+                                isCloseVertically && (isAlignedLeft || isAlignedCenter || isAlignedRight)) {
                                 currentGroup.push(curr);
                             } else {
                                 mergedGroups.push([...currentGroup]);

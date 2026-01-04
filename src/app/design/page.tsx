@@ -13,7 +13,7 @@ import { ReviewApproval } from '@/components/ReviewApproval';
 import { SignageData, DesignConfig, DEFAULT_DESIGN, TemplateId } from '@/lib/types';
 import { calculatePrice, MaterialId } from '@/lib/utils';
 import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode } from '@/app/actions';
-import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3 } from 'lucide-react';
+import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3, Download } from 'lucide-react';
 import { PreviewSection } from '@/components/PreviewSection';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { Circle, Triangle, Minus } from 'lucide-react';
@@ -100,18 +100,34 @@ function DesignContent() {
     const { user } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
 
-    // 1. Initial Load from localStorage
+    // 1. Initial Load from URL or localStorage
     useEffect(() => {
         const savedDesign = localStorage.getItem('signage_draft_design');
         const savedData = localStorage.getItem('signage_draft_data');
 
-        if (savedDesign) {
+        // Check for URL params first (New Project Flow)
+        const widthParam = searchParams.get('width');
+        const heightParam = searchParams.get('height');
+        const unitParam = searchParams.get('unit');
+
+        if (widthParam && heightParam && unitParam) {
+            setDesign(prev => ({
+                ...prev,
+                width: parseFloat(widthParam),
+                height: parseFloat(heightParam),
+                unit: unitParam as 'in' | 'cm' | 'mm' | 'px'
+            }));
+            // Also clear old local storage if starting fresh to avoid conflicts? 
+            // Or just let it overwrite on next autosave. Overwriting is safer.
+        } else if (savedDesign) {
+            // Restore from local storage only if no URL params
             try {
                 setDesign(JSON.parse(savedDesign));
             } catch (e) {
                 console.error('Failed to parse saved design', e);
             }
         }
+
         if (savedData) {
             try {
                 setData(JSON.parse(savedData));
@@ -119,7 +135,7 @@ function DesignContent() {
                 console.error('Failed to parse saved data', e);
             }
         }
-    }, []);
+    }, [searchParams]);
 
     // 2. Auto-save to localStorage (Debounced)
     useEffect(() => {
@@ -1037,7 +1053,6 @@ function DesignContent() {
                         onAddImage={(url) => addImageFn?.(url)}
                         design={design}
                         onDesignChange={setDesign}
-                        onDownload={handleDownload}
                     />
                 </div>
 
@@ -1059,200 +1074,226 @@ function DesignContent() {
                 </div>
 
                 {/* 3. Properties & Checkout Panel (Right) */}
-                <div className="w-[320px] bg-white border-l border-gray-200 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar">
-                    <div className="p-6">
-                        <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-                            Material &amp; Order
-                        </h3>
+                <div className="w-[340px] bg-white border-l border-gray-200 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar flex flex-col">
+                    <div className="p-0 flex-1">
+                        {/* Header */}
+                        <div className="h-14 px-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-sm z-10">
+                            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                Configuration
+                            </h3>
+                            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Need Help?</button>
+                        </div>
 
-                        <div className="space-y-8">
-                            {/* Size Display */}
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Dimensions</label>
-                                <div className="flex items-center justify-between font-mono text-sm">
-                                    <span>Width: {design.width}&quot;</span>
-                                    <span className="text-gray-300">|</span>
-                                    <span>Height: {design.height}&quot;</span>
-                                </div>
-                            </div>
+                        <div className="p-6 space-y-8">
 
-                            {/* Material Select */}
-                            <div>
-                                <label className="text-sm font-semibold text-gray-900 mb-3 block">Material</label>
-                                <MaterialSelector
-                                    selectedMaterial={material}
-                                    onSelect={setMaterial}
-                                />
-                            </div>
-
-                            {/* Installation */}
-                            <div className="pt-4 border-t border-gray-100">
-                                <label className="flex items-center gap-3 cursor-pointer group">
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeInstallation ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 group-hover:border-indigo-400'}`}>
-                                        {includeInstallation && <Check className="w-3.5 h-3.5 text-white" />}
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        checked={includeInstallation}
-                                        onChange={e => setIncludeInstallation(e.target.checked)}
-                                        className="hidden"
-                                    />
-                                    <div className="flex-1">
-                                        <span className="text-sm font-medium text-gray-900">Professional Installation</span>
-                                        <p className="text-xs text-gray-500">Expert team setup (+&nbsp;₹{INSTALLATION_COST})</p>
-                                    </div>
-                                </label>
-                            </div>
-
-                            {/* Payment Scheme */}
-                            <div className="pt-4 border-t border-gray-100">
-                                <label className="text-sm font-semibold text-gray-900 mb-3 block">Payment Options</label>
+                            {/* Materials & Installation Card */}
+                            <div className="space-y-6">
+                                {/* Size Controls (ReadOnly) */}
                                 <div className="space-y-3">
-                                    <label className={`flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentScheme === 'part' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <div className="flex items-center mb-2">
-                                            <input
-                                                type="radio"
-                                                name="paymentScheme"
-                                                value="part"
-                                                checked={paymentScheme === 'part'}
-                                                onChange={() => setPaymentScheme('part')}
-                                                className="w-5 h-5 text-purple-600 focus:ring-purple-500"
-                                            />
-                                            <div className="ml-3">
-                                                <span className="font-semibold block">Part Payment</span>
-                                                <span className="text-sm text-gray-500">Pay minimum 25% now, balance on delivery</span>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Dimensions</label>
+                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-gray-100 text-gray-600 rounded border border-gray-200">
+                                            {design.unit}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex justify-between items-center group">
+                                            <span className="text-xs text-gray-500 font-medium group-hover:text-indigo-600 transition-colors">W</span>
+                                            <span className="text-sm font-bold text-gray-900">{design.width}</span>
+                                        </div>
+                                        <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex justify-between items-center group">
+                                            <span className="text-xs text-gray-500 font-medium group-hover:text-indigo-600 transition-colors">H</span>
+                                            <span className="text-sm font-bold text-gray-900">{design.height}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Background & Export Row */}
+                                <div className="grid grid-cols-1 gap-6 pt-6 border-t border-gray-100">
+                                    <div className="space-y-3">
+                                        <label className="text-sm font-bold text-gray-900 block">Background</label>
+                                        <div className="flex flex-wrap gap-2.5">
+                                            {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => setDesign({ ...design, backgroundColor: color })}
+                                                    className={`w-7 h-7 rounded-full shadow-sm transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${design.backgroundColor === color ? 'ring-2 ring-offset-1 ring-indigo-600 scale-110 z-10' : 'ring-1 ring-black/5 hover:ring-black/10'}`}
+                                                    style={{ backgroundColor: color }}
+                                                    title={color}
+                                                />
+                                            ))}
+                                            <div className="relative w-7 h-7 rounded-full ring-1 ring-black/5 overflow-hidden shadow-sm hover:ring-black/20 transition-all">
+                                                <input
+                                                    type="color"
+                                                    value={design.backgroundColor}
+                                                    onChange={(e) => setDesign({ ...design, backgroundColor: e.target.value })}
+                                                    className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer opacity-0"
+                                                    title="Custom Color"
+                                                />
+                                                <div className="w-full h-full bg-[conic-gradient(from_180deg_at_50%_50%,#FF0000_0deg,#00FF00_120deg,#0000FF_240deg,#FF0000_360deg)] opacity-80 hover:opacity-100" />
                                             </div>
                                         </div>
+                                    </div>
 
-                                        {paymentScheme === 'part' && (
-                                            <div className="ml-8 mt-2">
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Amount to Pay Now (Min ₹{Math.ceil(price * 0.25)})</label>
-                                                <div className="relative">
-                                                    <span className="absolute left-3 top-2 text-gray-500">₹</span>
-                                                    <input
-                                                        type="number"
-                                                        value={advanceAmount}
-                                                        onChange={(e) => setAdvanceAmount(Math.max(Math.ceil(price * 0.25), parseFloat(e.target.value) || 0))}
-                                                        min={Math.ceil(price * 0.25)}
-                                                        max={price}
-                                                        className="w-full pl-8 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                                    />
-                                                </div>
-                                                <p className="text-sm text-purple-600 mt-1">
-                                                    Balance Due: ₹{price - (advanceAmount || 0)}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </label>
-
-                                    <label className={`flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentScheme === 'full' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <div className="flex items-center">
-                                            <input
-                                                type="radio"
-                                                name="paymentScheme"
-                                                value="full"
-                                                checked={paymentScheme === 'full'}
-                                                onChange={() => setPaymentScheme('full')}
-                                                className="w-5 h-5 text-purple-600 focus:ring-purple-500"
-                                            />
-                                            <div className="ml-3">
-                                                <span className="font-semibold block">Full Payment</span>
-                                                <span className="text-sm text-gray-500">Pay total amount now</span>
-                                            </div>
-                                        </div>
-                                    </label>
+                                    {/* Export Options */}
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => handleDownload('svg')}
+                                            variant="outline"
+                                            className="flex-1 gap-2 h-9 text-xs border-gray-200 bg-white hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            SVG
+                                        </Button>
+                                        <Button
+                                            onClick={() => handleDownload('pdf')}
+                                            variant="outline"
+                                            className="flex-1 gap-2 h-9 text-xs border-gray-200 bg-white hover:bg-gray-50 hover:text-red-600 hover:border-red-200"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            PDF
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Price Summary */}
-                            <div className="flex justify-between items-center mb-6 pt-6 border-t">
-                                <div>
-                                    <p className="text-gray-600">Selected Material</p>
-                                    <p className="text-xl font-bold capitalize">{material.replace(/([A-Z])/g, ' $1').trim()}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-gray-600">Total Price</p>
-                                    {discount > 0 ? (
-                                        <div>
-                                            <p className="text-lg text-gray-400 line-through">₹{basePrice + deliveryCost + installationCost}</p>
-                                            <p className="text-3xl font-bold text-green-600">₹{price}</p>
-                                            <p className="text-xs text-green-600">Saved ₹{discount}</p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-3xl font-bold text-purple-700">₹{price}</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Referral Code Input */}
-                            <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Have a Referral Code? Get ₹150 OFF!
-                                </label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={referralCode}
-                                        onChange={(e) => {
-                                            const code = e.target.value.toUpperCase();
-                                            setReferralCode(code);
-                                            if (code) {
-                                                document.cookie = `ref_code=${code}; max-age=${30 * 24 * 60 * 60}; path=/`;
-                                                validateReferralCode(code);
-                                            } else {
-                                                setCodeValidated(false);
-                                            }
-                                        }}
-                                        placeholder="Enter referral code"
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                {/* Material Select */}
+                                <div className="pt-6 border-t border-gray-100">
+                                    <label className="text-sm font-bold text-gray-900 mb-3 block">Material</label>
+                                    <MaterialSelector
+                                        selectedMaterial={material}
+                                        onSelect={setMaterial}
                                     />
-                                    {isValidatingCode && (
-                                        <div className="flex items-center px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                            <span className="text-sm text-blue-700 font-medium">Checking...</span>
-                                        </div>
-                                    )}
-                                    {!isValidatingCode && referralCode && codeValidated && (
-                                        <div className="flex items-center px-3 bg-green-50 border border-green-200 rounded-lg">
-                                            <span className="text-sm text-green-700 font-medium">✓ Valid</span>
-                                        </div>
-                                    )}
-                                    {!isValidatingCode && referralCode && !codeValidated && (
-                                        <div className="flex items-center px-3 bg-red-50 border border-red-200 rounded-lg">
-                                            <span className="text-sm text-red-700 font-medium">✗ Invalid</span>
-                                        </div>
-                                    )}
                                 </div>
-                                {codeValidated && referralCode && (
-                                    <p className="text-xs text-green-600 mt-1">
-                                        🎉 You&apos;ll save ₹150!
-                                    </p>
-                                )}
-                                {!codeValidated && referralCode && !isValidatingCode && (
-                                    <p className="text-xs text-red-600 mt-1">
-                                        Invalid referral code. Please check and try again.
-                                    </p>
-                                )}
+
+                                {/* Professional Installation */}
+                                <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                    <label className="flex items-start gap-3 cursor-pointer group">
+                                        <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-all shadow-sm ${includeInstallation ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-white border-gray-300 group-hover:border-indigo-400'}`}>
+                                            {includeInstallation && <Check className="w-3.5 h-3.5 text-white" />}
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={includeInstallation}
+                                            onChange={e => setIncludeInstallation(e.target.checked)}
+                                            className="hidden"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-center mb-0.5">
+                                                <span className="text-sm font-bold text-gray-900">Professional Installation</span>
+                                                <span className="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">+₹{INSTALLATION_COST}</span>
+                                            </div>
+                                            <p className="text-xs text-indigo-700/70">Our expert team handles the mounting.</p>
+                                        </div>
+                                    </label>
+                                </div>
                             </div>
 
-                            <div className="pt-6 border-t flex flex-col gap-4">
-                                <button
-                                    onClick={() => setShowReviewModal(true)}
-                                    disabled={isProcessing}
-                                    className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isProcessing ? 'Processing Order...' : 'Review & Place Order'}
-                                    {!isProcessing && <ArrowRight className="w-6 h-6" />}
-                                </button>
+                            {/* Payment Section */}
+                            <div className="pt-2">
+                                <label className="text-sm font-bold text-gray-900 mb-3 block">Payment Scheme</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setPaymentScheme('part')}
+                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-purple-600 bg-purple-50 shadow-sm' : 'border-gray-100 hover:border-gray-300 bg-white'}`}
+                                    >
+                                        <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'part' ? 'border-purple-600' : 'border-gray-300'}`}>
+                                            {paymentScheme === 'part' && <div className="w-2 h-2 rounded-full bg-purple-600" />}
+                                        </div>
+                                        <p className="font-bold text-sm text-gray-900">Part Pay</p>
+                                        <p className="text-[10px] text-gray-500 leading-tight mt-1">Pay 25% now, rest on delivery</p>
+                                    </button>
 
-                                {/* Need Help Section */}
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center">
-                                    <p className="text-sm font-medium text-gray-700 mb-1">Need help with your order?</p>
-                                    <p className="text-sm text-gray-600">Call our support team:</p>
-                                    <a href="tel:+919876543210" className="text-blue-600 font-bold hover:underline">+91 98765 43210</a>
-                                    <p className="text-xs text-gray-500 mt-1">Mon-Sat, 10 AM - 7 PM</p>
+                                    <button
+                                        onClick={() => setPaymentScheme('full')}
+                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-purple-600 bg-purple-50 shadow-sm' : 'border-gray-100 hover:border-gray-300 bg-white'}`}
+                                    >
+                                        <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'full' ? 'border-purple-600' : 'border-gray-300'}`}>
+                                            {paymentScheme === 'full' && <div className="w-2 h-2 rounded-full bg-purple-600" />}
+                                        </div>
+                                        <p className="font-bold text-sm text-gray-900">Full Pay</p>
+                                        <p className="text-[10px] text-gray-500 leading-tight mt-1">Pay 100% upfront</p>
+                                    </button>
+                                </div>
+
+                                {paymentScheme === 'part' && (
+                                    <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg animate-in slide-in-from-top-2">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="text-xs font-semibold text-gray-500">Advance Amount</label>
+                                            <span className="text-[10px] text-purple-600 font-medium">Min: ₹{Math.ceil(price * 0.25)}</span>
+                                        </div>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-2 text-gray-900 font-semibold">₹</span>
+                                            <input
+                                                type="number"
+                                                value={advanceAmount}
+                                                onChange={(e) => setAdvanceAmount(Math.max(Math.ceil(price * 0.25), parseFloat(e.target.value) || 0))}
+                                                min={Math.ceil(price * 0.25)}
+                                                max={price}
+                                                className="w-full pl-6 pr-3 py-1.5 text-sm font-bold text-gray-900 border border-gray-200 rounded-md focus:ring-1 focus:ring-purple-500 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer / Checkout */}
+                    <div className="p-5 border-t border-gray-200 bg-gray-50/50 space-y-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                        {/* Price Rows */}
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-gray-500">
+                                <span>Subtotal</span>
+                                <span>₹{basePrice}</span>
+                            </div>
+                            {(deliveryCost > 0 || installationCost > 0) && (
+                                <div className="flex justify-between text-xs text-gray-500">
+                                    <span>Extras (Delivery/Install)</span>
+                                    <span>₹{deliveryCost + installationCost}</span>
+                                </div>
+                            )}
+                            {discount > 0 && (
+                                <div className="flex justify-between text-xs text-green-600 font-medium">
+                                    <span>Discount</span>
+                                    <span>-₹{discount}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between items-end pt-2 border-t border-gray-200 mt-2">
+                                <span className="font-bold text-gray-900 text-lg">Total</span>
+                                <div className="text-right">
+                                    <span className="font-black text-2xl text-purple-700 leading-none">₹{price}</span>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Referral Code */}
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={referralCode}
+                                onChange={(e) => {
+                                    const code = e.target.value.toUpperCase();
+                                    setReferralCode(code);
+                                    if (code) {
+                                        validateReferralCode(code);
+                                    } else {
+                                        setCodeValidated(false);
+                                    }
+                                }}
+                                placeholder="Referral Code (Optional)"
+                                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-300 ring-green-500 bg-green-50 text-green-700 placeholder-green-400' : 'border-gray-300 focus:border-blue-500 bg-white'}`}
+                            />
+                            {codeValidated && <div className="absolute right-3 top-2 text-green-600 text-xs font-bold">✓ APPLIED</div>}
+                        </div>
+
+                        <button
+                            onClick={() => setShowReviewModal(true)}
+                            disabled={isProcessing}
+                            className="w-full group bg-gray-900 hover:bg-black text-white py-4 rounded-xl font-bold text-base shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100"
+                        >
+                            {isProcessing ? 'Processing...' : 'Proceed to Checkout'}
+                            {!isProcessing && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                        </button>
                     </div>
                 </div>
             </div>

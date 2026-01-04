@@ -1,14 +1,21 @@
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { AuthButton } from '@/components/AuthButton';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { StartDesignModal } from '@/components/StartDesignModal';
 import { ArrowRight, Wand2, Diamond, Truck, Check, Facebook, Twitter, Linkedin, Instagram, Play, PenTool, Sparkles, Layout } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 
 export default function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white font-sans text-gray-900">
+      <StartDesignModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
       {/* Hero Section */}
       <section className="relative pt-6 pb-0 lg:pt-6 lg:pb-4 overflow-visible">
@@ -23,11 +30,13 @@ export default function Home() {
                 Craft custom business signs, banners, and displays effortlessly with our intuitive design tools. No design experience needed.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link href="/design">
-                  <Button size="lg" className="rounded-full px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg h-12">
-                    Start Designing
-                  </Button>
-                </Link>
+                <Button
+                  size="lg"
+                  onClick={() => setIsModalOpen(true)}
+                  className="rounded-full px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg h-12"
+                >
+                  Start Designing
+                </Button>
                 <WhatsAppButton
                   text="Get Custom Design"
                   message="Hi, I would like to inquire about your custom design services."

@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft, Palette, Download, X, QrCode, Loader2 } from 'lucide-react';
+import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft, Palette, Download, X, QrCode, Loader2, Hexagon, ArrowRight, Square, Pentagon, ArrowLeft, ArrowUp, ArrowDown, ChevronRight as ChevronIcon } from 'lucide-react';
 import { generateQRCode } from '@/app/actions';
 import { TemplateSelector } from './TemplateSelector';
 import { TemplateId, DesignConfig } from '@/lib/types';
 import { Button } from './ui/Button';
 
 // Reusing icons from DesignSidebar
-import { Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building } from 'lucide-react';
+
+import { Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Facebook, Instagram, Twitter, Linkedin, Youtube, MessageCircle } from 'lucide-react';
 
 interface EditorSidebarProps {
     // Template Props
@@ -24,12 +25,20 @@ interface EditorSidebarProps {
     // Design Controls Props
     design: DesignConfig;
     onDesignChange: (design: DesignConfig) => void;
-    onDownload: (format: 'svg' | 'pdf') => void;
 }
 
-type TabType = 'templates' | 'text' | 'elements' | 'uploads' | 'design';
+type TabType = 'templates' | 'text' | 'elements' | 'uploads';
 
-const ICONS = [
+const SOCIAL_ICONS = [
+    { name: 'facebook', icon: Facebook, label: 'Facebook', color: '#1877F2' },
+    { name: 'instagram', icon: Instagram, label: 'Instagram', color: '#E4405F' },
+    { name: 'twitter', icon: Twitter, label: 'Twitter', color: '#1DA1F2' },
+    { name: 'linkedin', icon: Linkedin, label: 'LinkedIn', color: '#0A66C2' },
+    { name: 'youtube', icon: Youtube, label: 'YouTube', color: '#FF0000' },
+    { name: 'whatsapp', icon: MessageCircle, label: 'WhatsApp', color: '#25D366' },
+];
+
+const GENERIC_ICONS = [
     { name: 'phone', icon: Phone, label: 'Phone' },
     { name: 'mail', icon: Mail, label: 'Email' },
     { name: 'location', icon: MapPin, label: 'Location' },
@@ -50,8 +59,7 @@ export function EditorSidebar({
     onAddShape,
     onAddImage,
     design,
-    onDesignChange,
-    onDownload
+    onDesignChange
 }: EditorSidebarProps) {
     const [activeTab, setActiveTab] = useState<TabType | null>(null);
     const [uploadedImages, setUploadedImages] = useState<string[]>([]);
@@ -61,7 +69,6 @@ export function EditorSidebar({
 
     const tabs = [
         { id: 'templates' as TabType, icon: Layout, label: 'Templates' },
-        { id: 'design' as TabType, icon: Palette, label: 'Design' },
         { id: 'text' as TabType, icon: Type, label: 'Text' },
         { id: 'elements' as TabType, icon: Grid3X3, label: 'Elements' },
         { id: 'uploads' as TabType, icon: Upload, label: 'Uploads' },
@@ -101,29 +108,31 @@ export function EditorSidebar({
     return (
         <div className="flex h-full bg-white border-r border-gray-200">
             {/* 1. Slim Vertical Navigation Rail */}
-            <div className="w-[72px] flex flex-col items-center py-4 gap-4 bg-slate-900 text-slate-400 z-10 shrink-0 h-full">
+            <div className="w-[72px] flex flex-col items-center py-6 gap-4 bg-slate-900 text-slate-400 z-10 shrink-0 h-full shadow-xl">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
-                        className={`w-14 h-14 flex flex-col items-center justify-center rounded-lg transition-all duration-200 group ${activeTab === tab.id
-                            ? 'bg-slate-800 text-white'
-                            : 'hover:bg-slate-800/50 hover:text-slate-200'
+                        className={`group relative w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-all duration-300 ${activeTab === tab.id
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                            : 'hover:bg-slate-800 hover:text-white'
                             }`}
-                        title={tab.label}
                     >
-                        <tab.icon className={`w-6 h-6 mb-1 ${activeTab === tab.id ? 'text-indigo-400' : ''}`} />
-                        <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
+                        <tab.icon className={`w-5 h-5 transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`} />
+                        {/* Tooltip-like Label on Hover (if not active) */}
+                        <span className="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                            {tab.label}
+                        </span>
                     </button>
                 ))}
             </div>
 
             {/* 2. Side Panel Content Area */}
             {activeTab && (
-                <div className="w-[320px] bg-white border-r border-gray-200 flex flex-col h-full animate-in slide-in-from-left duration-200">
+                <div className="w-[340px] bg-white border-r border-gray-200 flex flex-col h-full animate-in slide-in-from-left duration-300 shadow-2xl z-20">
                     {/* Panel Header */}
-                    <div className="h-14 px-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-                        <h2 className="font-bold text-gray-900 text-lg capitalize">{activeTab}</h2>
+                    <div className="h-16 px-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+                        <h2 className="font-bold text-gray-900 text-xl tracking-tight">{tabs.find(t => t.id === activeTab)?.label}</h2>
                         <button
                             onClick={() => setActiveTab(null)}
                             className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
@@ -133,194 +142,152 @@ export function EditorSidebar({
                     </div>
 
                     {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                         {activeTab === 'templates' && (
-                            <div className="space-y-4">
-                                <p className="text-sm text-gray-500">Choose a layout to start designed.</p>
+                            <div className="space-y-6">
+                                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                    <h3 className="text-indigo-900 font-semibold mb-1">Start with a Template</h3>
+                                    <p className="text-sm text-indigo-700/80">Select a layout below to jumpstart your design.</p>
+                                </div>
                                 <TemplateSelector
                                     selectedTemplateId={selectedTemplateId}
                                     onSelect={(id) => {
                                         onSelectTemplate(id);
-                                        // Auto-switch to design tab
-                                        setActiveTab('design');
+                                        // Auto-switch to text tab instead of design since design is gone
+                                        setActiveTab('text');
                                     }}
                                 />
                             </div>
                         )}
 
-                        {activeTab === 'design' && (
-                            <div className="space-y-6">
-                                <div className="space-y-4">
-                                    <p className="text-sm font-semibold text-gray-900">Signage Background</p>
-                                    <div className="grid grid-cols-5 gap-2">
-                                        {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
-                                            <button
-                                                key={color}
-                                                onClick={() => onDesignChange({ ...design, backgroundColor: color })}
-                                                className={`aspect-square rounded-lg border-2 transition-all ${design.backgroundColor === color ? 'border-indigo-600 scale-110 shadow-sm' : 'border-transparent hover:border-gray-300'}`}
-                                                style={{ backgroundColor: color }}
-                                            />
-                                        ))}
-                                    </div>
-                                    <div className="flex items-center gap-3 pt-2">
-                                        <label className="text-xs font-medium text-gray-500">Custom Color:</label>
-                                        <input
-                                            type="color"
-                                            value={design.backgroundColor}
-                                            onChange={(e) => onDesignChange({ ...design, backgroundColor: e.target.value })}
-                                            className="w-10 h-8 rounded cursor-pointer border border-gray-200"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-4 pt-4 border-t border-gray-100">
-                                    <p className="text-sm font-semibold text-gray-900">Export Options</p>
-                                    <div className="grid gap-3">
-                                        <Button
-                                            onClick={() => onDownload('svg')}
-                                            className="w-full justify-start gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-none h-12"
-                                        >
-                                            <Download className="w-5 h-5 text-indigo-600" />
-                                            <div className="text-left">
-                                                <div className="text-sm font-bold">Download SVG</div>
-                                                <div className="text-[10px] text-gray-500 font-medium">For high quality printing</div>
-                                            </div>
-                                        </Button>
-
-                                        <Button
-                                            onClick={() => onDownload('pdf')}
-                                            className="w-full justify-start gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-none h-12"
-                                        >
-                                            <Download className="w-5 h-5 text-red-600" />
-                                            <div className="text-left">
-                                                <div className="text-sm font-bold">Download PDF</div>
-                                                <div className="text-[10px] text-gray-500 font-medium">Standard document format</div>
-                                            </div>
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-4 pt-4 border-t border-gray-100">
-                                    <p className="text-sm font-semibold text-gray-900">Advanced Controls</p>
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="text-xs font-medium text-gray-500 mb-1 block">Company Name Size: {design.companyNameSize}px</label>
-                                            <input
-                                                type="range"
-                                                min="40"
-                                                max="300"
-                                                value={design.companyNameSize}
-                                                onChange={(e) => onDesignChange({ ...design, companyNameSize: parseInt(e.target.value) })}
-                                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-medium text-gray-500 mb-1 block">Logo Size: {design.logoSize}px</label>
-                                            <input
-                                                type="range"
-                                                min="50"
-                                                max="400"
-                                                value={design.logoSize}
-                                                onChange={(e) => onDesignChange({ ...design, logoSize: parseInt(e.target.value) })}
-                                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {activeTab === 'text' && (
-                            <div className="space-y-6">
+                            <div className="space-y-8">
                                 <button
                                     onClick={() => onAddText('heading')}
-                                    className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full bg-indigo-600 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 hover:shadow-indigo-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3"
                                 >
                                     <Type className="w-5 h-5" />
-                                    Add a text box
+                                    Add Text Box
                                 </button>
-                                <div className="space-y-3 pt-2">
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Default Styles</p>
-                                    <button onClick={() => onAddText('heading')} className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all group">
-                                        <h1 className="text-3xl font-black text-gray-800 group-hover:text-indigo-600">Add a heading</h1>
-                                    </button>
-                                    <button onClick={() => onAddText('subheading')} className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all group">
-                                        <h2 className="text-xl font-bold text-gray-700 group-hover:text-indigo-600">Add a subheading</h2>
-                                    </button>
-                                    <button onClick={() => onAddText('body')} className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all group">
-                                        <p className="text-base text-gray-600 group-hover:text-indigo-600">Add a little bit of body text</p>
-                                    </button>
+
+                                <div className="space-y-4">
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider pl-1">Typography Styles</p>
+                                    <div className="grid gap-3">
+                                        <button onClick={() => onAddText('heading')} className="w-full text-left p-4 hover:bg-gray-50 rounded-xl border border-gray-100 hover:border-indigo-200 transition-all group bg-white shadow-sm hover:shadow-md">
+                                            <h1 className="text-3xl font-black text-gray-900 group-hover:text-indigo-600 transition-colors">Heading</h1>
+                                            <p className="text-xs text-gray-400 mt-1 font-medium">Extra Bold • 32pt</p>
+                                        </button>
+                                        <button onClick={() => onAddText('subheading')} className="w-full text-left p-4 hover:bg-gray-50 rounded-xl border border-gray-100 hover:border-indigo-200 transition-all group bg-white shadow-sm hover:shadow-md">
+                                            <h2 className="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Subheading</h2>
+                                            <p className="text-xs text-gray-400 mt-1 font-medium">Bold • 24pt</p>
+                                        </button>
+                                        <button onClick={() => onAddText('body')} className="w-full text-left p-4 hover:bg-gray-50 rounded-xl border border-gray-100 hover:border-indigo-200 transition-all group bg-white shadow-sm hover:shadow-md">
+                                            <p className="text-base text-gray-600 group-hover:text-indigo-600 transition-colors">Body text paragraph</p>
+                                            <p className="text-xs text-gray-400 mt-1 font-medium">Regular • 16pt</p>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'elements' && (
-                            <div className="space-y-6">
-                                <div className="relative">
+                            <div className="space-y-8">
+                                <div className="relative group">
                                     <input
                                         type="text"
-                                        placeholder="Search shapes & icons..."
-                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm"
+                                        placeholder="Search elements..."
+                                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm outline-none"
                                     />
-                                    <Grid3X3 className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                                    <Grid3X3 className="w-5 h-5 text-gray-400 absolute left-4 top-3.5 group-focus-within:text-indigo-500 transition-colors" />
                                 </div>
+
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-900 mb-3">Shapes</p>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <p className="text-sm font-bold text-gray-900">Basic Shapes</p>
+                                    </div>
                                     <div className="grid grid-cols-4 gap-3">
-                                        {['rect', 'circle', 'triangle', 'line'].map((shape: any) => (
+                                        {['rect', 'rect-sharp', 'circle', 'triangle', 'pentagon', 'hexagon', 'star', 'line', 'arrow', 'arrow-left', 'arrow-up', 'arrow-down', 'chevron'].map((shape: any) => (
                                             <button
                                                 key={shape}
                                                 onClick={() => onAddShape(shape)}
-                                                className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                                className="aspect-square bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm hover:shadow-md"
+                                                title={shape.replace('-', ' ')}
                                             >
                                                 {shape === 'rect' && <div className="w-8 h-6 bg-current rounded-sm" />}
+                                                {shape === 'rect-sharp' && <Square className="w-6 h-6 fill-current" />}
                                                 {shape === 'circle' && <div className="w-7 h-7 bg-current rounded-full" />}
                                                 {shape === 'triangle' && <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-b-[20px] border-l-transparent border-r-transparent border-b-current" />}
+                                                {shape === 'pentagon' && <Pentagon className="w-6 h-6 fill-current" />}
+                                                {shape === 'hexagon' && <Hexagon className="w-6 h-6 fill-current" />}
+                                                {shape === 'star' && <Star className="w-6 h-6 fill-current" />}
                                                 {shape === 'line' && <div className="w-8 h-1 bg-current rounded-full" />}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-gray-900 mb-3">Icons</p>
-                                    <div className="grid grid-cols-4 gap-3">
-                                        {ICONS.map((iconItem) => (
-                                            <button
-                                                key={iconItem.name}
-                                                onClick={() => onAddIcon(iconItem.name)}
-                                                className="aspect-square bg-white border border-gray-200 rounded-lg flex items-center justify-center text-gray-600 hover:border-indigo-500 hover:text-indigo-600 hover:shadow-sm transition-all"
-                                                title={iconItem.label}
-                                            >
-                                                <iconItem.icon className="w-5 h-5" />
+                                                {shape === 'arrow' && <ArrowRight className="w-6 h-6" />}
+                                                {shape === 'arrow-left' && <ArrowLeft className="w-6 h-6" />}
+                                                {shape === 'arrow-up' && <ArrowUp className="w-6 h-6" />}
+                                                {shape === 'arrow-down' && <ArrowDown className="w-6 h-6" />}
+                                                {shape === 'chevron' && <ChevronIcon className="w-6 h-6" />}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
 
                                 <div className="pt-4 border-t border-gray-100">
-                                    <p className="text-sm font-semibold text-gray-900 mb-2">QR Code</p>
-                                    <div className="space-y-3">
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={qrText}
-                                                onChange={(e) => setQrText(e.target.value)}
-                                                placeholder="Enter URL or text..."
-                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm outline-none"
-                                                onKeyDown={(e) => e.key === 'Enter' && handleQRSubmit()}
-                                            />
-                                        </div>
+                                    <p className="text-sm font-bold text-gray-900 mb-4">Social Media</p>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        {SOCIAL_ICONS.map((iconItem) => (
+                                            <button
+                                                key={iconItem.name}
+                                                onClick={() => onAddIcon(iconItem.name)}
+                                                className="aspect-square bg-white border border-gray-100 rounded-xl flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
+                                                title={iconItem.label}
+                                            >
+                                                <div
+                                                    className="w-10 h-10 rounded-full flex items-center justify-center transition-transform duration-300"
+                                                    style={{ backgroundColor: iconItem.color }}
+                                                >
+                                                    <iconItem.icon className="w-5 h-5 text-white" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-bold text-gray-900 mb-4">Icons</p>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        {GENERIC_ICONS.map((iconItem) => (
+                                            <button
+                                                key={iconItem.name}
+                                                onClick={() => onAddIcon(iconItem.name)}
+                                                className="aspect-square bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 hover:shadow-md transition-all shadow-sm"
+                                                title={iconItem.label}
+                                            >
+                                                <iconItem.icon className="w-6 h-6" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 border-t border-gray-100">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <QrCode className="w-4 h-4 text-indigo-600" />
+                                        <p className="text-sm font-bold text-gray-900">QR Code</p>
+                                    </div>
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+                                        <input
+                                            type="text"
+                                            value={qrText}
+                                            onChange={(e) => setQrText(e.target.value)}
+                                            placeholder="https://example.com"
+                                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+                                            onKeyDown={(e) => e.key === 'Enter' && handleQRSubmit()}
+                                        />
                                         <Button
                                             onClick={handleQRSubmit}
                                             disabled={!qrText.trim() || isGeneratingQR}
-                                            className="w-full justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white h-10 shadow-sm"
+                                            className="w-full justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white h-10 shadow-md"
                                         >
-                                            {isGeneratingQR ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <QrCode className="w-4 h-4" />
-                                            )}
-                                            {isGeneratingQR ? 'Generating...' : 'Add QR Code'}
+                                            {isGeneratingQR ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate QR'}
                                         </Button>
                                     </div>
                                 </div>
@@ -331,10 +298,12 @@ export function EditorSidebar({
                             <div className="space-y-6">
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full bg-indigo-50 text-indigo-600 py-8 px-4 rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-500 hover:bg-indigo-100 transition-all flex flex-col items-center justify-center gap-3 group"
                                 >
-                                    <Upload className="w-5 h-5" />
-                                    Upload Image
+                                    <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <Upload className="w-6 h-6 text-indigo-600" />
+                                    </div>
+                                    <span className="font-semibold text-sm">Upload Image</span>
                                 </button>
                                 <input
                                     ref={fileInputRef}
@@ -343,28 +312,32 @@ export function EditorSidebar({
                                     onChange={handleFileUpload}
                                     className="hidden"
                                 />
-                                {uploadedImages.length > 0 ? (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {uploadedImages.map((img, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => onAddImage(img)}
-                                                className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200 hover:border-indigo-500 transition-all"
-                                            >
-                                                <img src={img} alt="Uploaded" className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                                            </button>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-10 px-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm text-gray-400">
-                                            <ImageIcon className="w-6 h-6" />
+
+                                <div>
+                                    <p className="text-sm font-bold text-gray-900 mb-4">Your Uploads</p>
+                                    {uploadedImages.length > 0 ? (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {uploadedImages.map((img, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => onAddImage(img)}
+                                                    className="group relative aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 hover:border-indigo-500 hover:shadow-md transition-all"
+                                                >
+                                                    <img src={img} alt="Uploaded" className="w-full h-full object-cover" />
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                        <div className="bg-white/90 p-2 rounded-full shadow-sm">
+                                                            <ArrowRight className="w-4 h-4 text-indigo-600" />
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))}
                                         </div>
-                                        <p className="text-sm font-medium text-gray-900">No media yet</p>
-                                        <p className="text-xs text-gray-500 mt-1">Upload images to use in your design</p>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="text-center py-12 px-4">
+                                            <p className="text-sm text-gray-400">No images uploaded yet.</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

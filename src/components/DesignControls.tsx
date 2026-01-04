@@ -128,6 +128,46 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
             <h2 className="text-xl font-semibold mb-4">Design Customization</h2>
 
             <div className="grid grid-cols-2 gap-4">
+                {/* Custom Size Controls */}
+                <div className="col-span-2 grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border mb-2">
+                    <div className="col-span-3 text-sm font-semibold text-gray-700">Canvas Size</div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Width</label>
+                        <input
+                            type="number"
+                            name="width"
+                            value={design.width}
+                            onChange={handleChange}
+                            className="block w-full h-9 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border px-2 text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Height</label>
+                        <input
+                            type="number"
+                            name="height"
+                            value={design.height}
+                            onChange={handleChange}
+                            className="block w-full h-9 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border px-2 text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Unit</label>
+                        <select
+                            name="unit"
+                            value={design.unit}
+                            onChange={handleChange}
+                            className="block w-full h-9 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border px-2 text-sm"
+                        >
+                            <option value="px">px</option>
+                            <option value="in">in</option>
+                            <option value="cm">cm</option>
+                            <option value="mm">mm</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Background Color</label>
                     <input

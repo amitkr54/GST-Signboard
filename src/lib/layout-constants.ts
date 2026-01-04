@@ -1,6 +1,7 @@
 export const LAYOUT = {
-    // Canvas dimensions
+    // @deprecated - Use dynamic width/height from DesignConfig instead
     WIDTH: 1800,
+    // @deprecated - Use dynamic width/height from DesignConfig instead
     HEIGHT: 1200,
     PADDING: 64, // p-16 = 4rem = 64px
 

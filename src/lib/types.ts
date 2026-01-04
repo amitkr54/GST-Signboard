@@ -21,6 +21,7 @@ export interface DesignConfig {
     templateId: TemplateId;
     width: number;
     height: number;
+    unit: 'px' | 'in' | 'cm' | 'mm'; // Added unit
     backgroundColor: string;
     textColor: string;
     fontFamily: string;
@@ -34,6 +35,7 @@ export const DEFAULT_DESIGN: DesignConfig = {
     templateId: 'modern',
     width: 24,
     height: 16,
+    unit: 'in',
     backgroundColor: '#ffffff',
     textColor: '#1a1a1a',
     fontFamily: 'Inter',
