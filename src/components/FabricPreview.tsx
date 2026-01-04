@@ -18,7 +18,7 @@ interface FabricPreviewProps {
     onDesignChange?: (design: DesignConfig) => void;
     onAddText?: (addFn: (type: 'heading' | 'subheading' | 'body') => void) => void;
     onAddIcon?: (addFn: (iconName: string) => void) => void;
-    onAddShape?: (addFn: (type: 'rect' | 'circle' | 'line' | 'triangle') => void) => void;
+    onAddShape?: (addFn: (type: string) => void) => void;
     onAddImage?: (addFn: (imageUrl: string) => void) => void;
     onDataChange?: (data: Partial<SignageData>) => void;
     compact?: boolean;
@@ -43,16 +43,15 @@ export function FabricPreview({
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const clipboard = useRef<fabric.Object | null>(null);
-    const [scale, setScale] = useState(0.1); // Start small to avoid cropping flash
+    const [scale, setScale] = useState(0.1);
     const [canvasInstance, setCanvasInstance] = useState<fabric.Canvas | null>(null);
     const lastScaleRef = useRef<number>(0.1);
     const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
     const [dynamicTemplates, setDynamicTemplates] = useState<typeof TEMPLATES>(TEMPLATES);
     const [isStabilized, setIsStabilized] = useState(false);
 
-    // Dynamic Canvas Dimensions
     const { width: baseWidth, height: baseHeight } = useMemo(() => {
-        const DPI = 75; // Standardized for 1800px = 24in
+        const DPI = 75;
         let w = design.width;
         let h = design.height;
         const u = design.unit || 'in';
@@ -64,29 +63,19 @@ export function FabricPreview({
         return { width: Math.round(w), height: Math.round(h) };
     }, [design.width, design.height, design.unit]);
 
-    // History State
     const historyRef = useRef<string[]>([]);
     const historyIndexRef = useRef<number>(-1);
     const historyProcessing = useRef(false);
-
-    const [debug, setDebug] = useState({
-        win: { w: 0, h: 0 },
-        container: { w: 0, h: 0 },
-        avail: { w: 0, h: 0 },
-        scale: 0
-    });
 
     const saveHistory = () => {
         const canvas = fabricCanvasRef.current;
         if (!canvas || historyProcessing.current) return;
 
-        // Duplicate Check - Optional but good for perf
         const currentState = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'editable', 'id']));
         const lastState = historyRef.current[historyIndexRef.current];
 
         if (lastState && currentState === lastState) return;
 
-        // Remove history ahead of current index if we push new state
         if (historyIndexRef.current < historyRef.current.length - 1) {
             historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
         }
@@ -94,20 +83,17 @@ export function FabricPreview({
         historyRef.current.push(currentState);
         historyIndexRef.current = historyRef.current.length - 1;
 
-        // Cap history size to prevent memory issues
         if (historyRef.current.length > 50) {
             historyRef.current.shift();
             historyIndexRef.current--;
         }
     };
 
-    // --- KEYBOARD SHORTCUTS ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             const canvas = fabricCanvasRef.current;
             if (!canvas) return;
 
-            // UNDO (Ctrl+Z)
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
                 e.preventDefault();
                 if (historyIndexRef.current > 0) {
@@ -122,7 +108,6 @@ export function FabricPreview({
                 return;
             }
 
-            // REDO (Ctrl+Y or Ctrl+Shift+Z)
             if (((e.ctrlKey || e.metaKey) && e.key === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z')) {
                 e.preventDefault();
                 if (historyIndexRef.current < historyRef.current.length - 1) {
@@ -139,12 +124,9 @@ export function FabricPreview({
 
             const activeObject = canvas.getActiveObject();
             if (!activeObject) return;
-
-            // Don't trigger if editing text
             // @ts-ignore
             if (activeObject.isEditing) return;
 
-            // DELETE
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 const activeObjects = canvas.getActiveObjects();
                 if (activeObjects.length) {
@@ -157,7 +139,6 @@ export function FabricPreview({
                 }
             }
 
-            // CUT (Ctrl+X)
             if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
                 activeObject.clone((cloned: fabric.Object) => {
                     clipboard.current = cloned;
@@ -173,14 +154,12 @@ export function FabricPreview({
                 });
             }
 
-            // COPY (Ctrl+C / Cmd+C)
             if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
                 activeObject.clone((cloned: fabric.Object) => {
                     clipboard.current = cloned;
                 });
             }
 
-            // PASTE (Ctrl+V / Cmd+V)
             if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
                 if (!clipboard.current) return;
                 clipboard.current.clone((clonedObj: fabric.Object) => {
@@ -191,7 +170,6 @@ export function FabricPreview({
                         evented: true,
                     });
                     if (clonedObj.type === 'activeSelection') {
-                        // active selection needs a canvas to render
                         clonedObj.canvas = canvas;
                         (clonedObj as fabric.Group).forEachObject((obj) => {
                             canvas.add(obj);
@@ -212,7 +190,6 @@ export function FabricPreview({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Initialize History on Mount
     useEffect(() => {
         if (canvasInstance && historyRef.current.length === 0) {
             const json = JSON.stringify(canvasInstance.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'editable', 'id']));
@@ -225,13 +202,11 @@ export function FabricPreview({
         }
     }, [canvasInstance]);
 
-    // Initial stabilization delay
     useEffect(() => {
         const timer = setTimeout(() => setIsStabilized(true), 800);
         return () => clearTimeout(timer);
     }, []);
 
-    // Fetch templates
     useEffect(() => {
         const fetchTemplates = async () => {
             const templates = await getTemplates();
@@ -242,7 +217,6 @@ export function FabricPreview({
         fetchTemplates();
     }, []);
 
-    // Canvas Initialization
     useEffect(() => {
         if (!canvasRef.current || fabricCanvasRef.current) return;
         const canvas = new fabric.Canvas(canvasRef.current, {
@@ -269,10 +243,8 @@ export function FabricPreview({
 
         fabricCanvasRef.current = canvas;
         setCanvasInstance(canvas);
-        // Expose for DesignControls download
         (window as any).fabricCanvas = canvas;
 
-        // Enable smart alignment guidelines (fixed: no longer breaks text editing)
         initAligningGuidelines(canvas);
 
         if (onMount) onMount(canvas);
@@ -285,52 +257,32 @@ export function FabricPreview({
         };
     }, []);
 
-    // --- SCALING ENGINE ---
     useEffect(() => {
         const updateScale = () => {
             const container = containerRef.current;
             if (!container) return;
 
-            // 1. MEASUREMENT: Prioritize actual container size
             const winH = typeof window !== 'undefined' ? window.innerHeight : 1000;
             const winW = typeof window !== 'undefined' ? window.innerWidth : 1200;
             const containerH = container.clientHeight;
             const containerW = container.clientWidth;
 
-            // 2. UI OFFSETS (Only used as fallbacks if container is not ready)
             const HEADER_H = 48;
             const TOOLBAR_H = compact ? 0 : 44;
             const VERT_GUTTER = 40;
 
-            // 3. TARGET AREA CALCULATION
-            // Fallback to Window estimation ONLY if container is zero (first frame)
             const trueAvailH = containerH > 50 ? containerH : Math.max(100, winH - (HEADER_H + TOOLBAR_H + VERT_GUTTER));
             const trueAvailW = containerW > 50 ? containerW : (winW * 0.6);
 
-            // 4. BEST FIT (Standard board 1800x1200)
-            // Use 94% for safety, but 96% on tiny screens (mobile) to maximize area
             const paddingScale = trueAvailH < 400 ? 0.96 : 0.94;
             const targetW = trueAvailW * paddingScale;
             const targetH = trueAvailH * paddingScale;
 
             let sc = Math.min(targetW / baseWidth, targetH / baseHeight);
-
-            // 5. HARD CAPS
             sc = Math.min(sc, 1.0);
             sc = Math.max(0.1, sc);
 
-            // 6. APPLY
             const roundedSc = Math.round(sc * 10000) / 10000;
-
-            // diagnostic log
-            // console.log('[Scaling Debug]', { ... });
-
-            setDebug({
-                win: { w: winW, h: winH },
-                container: { w: Math.round(containerW), h: Math.round(containerH) },
-                avail: { w: Math.round(trueAvailW), h: Math.round(trueAvailH) },
-                scale: roundedSc
-            });
 
             if (Math.abs(sc - lastScaleRef.current) > 0.0001) {
                 lastScaleRef.current = sc;
@@ -355,9 +307,8 @@ export function FabricPreview({
             timers.forEach(clearTimeout);
             window.removeEventListener('resize', updateScale);
         };
-    }, [compact]);
+    }, [compact, baseWidth, baseHeight]);
 
-    // Sync scaling to fabric
     useEffect(() => {
         if (canvasInstance) {
             canvasInstance.setDimensions({
@@ -368,9 +319,8 @@ export function FabricPreview({
             canvasInstance.calcOffset();
             canvasInstance.requestRenderAll();
         }
-    }, [canvasInstance, scale]);
+    }, [canvasInstance, scale, baseWidth, baseHeight]);
 
-    // Sync background color
     useEffect(() => {
         if (canvasInstance) {
             canvasInstance.setBackgroundColor(design.backgroundColor, () => {
@@ -379,12 +329,83 @@ export function FabricPreview({
         }
     }, [canvasInstance, design.backgroundColor]);
 
-    // Template Loading & Logic
+    function updateTemplateContent() {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const { PADDING } = LAYOUT;
+        const WIDTH = baseWidth;
+        const HEIGHT = baseHeight;
+        const existing = canvas.getObjects();
+
+        // Background
+        let bgRect = existing.find(obj => (obj as any).name === 'background') as fabric.Rect;
+        if (!bgRect) {
+            bgRect = new fabric.Rect({
+                width: WIDTH, height: HEIGHT,
+                left: WIDTH / 2, top: HEIGHT / 2,
+                originX: 'center', originY: 'center',
+                fill: design.backgroundColor,
+                selectable: false, evented: false, name: 'background'
+            });
+            canvas.add(bgRect);
+            canvas.sendToBack(bgRect);
+        } else {
+            bgRect.set({ fill: design.backgroundColor });
+        }
+
+        // Safety Guide
+        let safety = existing.find(o => (o as any).name === 'safetyGuide');
+        if (!safety) {
+            safety = new fabric.Rect({
+                width: WIDTH - 50, height: HEIGHT - 50,
+                left: WIDTH / 2, top: HEIGHT / 2,
+                originX: 'center', originY: 'center',
+                fill: 'transparent', stroke: '#00b8d4', strokeWidth: 3, strokeDashArray: [15, 10],
+                selectable: false, evented: false, excludeFromExport: true, name: 'safetyGuide'
+            });
+            canvas.add(safety);
+        }
+        canvas.moveTo(safety, 1);
+
+        finalizeStandardLayout();
+        initCanvasEvents(canvas);
+        canvas.requestRenderAll();
+
+        historyProcessing.current = false;
+        saveHistory();
+    }
+
+    function finalizeStandardLayout() {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        const { PADDING } = LAYOUT;
+        const WIDTH = baseWidth;
+
+        let curY = PADDING + 50;
+
+        const logo = canvas.getObjects().find(o => (o as any).name === 'template_logo');
+        const comp = canvas.getObjects().find(o => (o as any).name === 'template_company');
+        const det = canvas.getObjects().filter(o => (o as any).name === 'template_details');
+
+        [logo, comp, ...det].filter(Boolean).forEach((obj: any) => {
+            obj.set({ left: WIDTH / 2, top: curY, originX: 'center', originY: 'top' });
+            curY += obj.getScaledHeight() + 30;
+            obj.setCoords();
+        });
+    }
+
+    function initCanvasEvents(canvas: fabric.Canvas) {
+        initAligningGuidelines(canvas);
+        canvas.on('selection:created', (e) => setSelectedObject(e.selected?.[0] || null));
+        canvas.on('selection:updated', (e) => setSelectedObject(e.selected?.[0] || null));
+        canvas.on('selection:cleared', () => setSelectedObject(null));
+    }
+
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
 
-        // Prevent history recording during template load
         historyProcessing.current = true;
 
         const templateId = design.templateId || '';
@@ -464,7 +485,6 @@ export function FabricPreview({
                 canvas.loadFromJSON(templateConfig.fabricConfig, () => {
                     const objects = canvas.getObjects();
                     objects.forEach((obj: any) => {
-                        // FORCE UPGRADE TEXT TO EDITABLE TEXTBOX
                         if (obj.type === 'text' && obj.text) {
                             const newTextbox = new fabric.Textbox(obj.text, {
                                 ...obj.toObject(),
@@ -476,15 +496,13 @@ export function FabricPreview({
                                 objectCaching: false,
                                 name: obj.name || 'template_text_upgraded'
                             });
-                            // Preserve position/scale which might get reset by toObject defaults sometimes
                             newTextbox.set({
                                 left: obj.left,
                                 top: obj.top,
                                 scaleX: obj.scaleX,
                                 scaleY: obj.scaleY,
-                                width: obj.width, // Textbox needs width
+                                width: obj.width,
                             });
-
                             canvas.remove(obj);
                             canvas.add(newTextbox);
                         } else {
@@ -504,73 +522,6 @@ export function FabricPreview({
             updateTemplateContent();
         }
     }, [design.templateId, dynamicTemplates]);
-
-    function updateTemplateContent() {
-        const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
-
-        const { PADDING } = LAYOUT;
-        const WIDTH = baseWidth;
-        const HEIGHT = baseHeight;
-        const existing = canvas.getObjects();
-
-        // Background
-        let bgRect = existing.find(obj => (obj as any).name === 'background') as fabric.Rect;
-        if (!bgRect) {
-            bgRect = new fabric.Rect({
-                width: WIDTH, height: HEIGHT,
-                left: WIDTH / 2, top: HEIGHT / 2,
-                originX: 'center', originY: 'center',
-                fill: design.backgroundColor,
-                selectable: false, evented: false, name: 'background'
-            });
-            canvas.add(bgRect);
-            canvas.sendToBack(bgRect);
-        } else {
-            bgRect.set({ fill: design.backgroundColor });
-        }
-
-        // Safety Guide
-        let safety = existing.find(o => (o as any).name === 'safetyGuide');
-        if (!safety) {
-            safety = new fabric.Rect({
-                width: WIDTH - 50, height: HEIGHT - 50,
-                left: WIDTH / 2, top: HEIGHT / 2,
-                originX: 'center', originY: 'center',
-                fill: 'transparent', stroke: '#00b8d4', strokeWidth: 3, strokeDashArray: [15, 10],
-                selectable: false, evented: false, excludeFromExport: true, name: 'safetyGuide'
-            });
-            canvas.add(safety);
-        }
-        canvas.moveTo(safety, 1);
-
-        finalizeStandardLayout();
-        initCanvasEvents(canvas);
-        canvas.requestRenderAll();
-
-        // Re-enable history and save check point
-        historyProcessing.current = false;
-        saveHistory();
-    }
-
-    function finalizeStandardLayout() {
-        const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
-        const { PADDING } = LAYOUT;
-        const WIDTH = baseWidth;
-
-        let curY = PADDING + 50;
-
-        const logo = canvas.getObjects().find(o => (o as any).name === 'template_logo');
-        const comp = canvas.getObjects().find(o => (o as any).name === 'template_company');
-        const det = canvas.getObjects().filter(o => (o as any).name === 'template_details');
-
-        [logo, comp, ...det].filter(Boolean).forEach((obj: any) => {
-            obj.set({ left: WIDTH / 2, top: curY, originX: 'center', originY: 'top' });
-            curY += obj.getScaledHeight() + 30;
-            obj.setCoords();
-        });
-    }
 
     useEffect(() => {
         updateTemplateContent();
@@ -605,108 +556,101 @@ export function FabricPreview({
             calendar: 'M3 4h18v18H3V4z M16 2v4 M8 2v4 M3 10h18',
             user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2 M12 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
             building: 'M2 6h20v16H2V6z M10 2v4 M14 2v4 M18 2v4 M6 2v4 M2 22v-4 M22 22v-4',
-            // Simplified, centered brand logos
-            facebook: 'M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z',
+            facebook: 'M15.12 10.353h-2.803v-1.85c0-.813.539-.999.925-.999.385 0 2.39 0 2.39 0V4.097L12.55 4.09C9.13 4.09 8.356 6.64 8.356 8.328v2.025h-2.01v3.425h2.01v9.64h4.084V13.78H15.12l.465-3.427z',
             instagram: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z',
-            twitter: 'M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z',
+            x: 'M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.292 19.494h2.039L6.486 3.24H4.298l13.311 17.407z',
             linkedin: 'M4.98 3.5c0 1.381-1.11 2.5-2.48 2.5s-2.48-1.119-2.48-2.5c0-1.38 1.11-2.5 2.48-2.5s2.48 1.12 2.48 2.5zm.02 4.5h-5v16h5v-16zm7.982 0h-4.968v16h4.969v-8.399c0-4.67 6.029-5.052 6.029 0v8.399h4.988v-10.131c0-7.88-8.922-7.593-11.018-3.714v-2.155z',
-            youtube: 'M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z',
-            whatsapp: 'M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z'
+            youtube: 'M8 5v14l11-7z',
+            whatsapp: 'M8.88595 7.16985C9.06891 7.17475 9.27175 7.18465 9.46474 7.61303C9.59271 7.89821 9.80829 8.42321 9.9839 8.85087C10.1206 9.18366 10.233 9.45751 10.2611 9.51356C10.3254 9.64156 10.365 9.78926 10.2809 9.96156C10.271 9.98188 10.2617 10.0013 10.2526 10.02C10.1852 10.16 10.1372 10.2597 10.0237 10.3899C9.97709 10.4435 9.9285 10.5022 9.88008 10.5607C9.79494 10.6636 9.71035 10.7658 9.63785 10.838C9.50924 10.9659 9.37563 11.1039 9.52402 11.3599C9.6725 11.6159 10.1919 12.4579 10.9587 13.1373C11.783 13.8712 12.4998 14.1805 12.8622 14.3368C12.9325 14.3672 12.9895 14.3918 13.0313 14.4126C13.2886 14.5406 13.4419 14.5209 13.5903 14.3486C13.7388 14.1762 14.2334 13.6001 14.4066 13.3441C14.5748 13.0881 14.7479 13.1275 14.9854 13.2161C15.2228 13.3047 16.4892 13.9251 16.7464 14.0531C16.7972 14.0784 16.8448 14.1012 16.8889 14.1224C17.0678 14.2082 17.1895 14.2665 17.2411 14.3535C17.3054 14.4618 17.3054 14.9739 17.0927 15.5746C16.8751 16.1752 15.8263 16.7513 15.3514 16.7956C15.3064 16.7999 15.2617 16.8053 15.2156 16.8108C14.7804 16.8635 14.228 16.9303 12.2596 16.1555C9.83424 15.2018 8.23322 12.8354 7.90953 12.357C7.88398 12.3192 7.86638 12.2932 7.85698 12.2806L7.8515 12.2733C7.70423 12.0762 6.80328 10.8707 6.80328 9.62685C6.80328 8.43682 7.38951 7.81726 7.65689 7.53467C7.67384 7.51676 7.6895 7.50021 7.70366 7.48494C7.94107 7.22895 8.21814 7.16495 8.39125 7.16495C8.56445 7.16495 8.73756 7.16495 8.88595 7.16985Z',
+            whatsapp_bubble: 'M2.18418 21.3314C2.10236 21.6284 2.37285 21.9025 2.6709 21.8247L7.27824 20.6213C8.7326 21.409 10.37 21.8275 12.0371 21.8275H12.0421C17.5281 21.8275 22 17.3815 22 11.9163C22 9.26735 20.966 6.77594 19.0863 4.90491C17.2065 3.03397 14.7084 2 12.042 2C6.55607 2 2.08411 6.44605 2.08411 11.9114C2.08348 13.65 2.5424 15.3582 3.41479 16.8645L2.18418 21.3314Z'
         };
 
-        // Shape and color configuration for each icon
         const iconConfig: Record<string, {
-            shape: 'circle' | 'roundedSquare',
+            shape: 'circle' | 'roundedSquare' | 'bubble' | 'roundedRect',
             color: string,
             useGradient?: boolean
         }> = {
             facebook: { shape: 'circle', color: '#1877F2' },
             instagram: { shape: 'roundedSquare', color: '#E4405F', useGradient: true },
-            twitter: { shape: 'circle', color: '#1DA1F2' },
+            x: { shape: 'circle', color: '#000000' },
             linkedin: { shape: 'circle', color: '#0A66C2' },
-            youtube: { shape: 'circle', color: '#FF0000' },
-            whatsapp: { shape: 'roundedSquare', color: '#25D366' }
+            youtube: { shape: 'roundedRect', color: '#FF0000' },
+            whatsapp: { shape: 'bubble', color: '#25D366' }
         };
 
         const pathData = iconPaths[iconName] || iconPaths['star'];
         const config = iconConfig[iconName];
 
-        // Brand Icons (Social Media) - Render with appropriate shape
         if (config) {
             let background: fabric.Object;
+            const commonProps = { left: 0, top: 0, originX: 'center', originY: 'center' };
 
-            if (config.shape === 'roundedSquare') {
+            if (config.shape === 'roundedRect' && iconName === 'youtube') {
                 background = new fabric.Rect({
-                    width: 80,
-                    height: 80,
-                    rx: 14,
-                    ry: 14,
-                    originX: 'center',
-                    originY: 'center',
-                    fill: config.color
+                    ...commonProps,
+                    width: 100, height: 70, rx: 15, ry: 15, fill: config.color
                 });
-
-                // Apply Instagram gradient
+            } else if (config.shape === 'roundedSquare') {
+                background = new fabric.Rect({
+                    ...commonProps,
+                    width: 80, height: 80, rx: 18, ry: 18, fill: config.color
+                });
                 if (config.useGradient && iconName === 'instagram') {
                     const gradient = new fabric.Gradient({
                         type: 'linear',
-                        coords: { x1: -40, y1: -40, x2: 40, y2: 40 },
+                        coords: { x1: -40, y1: 40, x2: 40, y2: -40 },
                         colorStops: [
-                            { offset: 0, color: '#833AB4' },
-                            { offset: 0.5, color: '#E1306C' },
-                            { offset: 1, color: '#FCAF45' }
+                            { offset: 0, color: '#f09433' },
+                            { offset: 0.25, color: '#e6683c' },
+                            { offset: 0.5, color: '#dc2743' },
+                            { offset: 0.75, color: '#cc2366' },
+                            { offset: 1, color: '#bc1888' }
                         ]
                     });
                     background.set('fill', gradient);
                 }
-            } else {
-                background = new fabric.Circle({
-                    radius: 40,
+            } else if (config.shape === 'bubble' && iconName === 'whatsapp') {
+                background = new fabric.Path(iconPaths.whatsapp_bubble, {
+                    ...commonProps,
                     fill: config.color,
-                    originX: 'center',
-                    originY: 'center'
+                    scaleX: 4, scaleY: 4
                 });
+            } else {
+                background = new fabric.Circle({ ...commonProps, radius: 40, fill: config.color });
             }
 
             const logoPath = new fabric.Path(pathData, {
+                ...commonProps,
                 fill: '#ffffff',
                 stroke: 'transparent',
-                scaleX: 2.5,
-                scaleY: 2.5,
-                originX: 'center',
-                originY: 'center'
+                scaleX: iconName === 'facebook' ? 2.8 : (iconName === 'whatsapp' ? 4 : (iconName === 'x' ? 1.8 : 2.2)),
+                scaleY: iconName === 'facebook' ? 2.8 : (iconName === 'whatsapp' ? 4 : (iconName === 'x' ? 1.8 : 2.2))
             });
 
+            if (iconName === 'facebook') logoPath.set({ left: 3, top: 4 });
+            if (iconName === 'whatsapp') logoPath.set({ left: -0.5, top: -1.5 });
+            if (iconName === 'x') logoPath.set({ left: 0, top: 0 });
+            if (iconName === 'youtube') logoPath.set({ scaleX: 3.5, scaleY: 3.5, left: 2 });
+
             const group = new fabric.Group([background, logoPath], {
-                left: baseWidth / 2,
-                top: baseHeight / 2,
-                originX: 'center',
-                originY: 'center',
+                left: baseWidth / 2, top: baseHeight / 2,
+                originX: 'center', originY: 'center',
                 name: `social_${iconName}`
             });
 
             canvas.add(group);
             canvas.setActiveObject(group);
         } else {
-            // Standard Line Icons - Black Outline
             const iconPath = new fabric.Path(pathData, {
-                left: baseWidth / 2,
-                top: baseHeight / 2,
-                originX: 'center',
-                originY: 'center',
-                fill: 'transparent',
-                stroke: '#000000',
-                strokeWidth: 2,
-                scaleX: 3,
-                scaleY: 3,
-                name: 'user_added_icon'
+                left: baseWidth / 2, top: baseHeight / 2,
+                originX: 'center', originY: 'center',
+                fill: 'transparent', stroke: '#000000', strokeWidth: 2,
+                scaleX: 3, scaleY: 3, name: 'user_added_icon'
             });
             canvas.add(iconPath);
             canvas.setActiveObject(iconPath);
         }
     };
-
-
 
     const addShape = (type: string) => {
         const canvas = fabricCanvasRef.current;
@@ -774,13 +718,6 @@ export function FabricPreview({
         if (onAddImage) onAddImage(addImage);
     }, []);
 
-    function initCanvasEvents(canvas: fabric.Canvas) {
-        initAligningGuidelines(canvas);
-        canvas.on('selection:created', (e) => setSelectedObject(e.selected?.[0] || null));
-        canvas.on('selection:updated', (e) => setSelectedObject(e.selected?.[0] || null));
-        canvas.on('selection:cleared', () => setSelectedObject(null));
-    }
-
     return (
         <div className="flex-1 min-h-0 w-full flex flex-col overflow-hidden relative">
             <div className={`w-full z-10 shrink-0 ${compact ? '' : 'mb-2 min-h-[44px]'}`}>
@@ -808,7 +745,7 @@ export function FabricPreview({
                                 fabricCanvasRef.current!.add(cloned);
                                 fabricCanvasRef.current!.setActiveObject(cloned);
                                 fabricCanvasRef.current!.requestRenderAll();
-                                saveHistory(); // Save on duplicate
+                                saveHistory();
                             });
                         }}
                         onLockToggle={() => {
@@ -824,7 +761,7 @@ export function FabricPreview({
                             });
                             if (fabricCanvasRef.current) {
                                 fabricCanvasRef.current.requestRenderAll();
-                                saveHistory(); // Save on lock toggle
+                                saveHistory();
                             }
                         }}
                         onDelete={() => {
@@ -832,7 +769,7 @@ export function FabricPreview({
                                 fabricCanvasRef.current.remove(selectedObject);
                                 fabricCanvasRef.current.discardActiveObject();
                                 setSelectedObject(null);
-                                saveHistory(); // Save on delete
+                                saveHistory();
                             }
                         }}
                     />
@@ -847,8 +784,8 @@ export function FabricPreview({
                 <div
                     className="bg-white rounded-sm shadow-2xl relative overflow-hidden flex items-center justify-center"
                     style={{
-                        width: LAYOUT.WIDTH * scale,
-                        height: LAYOUT.HEIGHT * scale,
+                        width: baseWidth * scale,
+                        height: baseHeight * scale,
                     }}
                 >
                     <canvas ref={canvasRef} />
