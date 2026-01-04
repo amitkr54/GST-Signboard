@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft, Palette, Download, X, QrCode, Loader2, Hexagon, ArrowRight, Square, Pentagon, ArrowLeft, ArrowUp, ArrowDown, ChevronRight as ChevronIcon } from 'lucide-react';
+import { Layout, Type, Shapes, Upload, Grid3X3, Image as ImageIcon, ChevronLeft, Download, X, QrCode, Loader2, Hexagon, ArrowRight, Square, Pentagon, ArrowLeft, ArrowUp, ArrowDown, ChevronRight as ChevronIcon } from 'lucide-react';
 import { generateQRCode } from '@/app/actions';
 import { TemplateSelector } from './TemplateSelector';
 import { TemplateId, DesignConfig } from '@/lib/types';
@@ -20,10 +20,6 @@ interface EditorSidebarProps {
     onAddIcon: (iconName: string) => void;
     onAddShape: (type: 'rect' | 'circle' | 'line' | 'triangle') => void;
     onAddImage: (imageUrl: string) => void;
-
-    // Design Controls Props
-    design: DesignConfig;
-    onDesignChange: (design: DesignConfig) => void;
 }
 
 type TabType = 'templates' | 'text' | 'elements' | 'uploads';
@@ -56,9 +52,7 @@ export function EditorSidebar({
     onAddText,
     onAddIcon,
     onAddShape,
-    onAddImage,
-    design,
-    onDesignChange
+    onAddImage
 }: EditorSidebarProps) {
     const [activeTab, setActiveTab] = useState<TabType | null>(null);
     const [uploadedImages, setUploadedImages] = useState<string[]>([]);
@@ -166,7 +160,6 @@ export function EditorSidebar({
                                     selectedTemplateId={selectedTemplateId}
                                     onSelect={(id) => {
                                         onSelectTemplate(id);
-                                        // Auto-switch to text tab instead of design since design is gone
                                         setActiveTab('text');
                                     }}
                                 />

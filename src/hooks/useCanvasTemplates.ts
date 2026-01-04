@@ -76,24 +76,35 @@ export function useCanvasTemplates(
         const company = existing.find(obj => (obj as any).name === 'template_company') as fabric.Textbox;
         if (company && !(company as any).isEditing) {
             const newText = (data.companyName || '').toUpperCase();
-            if (company.text !== newText) {
-                company.set({
-                    text: newText, fill: design.textColor, fontFamily: design.fontFamily,
-                    fontSize: design.companyNameSize, selectable: true, evented: true
-                });
-            }
+            company.set({
+                text: newText,
+                selectable: true,
+                evented: true,
+                editable: true,
+                lockScalingY: false,
+                objectCaching: false
+            });
+            // Only sync global styles if they've changed in the design prop (manual overrides in toolbar take precedence)
+            if (design.fontFamily && company.fontFamily !== design.fontFamily) company.set('fontFamily', design.fontFamily);
+            if (design.textColor && company.fill !== design.textColor) company.set('fill', design.textColor);
+            if (design.companyNameSize && company.fontSize !== design.companyNameSize) company.set('fontSize', design.companyNameSize);
         }
 
         const details = existing.filter(obj => (obj as any).name === 'template_details') as fabric.Textbox[];
         details.forEach((det, idx) => {
             if (idx === 0 && !(det as any).isEditing) {
                 const newText = data.address || '';
-                if (det.text !== newText) {
-                    det.set({
-                        text: newText, fill: design.textColor, fontFamily: design.fontFamily,
-                        fontSize: design.fontSize, selectable: true, evented: true
-                    });
-                }
+                det.set({
+                    text: newText,
+                    selectable: true,
+                    evented: true,
+                    editable: true,
+                    lockScalingY: false,
+                    objectCaching: false
+                });
+                if (design.fontFamily && det.fontFamily !== design.fontFamily) det.set('fontFamily', design.fontFamily);
+                if (design.textColor && det.fill !== design.textColor) det.set('fill', design.textColor);
+                if (design.fontSize && det.fontSize !== design.fontSize) det.set('fontSize', design.fontSize);
             }
         });
 

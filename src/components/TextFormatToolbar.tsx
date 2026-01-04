@@ -24,6 +24,8 @@ interface TextFormatToolbarProps {
     selectedObject: fabric.Object | null;
     onUpdate: () => void;
     onFontSizeChange?: (fontSize: number) => void;
+    onFontFamilyChange?: (fontFamily: string) => void;
+    onColorChange?: (color: string) => void;
     onDuplicate?: () => void;
     onDelete?: () => void;
     onLockToggle?: () => void;
@@ -31,7 +33,18 @@ interface TextFormatToolbarProps {
     isLandscape?: boolean;
 }
 
-export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, onDuplicate, onDelete, onLockToggle, compact = false, isLandscape = false }: TextFormatToolbarProps) {
+export function TextFormatToolbar({
+    selectedObject,
+    onUpdate,
+    onFontSizeChange,
+    onFontFamilyChange,
+    onColorChange,
+    onDuplicate,
+    onDelete,
+    onLockToggle,
+    compact = false,
+    isLandscape = false
+}: TextFormatToolbarProps) {
     const [fontFamily, setFontFamily] = useState('Arial');
     const [fontSize, setFontSize] = useState(30);
     const [isBold, setIsBold] = useState(false);
@@ -44,7 +57,11 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
     const [activeTool, setActiveTool] = useState<null | 'font' | 'size' | 'color' | 'format' | 'layers'>(null);
 
     // Check if selected object is a text object
-    const isTextObject = selectedObject instanceof fabric.IText || selectedObject instanceof fabric.Textbox || selectedObject instanceof fabric.Text;
+    const isTextObject = selectedObject && (
+        selectedObject.type === 'i-text' ||
+        selectedObject.type === 'textbox' ||
+        selectedObject.type === 'text'
+    );
     const textObject = isTextObject ? selectedObject as fabric.IText : null;
 
     useEffect(() => {
@@ -81,6 +98,7 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
         const newFont = typeof e === 'string' ? e : e.target.value;
         setFontFamily(newFont);
         updateProperty('fontFamily', newFont);
+        if (onFontFamilyChange) onFontFamilyChange(newFont);
     };
 
     const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement> | number) => {
@@ -113,6 +131,7 @@ export function TextFormatToolbar({ selectedObject, onUpdate, onFontSizeChange, 
         if (isLocked) return;
         const newColor = typeof e === 'string' ? e : e.target.value;
         setTextColor(newColor);
+        if (onColorChange) onColorChange(newColor);
 
         if (isTextObject) {
             updateProperty('fill', newColor);

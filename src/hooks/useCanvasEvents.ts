@@ -141,12 +141,18 @@ export function useCanvasEvents({
     useEffect(() => {
         if (!canvasInstance) return;
 
-        const handleSelection = (e: any) => {
-            const selected = e.selected?.[0] || null;
-            setSelectedObject(selected);
-            const anyCanvas = canvasInstance as any;
-            if (selected && anyCanvas.wrapperEl) {
-                anyCanvas.wrapperEl.focus();
+        const handleSelection = () => {
+            const active = canvasInstance.getActiveObject();
+            setSelectedObject(active || null);
+
+            // Focus wrapper for key events, but avoid disrupting active text editing
+            if (active && canvasInstance.getElement() && !(active as any).isEditing) {
+                requestAnimationFrame(() => {
+                    const el = (canvasInstance as any).wrapperEl;
+                    if (el && !(active as any).isEditing) {
+                        el.focus();
+                    }
+                });
             }
         };
 

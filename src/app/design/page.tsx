@@ -8,7 +8,6 @@ import { EditorSidebar } from '@/components/EditorSidebar';
 import { Button } from '@/components/ui/Button';
 import { TemplateSelector } from '@/components/TemplateSelector';
 import { DesignUpload } from '@/components/DesignUpload';
-import { DesignSidebar } from '@/components/DesignSidebar';
 import { ReviewApproval } from '@/components/ReviewApproval';
 import { SignageData, DesignConfig, DEFAULT_DESIGN, TemplateId } from '@/lib/types';
 import { calculatePrice, MaterialId } from '@/lib/utils';
@@ -1051,8 +1050,6 @@ function DesignContent() {
                         onAddIcon={(iconName) => addIconFn?.(iconName)}
                         onAddShape={(shape) => addShapeFn?.(shape)}
                         onAddImage={(url) => addImageFn?.(url)}
-                        design={design}
-                        onDesignChange={setDesign}
                     />
                 </div>
 

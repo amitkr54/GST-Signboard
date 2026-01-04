@@ -309,6 +309,16 @@ export function FabricPreview({
     // Prop sync
     useEffect(() => { updateTemplateContent(); }, [data, design.backgroundColor, design.fontFamily, design.textColor, design.fontSize, design.companyNameSize]);
 
+    // Debounced History Save for Design changes (Sliders/Colors in Sidebar)
+    useEffect(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        const timer = setTimeout(() => {
+            saveHistory(canvas);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [design, saveHistory]);
+
     // Prop Registration
     useEffect(() => {
         onAddText?.(addText);
@@ -323,8 +333,15 @@ export function FabricPreview({
                 {selectedObject ? (
                     <TextFormatToolbar
                         selectedObject={selectedObject} compact={compact} isLandscape={isLandscape}
-                        onUpdate={() => fabricCanvasRef.current?.requestRenderAll()}
+                        onUpdate={() => {
+                            if (fabricCanvasRef.current) {
+                                fabricCanvasRef.current.requestRenderAll();
+                                saveHistory(fabricCanvasRef.current);
+                            }
+                        }}
                         onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
+                        onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
+                        onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
                         onDuplicate={() => handleAction('duplicate')}
                         onDelete={() => handleAction('delete')}
                         onLockToggle={() => handleAction('lock')}
