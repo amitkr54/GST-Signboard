@@ -5,24 +5,44 @@ import { fabric } from 'fabric';
  * This adds event listeners to show dashed lines when objects align.
  */
 export function initAligningGuidelines(canvas: fabric.Canvas) {
+    // Canvas-Level Zombie Protection
+    // We generate a unique ID for THIS instance of the guidelines.
+    // We store it on the canvas. Only listeners with the matching ID are allowed to run.
+    const myId = Date.now() + Math.random();
+    (canvas as any).__currentAligningId = myId;
+
+    // Enforce Singleton: Allow only one set of guidelines per canvas
+    if ((canvas as any).__disposeAligningGuidelines) {
+        (canvas as any).__disposeAligningGuidelines();
+    }
+
     const aligningLineOffset = 5;
-    const aligningLineWidth = 1;
-    const aligningLineColor = '#ff00ff'; // Canva magenta
+    const aligningLineWidth = 0.25; // Fine line width
+    const aligningLineColor = '#ff00ff'; // Magenta
+    const labelFont = '10px sans-serif';
 
-    let verticalLines: { x: number; y1: number; y2: number }[] = [];
-    let horizontalLines: { y: number; x1: number; x2: number }[] = [];
+    let verticalLines: { x: number; y1: number; y2: number; label: string }[] = [];
+    let horizontalLines: { y: number; x1: number; x2: number; label: string }[] = [];
+    let isDragging = false;
 
-    // Fixed: Do NOT clear all event listeners - this breaks canvas functionality
-    // Fabric.js can safely handle multiple listeners for the same event
-    // The previous .off() calls were removing critical listeners set by FabricPreview
-
-    canvas.on('mouse:down', () => {
+    const onMouseDown = () => {
+        if ((canvas as any).__currentAligningId !== myId) return;
+        isDragging = true;
         verticalLines = [];
         horizontalLines = [];
-    });
+    };
 
-    canvas.on('object:moving', (e) => {
-        if (!e.target) return;
+    const onMouseUp = () => {
+        if ((canvas as any).__currentAligningId !== myId) return;
+        isDragging = false;
+        verticalLines = [];
+        horizontalLines = [];
+        canvas.requestRenderAll();
+    };
+
+    const onObjectMoving = (e: fabric.IEvent) => {
+        if ((canvas as any).__currentAligningId !== myId) return;
+        if (!isDragging || !e.target) return;
 
         const activeObject = e.target;
         const canvasObjects = canvas.getObjects();
@@ -43,7 +63,7 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         const activeObjectCenterX = activeObjectCenter.x;
         const activeObjectCenterY = activeObjectCenter.y;
 
-        // Dynamic snap threshold: 8 physical pixels on screen (increased for easier mobile usage)
+        // Dynamic snap threshold
         const zoom = canvas.getZoom();
         const snappingDistance = 8 / zoom;
 
@@ -79,8 +99,11 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         // 2. Snap to other objects
         for (let i = canvasObjects.length; i--;) {
             const object = canvasObjects[i];
+            // Exclude background, safety guide (both naming conventions), and templates
             if (object === activeObject || !object.visible ||
                 object.name === 'background' ||
+                object.name === 'safety_guide' ||
+                object.name === 'safetyGuide' ||
                 object.name?.includes('template_')) continue;
 
             const br = object.getBoundingRect();
@@ -90,7 +113,7 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
             updateBestX(center.x, activeObjectCenterX, 'center');
             updateBestX(br.left, activeObjectLeft, 'left');
             updateBestX(br.left + br.width, activeObjectRight, 'right');
-            updateBestX(br.left, activeObjectCenterX, 'center'); // Edge to center
+            updateBestX(br.left, activeObjectCenterX, 'center');
             updateBestX(br.left + br.width, activeObjectCenterX, 'center');
 
             // Y-axis Snapping
@@ -101,51 +124,48 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
             updateBestY(br.top + br.height, activeObjectCenterY, 'center');
         }
 
-        // Visual guidelines only - snapping disabled per user request
         if (bestSnapX) {
-            // Removed auto-snap: just show the line
-            // let newLeft = activeObject.left!;
-            // if (bestSnapX.type === 'center') {
-            //     const offsetX = activeObjectCenterX - activeObject.left!;
-            //     newLeft = bestSnapX!.snapTo - offsetX;
-            // } else if (bestSnapX.type === 'left') {
-            //     newLeft = bestSnapX!.snapTo;
-            // } else if (bestSnapX.type === 'right') {
-            //     newLeft = bestSnapX!.snapTo - activeObjectBoundingRect.width;
-            // }
-            // activeObject.set({ left: newLeft });
-            verticalLines.push({ x: bestSnapX!.snapTo, y1: 0, y2: canvasHeight });
+            verticalLines.push({
+                x: bestSnapX!.snapTo,
+                y1: 0,
+                y2: canvasHeight,
+                label: bestSnapX!.type.charAt(0).toUpperCase() + bestSnapX!.type.slice(1) // Capitalize
+            });
         }
 
         if (bestSnapY) {
-            // Removed auto-snap: just show the line
-            // let newTop = activeObject.top!;
-            // if (bestSnapY.type === 'center') {
-            //     const offsetY = activeObjectCenterY - activeObject.top!;
-            //     newTop = bestSnapY!.snapTo - offsetY;
-            // } else if (bestSnapY.type === 'top') {
-            //     newTop = bestSnapY!.snapTo;
-            // } else if (bestSnapY.type === 'bottom') {
-            //     newTop = bestSnapY!.snapTo - activeObjectBoundingRect.height;
-            // }
-            // activeObject.set({ top: newTop });
-            horizontalLines.push({ y: bestSnapY!.snapTo, x1: 0, x2: canvasWidth });
+            horizontalLines.push({
+                y: bestSnapY!.snapTo,
+                x1: 0,
+                x2: canvasWidth,
+                label: bestSnapY!.type.charAt(0).toUpperCase() + bestSnapY!.type.slice(1)
+            });
         }
+    };
 
-        // Removed: activeObject.setCoords() - no position changes
-    });
+    const onAfterRender = () => {
+        // Only run if THIS is the active instance on the canvas
+        if ((canvas as any).__currentAligningId !== myId) return;
 
-    canvas.on('after:render', () => {
+        // Expose debug info
+        (canvas as any).__debug_align = {
+            isDragging,
+            vLines: verticalLines.length,
+            hLines: horizontalLines.length
+        };
+
+        if (!isDragging) return;
+        if (verticalLines.length === 0 && horizontalLines.length === 0) return;
+
         // @ts-ignore
         const ctx = canvas.contextTop;
         if (!ctx) return;
 
-        // @ts-ignore
-        canvas.clearContext(ctx);
-
         ctx.save();
         ctx.lineWidth = aligningLineWidth;
         ctx.strokeStyle = aligningLineColor;
+        ctx.fillStyle = aligningLineColor; // Text color matches line
+        ctx.font = labelFont;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
 
@@ -156,6 +176,8 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
             const end = fabric.util.transformPoint(new fabric.Point(line.x, line.y2), vpt);
             ctx.moveTo(origin.x, origin.y);
             ctx.lineTo(end.x, end.y);
+            // Draw Label at top
+            ctx.fillText(line.label, origin.x + 4, origin.y + 12);
         }
 
         for (const line of horizontalLines) {
@@ -163,15 +185,36 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
             const end = fabric.util.transformPoint(new fabric.Point(line.x2, line.y), vpt);
             ctx.moveTo(origin.x, origin.y);
             ctx.lineTo(end.x, end.y);
+            // Draw Label at left
+            ctx.fillText(line.label, origin.x + 4, origin.y - 4);
         }
 
         ctx.stroke();
         ctx.restore();
-    });
+    };
 
-    canvas.on('mouse:up', () => {
-        verticalLines = [];
-        horizontalLines = [];
-        canvas.requestRenderAll();
-    });
+
+
+    canvas.on('mouse:down', onMouseDown);
+    canvas.on('object:moving', onObjectMoving);
+    canvas.on('after:render', onAfterRender);
+    canvas.on('mouse:up', onMouseUp);
+    canvas.on('object:modified', onMouseUp);
+    canvas.on('mouse:out', onMouseUp);
+    canvas.on('selection:cleared', onMouseUp);
+
+    // Return cleanup function
+    const dispose = () => {
+        canvas.off('mouse:down', onMouseDown);
+        canvas.off('object:moving', onObjectMoving);
+        canvas.off('after:render', onAfterRender);
+        canvas.off('mouse:up', onMouseUp);
+        canvas.off('object:modified', onMouseUp);
+        canvas.off('mouse:out', onMouseUp);
+        canvas.off('selection:cleared', onMouseUp);
+        delete (canvas as any).__disposeAligningGuidelines;
+    };
+
+    (canvas as any).__disposeAligningGuidelines = dispose;
+    return dispose;
 }

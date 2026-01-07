@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 import { AuthProvider } from "@/components/AuthProvider";
 import { Header } from "@/components/Header";
+import { WebFontLoader } from "@/components/WebFontLoader";
 
 export default function RootLayout({
   children,
@@ -32,6 +33,7 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
+          <WebFontLoader />
           <Header />
           <main className="min-h-screen">
             {children}

@@ -11,13 +11,23 @@ export function useCanvasObjectManagers(
     const addText = useCallback((type: 'heading' | 'subheading' | 'body') => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const textbox = new fabric.Textbox(type === 'heading' ? 'Heading' : 'Text', {
+        const textbox = new fabric.IText(type === 'heading' ? 'Heading' : 'Text', {
             left: baseWidth / 2,
             top: baseHeight / 2,
             fontSize: type === 'heading' ? 80 : 40,
             originX: 'center',
             originY: 'center',
-            name: 'user_added_text'
+            name: 'user_added_text',
+            editable: true,
+            objectCaching: false,
+            borderColor: '#E53935',
+            cornerStrokeColor: '#E53935',
+            cornerColor: '#ffffff',
+            cornerSize: 14,
+            borderScaleFactor: 2.5,
+            transparentCorners: false,
+            padding: 10,
+            cornerStyle: 'circle'
         });
         canvas.add(textbox);
         canvas.setActiveObject(textbox);

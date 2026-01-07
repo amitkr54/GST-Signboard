@@ -15,6 +15,12 @@ export function CanvasInteractionDebugger({ selectedObject }: CanvasInteractionD
             <div>Selectable: {String(selectedObject?.selectable)}</div>
             <div>Evented: {String(selectedObject?.evented)}</div>
             <div>Editing: {String((selectedObject as any)?.isEditing)}</div>
+            {(selectedObject as any)?.type?.includes('text') && (
+                <>
+                    <div>SelStart: {(selectedObject as any)?.selectionStart}</div>
+                    <div>SelEnd: {(selectedObject as any)?.selectionEnd}</div>
+                </>
+            )}
         </div>
     );
 }

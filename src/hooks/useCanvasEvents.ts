@@ -168,7 +168,9 @@ export function useCanvasEvents({
         canvasInstance.on('selection:created', handleSelection);
         canvasInstance.on('selection:updated', handleSelection);
         canvasInstance.on('selection:cleared', handleCleared);
-        canvasInstance.on('mouse:down', handleMouseDown);
+        // canvasInstance.on('mouse:down', handleMouseDown);
+        canvasInstance.on('text:selection:changed', handleSelection);
+
 
         canvasInstance.on('object:modified', () => {
             saveHistory(canvasInstance);

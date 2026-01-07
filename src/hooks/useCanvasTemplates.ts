@@ -82,7 +82,15 @@ export function useCanvasTemplates(
                 evented: true,
                 editable: true,
                 lockScalingY: false,
-                objectCaching: false
+                objectCaching: false,
+                borderColor: '#E53935',
+                cornerColor: '#ffffff',
+                cornerStrokeColor: '#E53935',
+                cornerSize: 14,
+                transparentCorners: false,
+                padding: 10,
+                cornerStyle: 'circle',
+                borderScaleFactor: 2.5
             });
             // Only sync global styles if they've changed in the design prop (manual overrides in toolbar take precedence)
             if (design.fontFamily && company.fontFamily !== design.fontFamily) company.set('fontFamily', design.fontFamily);

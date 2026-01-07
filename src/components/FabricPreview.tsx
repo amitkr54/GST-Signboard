@@ -113,6 +113,8 @@ export function FabricPreview({
     }, []);
 
     // Canvas Initialization
+    // Canvas Initialization
+    // Canvas Initialization
     useEffect(() => {
         if (!canvasRef.current || fabricCanvasRef.current) return;
         const canvas = new fabric.Canvas(canvasRef.current, {
@@ -121,13 +123,14 @@ export function FabricPreview({
         });
 
         fabric.Object.prototype.set({
-            borderColor: '#7D2AE8', cornerColor: '#ffffff', cornerStrokeColor: '#7D2AE8',
-            cornerSize: 12, transparentCorners: false, padding: 10, cornerStyle: 'circle'
+            borderColor: '#E53935', cornerColor: '#ffffff', cornerStrokeColor: '#E53935',
+            cornerSize: 14, transparentCorners: false, padding: 10, cornerStyle: 'circle',
+            borderScaleFactor: 2.5
         });
 
         fabricCanvasRef.current = canvas;
         setCanvasInstance(canvas);
-        initAligningGuidelines(canvas);
+
         if (onMount) onMount(canvas);
 
         const savedJSON = localStorage.getItem('signage_canvas_json');
@@ -135,6 +138,18 @@ export function FabricPreview({
             try {
                 setIsProcessing(true);
                 canvas.loadFromJSON(savedJSON, () => {
+                    canvas.getObjects().forEach((obj) => {
+                        obj.set({
+                            borderColor: '#E53935',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#E53935',
+                            cornerSize: 14,
+                            transparentCorners: false,
+                            padding: 10,
+                            cornerStyle: 'circle',
+                            borderScaleFactor: 2.5
+                        });
+                    });
                     canvas.renderAll();
                     setInitialHistory(savedJSON);
                     setIsProcessing(false);
@@ -145,7 +160,11 @@ export function FabricPreview({
             }
         }
 
-        return () => { canvas.dispose(); fabricCanvasRef.current = null; setCanvasInstance(null); };
+        return () => {
+            canvas.dispose();
+            fabricCanvasRef.current = null;
+            setCanvasInstance(null);
+        };
     }, []);
 
     const handleContextMenu = (e: React.MouseEvent) => {
