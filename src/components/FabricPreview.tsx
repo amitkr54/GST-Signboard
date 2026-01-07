@@ -112,14 +112,23 @@ export function FabricPreview({
         fetchTemplates();
     }, []);
 
-    // Canvas Initialization
-    // Canvas Initialization
+    const [alignmentDebug, setAlignmentDebug] = useState<{ isDragging: boolean; vLines: number; hLines: number } | undefined>(undefined);
+
     // Canvas Initialization
     useEffect(() => {
         if (!canvasRef.current || fabricCanvasRef.current) return;
         const canvas = new fabric.Canvas(canvasRef.current, {
             width: baseWidth, height: baseHeight, backgroundColor: design.backgroundColor,
             selection: true, renderOnAddRemove: true, preserveObjectStacking: true
+        });
+
+        // Debug listener for alignment state
+        canvas.on('after:render', () => {
+            // @ts-ignore
+            if (canvas.__debug_align) {
+                // @ts-ignore
+                setAlignmentDebug({ ...canvas.__debug_align });
+            }
         });
 
         fabric.Object.prototype.set({
@@ -130,6 +139,9 @@ export function FabricPreview({
 
         fabricCanvasRef.current = canvas;
         setCanvasInstance(canvas);
+
+        // Initialize alignment guidelines
+        const disposeGuidelines = initAligningGuidelines(canvas);
 
         if (onMount) onMount(canvas);
 
@@ -161,6 +173,7 @@ export function FabricPreview({
         }
 
         return () => {
+            if (disposeGuidelines) disposeGuidelines();
             canvas.dispose();
             fabricCanvasRef.current = null;
             setCanvasInstance(null);
@@ -391,7 +404,7 @@ export function FabricPreview({
                 {contextMenu && (
                     <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onAction={handleAction} hasSelection={!!selectedObject} isLocked={!!selectedObject?.lockMovementX} />
                 )}
-                <CanvasInteractionDebugger selectedObject={selectedObject} />
+                <CanvasInteractionDebugger selectedObject={selectedObject} alignmentDebug={alignmentDebug} />
             </div>
         </div>
     );

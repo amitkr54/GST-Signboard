@@ -3,9 +3,10 @@ import { fabric } from 'fabric';
 
 interface CanvasInteractionDebuggerProps {
     selectedObject: fabric.Object | null;
+    alignmentDebug?: { isDragging: boolean; vLines: number; hLines: number };
 }
 
-export function CanvasInteractionDebugger({ selectedObject }: CanvasInteractionDebuggerProps) {
+export function CanvasInteractionDebugger({ selectedObject, alignmentDebug }: CanvasInteractionDebuggerProps) {
     if (process.env.NODE_ENV !== 'development') return null;
 
     return (
@@ -20,6 +21,13 @@ export function CanvasInteractionDebugger({ selectedObject }: CanvasInteractionD
                     <div>SelStart: {(selectedObject as any)?.selectionStart}</div>
                     <div>SelEnd: {(selectedObject as any)?.selectionEnd}</div>
                 </>
+            )}
+            {alignmentDebug && (
+                <div className="mt-2 pt-2 border-t border-gray-600 text-magenta-500">
+                    <div>Drag: {String(alignmentDebug.isDragging)}</div>
+                    <div>V-Lines: {alignmentDebug.vLines}</div>
+                    <div>H-Lines: {alignmentDebug.hLines}</div>
+                </div>
             )}
         </div>
     );
