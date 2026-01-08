@@ -133,7 +133,7 @@ export function FabricPreview({
 
         fabric.Object.prototype.set({
             borderColor: '#E53935', cornerColor: '#ffffff', cornerStrokeColor: '#E53935',
-            cornerSize: 14, transparentCorners: false, padding: 10, cornerStyle: 'circle',
+            cornerSize: 14, transparentCorners: false, padding: 0, cornerStyle: 'circle',
             borderScaleFactor: 2.5
         });
 
@@ -157,7 +157,7 @@ export function FabricPreview({
                             cornerStrokeColor: '#E53935',
                             cornerSize: 14,
                             transparentCorners: false,
-                            padding: 10,
+                            padding: 0,
                             cornerStyle: 'circle',
                             borderScaleFactor: 2.5
                         });
@@ -170,6 +170,38 @@ export function FabricPreview({
                 console.error('Restore failed', err);
                 setIsProcessing(false);
             }
+        }
+
+        // Global font loading listener to re-sync all text boxes when new fonts arrive
+        if ((window as any).document?.fonts) {
+            const handleFontsReady = () => {
+                const textObjects = canvas.getObjects().filter(obj =>
+                    obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text'
+                );
+
+                textObjects.forEach(obj => {
+                    const tObj = obj as any;
+                    if (obj.type === 'textbox') {
+                        const oldWidth = tObj.width;
+                        tObj.set('width', 10000);
+                        tObj.initDimensions();
+                        let maxWidth = 0;
+                        const lines = tObj._textLines || [];
+                        if (lines.length > 0) {
+                            for (let i = 0; i < lines.length; i++) {
+                                maxWidth = Math.max(maxWidth, tObj.getLineWidth(i));
+                            }
+                            tObj.set('width', maxWidth + 1);
+                        } else {
+                            tObj.set('width', oldWidth);
+                        }
+                    }
+                    tObj.setCoords();
+                });
+                canvas.requestRenderAll();
+            };
+
+            (document as any).fonts.ready.then(handleFontsReady);
         }
 
         return () => {

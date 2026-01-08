@@ -88,7 +88,8 @@ export function useCanvasTemplates(
                 cornerStrokeColor: '#E53935',
                 cornerSize: 14,
                 transparentCorners: false,
-                padding: 10,
+                padding: 0,
+                lineHeight: 1,
                 cornerStyle: 'circle',
                 borderScaleFactor: 2.5
             });
@@ -96,6 +97,17 @@ export function useCanvasTemplates(
             if (design.fontFamily && company.fontFamily !== design.fontFamily) company.set('fontFamily', design.fontFamily);
             if (design.textColor && company.fill !== design.textColor) company.set('fill', design.textColor);
             if (design.companyNameSize && company.fontSize !== design.companyNameSize) company.set('fontSize', design.companyNameSize);
+
+            // Auto-fit company text
+            company.set('width', 10000);
+            company.initDimensions();
+            let maxCW = 0;
+            const cLines = (company as any)._textLines || [];
+            for (let i = 0; i < cLines.length; i++) {
+                maxCW = Math.max(maxCW, company.getLineWidth(i));
+            }
+            company.set('width', maxCW + 1);
+            company.setCoords();
         }
 
         const details = existing.filter(obj => (obj as any).name === 'template_details') as fabric.Textbox[];
@@ -108,11 +120,24 @@ export function useCanvasTemplates(
                     evented: true,
                     editable: true,
                     lockScalingY: false,
-                    objectCaching: false
+                    objectCaching: false,
+                    padding: 0,
+                    lineHeight: 1
                 });
                 if (design.fontFamily && det.fontFamily !== design.fontFamily) det.set('fontFamily', design.fontFamily);
                 if (design.textColor && det.fill !== design.textColor) det.set('fill', design.textColor);
                 if (design.fontSize && det.fontSize !== design.fontSize) det.set('fontSize', design.fontSize);
+
+                // Auto-fit details text
+                det.set('width', 10000);
+                det.initDimensions();
+                let maxDW = 0;
+                const dLines = (det as any)._textLines || [];
+                for (let i = 0; i < dLines.length; i++) {
+                    maxDW = Math.max(maxDW, det.getLineWidth(i));
+                }
+                det.set('width', maxDW + 1);
+                det.setCoords();
             }
         });
 

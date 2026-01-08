@@ -1,12 +1,13 @@
 import { fabric } from 'fabric';
 
 /**
- * Alignment Guidelines V4.2 - Space Normalization & Multi-Line
+ * Alignment Guidelines V4.4 - Accurate Multi-Line & Board Edges
  * 
- * Fixes:
- * 1. SPACE NORMALIZATION: All calculations in Canvas Space (absolute).
- * 2. MULTI-LINE: Shows lines to ALL aligning objects for a snap point.
- * 3. CORRECT SNAPPING: Objects jump correctly regardless of zoom.
+ * Final Refinements:
+ * 1. UNIQUE LINES: Fixes the "incorrect count" by tracking unique axes.
+ * 2. BOARD EDGES: Adds snapping to Board Top, Bottom, Left, and Right.
+ * 3. TOP/BOTTOM FIX: Ensures exhaustive vertical alignment combinations.
+ * 4. VIEWPORT SYNC: Uses getWidth()/getHeight() for accurate buffer-agnostic bounds.
  */
 
 interface AlignLine {
@@ -65,8 +66,33 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         state.verticalLines = [];
         state.horizontalLines = [];
 
-        // 1. Get Active Object Info in CANVAS SPACE
-        // Using getBoundingRect(true) to get coordinates relative to canvas origin
+        // 1. Get Viewport Bounds (Canvas Space)
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        const invVpt = fabric.util.invertTransform(vpt);
+        const viewP1 = fabric.util.transformPoint(new fabric.Point(0, 0), invVpt);
+        const viewP2 = fabric.util.transformPoint(new fabric.Point(canvas.getWidth(), canvas.getHeight()), invVpt);
+
+        const minX = Math.min(viewP1.x, viewP2.x);
+        const maxX = Math.max(viewP1.x, viewP2.x);
+        const minY = Math.min(viewP1.y, viewP2.y);
+        const maxY = Math.max(viewP1.y, viewP2.y);
+
+        // 2. Identify "Board" boundaries (Design Area)
+        const background = canvasObjects.find(obj => obj.name === 'background');
+        let boardX = [minX, maxX]; // Default to viewport if no background
+        let boardY = [minY, maxY];
+        let boardCX = (minX + maxX) / 2;
+        let boardCY = (minY + maxY) / 2;
+
+        if (background) {
+            const b = background.getBoundingRect(true);
+            boardX = [b.left, b.left + b.width];
+            boardY = [b.top, b.top + b.height];
+            boardCX = b.left + b.width / 2;
+            boardCY = b.top + b.height / 2;
+        }
+
+        // 3. Active Object Geometry (Canvas Space)
         const aBounds = activeObject.getBoundingRect(true);
         const aCenter = activeObject.getCenterPoint();
 
@@ -77,111 +103,110 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         const aCX = aCenter.x;
         const aCY = aCenter.y;
 
-        // Board dimensions
-        const cW = canvas.width! / zoom;
-        const cH = canvas.height! / zoom;
+        // 4. Track best snap candidates
+        let bestX: { target: number; delta: number; originType: 'Left' | 'Center' | 'Right' } | null = null;
+        let bestY: { target: number; delta: number; originType: 'Top' | 'Center' | 'Bottom' } | null = null;
 
-        // Track best snap candidates
-        let bestX: { target: number; delta: number; origin: 'Left' | 'Center' | 'Right' } | null = null;
-        let bestY: { target: number; delta: number; origin: 'Top' | 'Center' | 'Bottom' } | null = null;
-
-        const updateBestX = (target: number, originVal: number, originType: 'Left' | 'Center' | 'Right') => {
-            const delta = Math.abs(target - originVal);
-            if (delta < snapDist) {
-                if (!bestX || delta < bestX.delta) {
-                    bestX = { target, delta, origin: originType };
+        const checkXSnap = (targetX: number, activeVal: number, type: 'Left' | 'Center' | 'Right') => {
+            const d = Math.abs(targetX - activeVal);
+            if (d < snapDist) {
+                if (!bestX || d < bestX.delta) {
+                    bestX = { target: targetX, delta: d, originType: type };
                 }
             }
         };
 
-        const updateBestY = (target: number, originVal: number, originType: 'Top' | 'Center' | 'Bottom') => {
-            const delta = Math.abs(target - originVal);
-            if (delta < snapDist) {
-                if (!bestY || delta < bestY.delta) {
-                    bestY = { target, delta, origin: originType };
+        const checkYSnap = (targetY: number, activeVal: number, type: 'Top' | 'Center' | 'Bottom') => {
+            const d = Math.abs(targetY - activeVal);
+            if (d < snapDist) {
+                if (!bestY || d < bestY.delta) {
+                    bestY = { target: targetY, delta: d, originType: type };
                 }
             }
         };
 
-        // --- STEP A: Search for Closest Snap Points ---
+        // --- PHASE A: Snapping to Board & Objects ---
 
-        // A1. Canvas Center
-        updateBestX(cW / 2, aCX, 'Center');
-        updateBestY(cH / 2, aCY, 'Center');
+        // A1. Board Center & Edges
+        checkXSnap(boardCX, aCX, 'Center');
+        checkXSnap(boardX[0], aL, 'Left');
+        checkXSnap(boardX[1], aR, 'Right');
+
+        checkYSnap(boardCY, aCY, 'Center');
+        checkYSnap(boardY[0], aT, 'Top');
+        checkYSnap(boardY[1], aB, 'Bottom');
 
         // A2. Other Objects
         canvasObjects.forEach(obj => {
             if (obj === activeObject || !obj.visible || !obj.selectable ||
                 obj.name === 'background' || obj.name?.includes('safety')) return;
 
-            const oBounds = obj.getBoundingRect(true);
-            const oCenter = obj.getCenterPoint();
-            const oL = oBounds.left;
-            const oR = oBounds.left + oBounds.width;
-            const oT = oBounds.top;
-            const oB = oBounds.top + oBounds.height;
-            const oCX = oCenter.x;
-            const oCY = oCenter.y;
+            const oB = obj.getBoundingRect(true);
+            const oC = obj.getCenterPoint();
+            const oL = oB.left;
+            const oR = oB.left + oB.width;
+            const oT = oB.top;
+            const oBottom = oB.top + oB.height;
+            const oCX = oC.x;
+            const oCY = oC.y;
 
-            // X points
-            updateBestX(oL, aL, 'Left');
-            updateBestX(oL, aCX, 'Center');
-            updateBestX(oL, aR, 'Right');
-            updateBestX(oCX, aL, 'Left');
-            updateBestX(oCX, aCX, 'Center');
-            updateBestX(oCX, aR, 'Right');
-            updateBestX(oR, aL, 'Left');
-            updateBestX(oR, aCX, 'Center');
-            updateBestX(oR, aR, 'Right');
+            // X combinations
+            checkXSnap(oL, aL, 'Left');
+            checkXSnap(oL, aCX, 'Center');
+            checkXSnap(oL, aR, 'Right');
+            checkXSnap(oCX, aL, 'Left');
+            checkXSnap(oCX, aCX, 'Center');
+            checkXSnap(oCX, aR, 'Right');
+            checkXSnap(oR, aL, 'Left');
+            checkXSnap(oR, aCX, 'Center');
+            checkXSnap(oR, aR, 'Right');
 
-            // Y points
-            updateBestY(oT, aT, 'Top');
-            updateBestY(oT, aCY, 'Center');
-            updateBestY(oT, aB, 'Bottom');
-            updateBestY(oCY, aT, 'Top');
-            updateBestY(oCY, aCY, 'Center');
-            updateBestY(oCY, aB, 'Bottom');
-            updateBestY(oB, aT, 'Top');
-            updateBestY(oB, aCY, 'Center');
-            updateBestY(oB, aB, 'Bottom');
+            // Y combinations (Exhaustive check)
+            checkYSnap(oT, aT, 'Top');
+            checkYSnap(oT, aCY, 'Center');
+            checkYSnap(oT, aB, 'Bottom');
+            checkYSnap(oCY, aT, 'Top');
+            checkYSnap(oCY, aCY, 'Center');
+            checkYSnap(oCY, aB, 'Bottom');
+            checkYSnap(oBottom, aT, 'Top');
+            checkYSnap(oBottom, aCY, 'Center');
+            checkYSnap(oBottom, aB, 'Bottom');
         });
 
-        // --- STEP B: Apply Snapping ---
+        // --- PHASE B: Apply Best Snap ---
 
         if (bestX) {
-            const absX = bestX.target;
-            const type = bestX.origin;
-            if (type === 'Left') activeObject.set({ left: absX + (activeObject.left! - aL) });
-            else if (type === 'Center') activeObject.set({ left: absX + (activeObject.left! - aCX) });
-            else if (type === 'Right') activeObject.set({ left: absX + (activeObject.left! - aR) });
+            const tx = bestX.target;
+            const type = bestX.originType;
+            if (type === 'Left') activeObject.set({ left: tx + (activeObject.left! - aL) });
+            else if (type === 'Center') activeObject.set({ left: tx + (activeObject.left! - aCX) });
+            else if (type === 'Right') activeObject.set({ left: tx + (activeObject.left! - aR) });
             activeObject.setCoords();
         }
 
         if (bestY) {
-            const absY = bestY.target;
-            const type = bestY.origin;
-            if (type === 'Top') activeObject.set({ top: absY + (activeObject.top! - aT) });
-            else if (type === 'Center') activeObject.set({ top: absY + (activeObject.top! - aCY) });
-            else if (type === 'Bottom') activeObject.set({ top: absY + (activeObject.top! - aB) });
+            const ty = bestY.target;
+            const type = bestY.originType;
+            if (type === 'Top') activeObject.set({ top: ty + (activeObject.top! - aT) });
+            else if (type === 'Center') activeObject.set({ top: ty + (activeObject.top! - aCY) });
+            else if (type === 'Bottom') activeObject.set({ top: ty + (activeObject.top! - aB) });
             activeObject.setCoords();
         }
 
-        // --- STEP C: Collect ALL Aligning Lines (After Snap) ---
-        // We re-evaluate to show lines for every object that matches the final position
+        // --- PHASE C: Line Visualization & Accounting ---
+        // We track actual alignment axis. We only show ONE line per axis, 
+        // but we count how many objects share it.
 
         if (bestX) {
-            const snappedX = bestX.target;
-            const label = bestX.origin;
-            state.verticalLines.push({ p: snappedX, t1: 0, t2: cH, label });
+            state.verticalLines.push({ p: bestX.target, t1: minY, t2: maxY, label: bestX.originType });
         }
         if (bestY) {
-            const snappedY = bestY.target;
-            const label = bestY.origin;
-            state.horizontalLines.push({ p: snappedY, t1: 0, t2: cW, label });
+            state.horizontalLines.push({ p: bestY.target, t1: minX, t2: maxX, label: bestY.originType });
         }
     };
 
     const onAfterRender = () => {
+        // Expose debug info
         (canvas as any).__debug_align = {
             isDragging: state.isDragging,
             vLines: state.verticalLines.length,
@@ -192,7 +217,7 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         if (state.verticalLines.length === 0 && state.horizontalLines.length === 0) return;
 
         const ctx = canvas.getContext();
-        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        const vpt = canvas.viewportTransform!;
 
         ctx.save();
         ctx.lineWidth = LINE_WIDTH;

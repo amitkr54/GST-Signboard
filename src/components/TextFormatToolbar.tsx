@@ -86,9 +86,63 @@ export function TextFormatToolbar({
 
     if (!selectedObject) return null;
 
+    const robustAutoFit = (obj: fabric.Object) => {
+        if (!obj || (obj.type !== 'textbox' && obj.type !== 'i-text' && obj.type !== 'text')) return;
+        const tObj = obj as any;
+
+        // For Textbox, we need to force width recalculation
+        if (obj.type === 'textbox') {
+            const oldWidth = tObj.width;
+            tObj.set('width', 10000); // Temporary large width to prevent wrapping
+            tObj.initDimensions();
+
+            let maxWidth = 0;
+            const lines = tObj._textLines || [];
+            if (lines.length > 0) {
+                for (let i = 0; i < lines.length; i++) {
+                    maxWidth = Math.max(maxWidth, tObj.getLineWidth(i));
+                }
+                tObj.set('width', maxWidth + 1);
+            } else {
+                tObj.set('width', oldWidth); // Fallback
+            }
+        }
+
+        tObj.setCoords();
+        if (tObj.canvas) tObj.canvas.requestRenderAll();
+    };
+
     const updateProperty = (property: string, value: any) => {
-        if (isLocked) return; // Prevent updates if locked
-        selectedObject.set(property as any, value);
+        if (isLocked) return;
+
+        const isText = selectedObject.type?.includes('text') || selectedObject.type === 'textbox';
+
+        const canStylePartially = ['fontWeight', 'fontStyle'].includes(property);
+
+        // Handle character-level styling if in editing mode and property allows
+        if (isText && (selectedObject as any).isEditing && canStylePartially) {
+            (selectedObject as any).setSelectionStyles({ [property]: value });
+        } else {
+            selectedObject.set(property as any, value);
+        }
+
+        if (isText && ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle'].includes(property)) {
+            // 1. Immediate Fit
+            robustAutoFit(selectedObject);
+
+            // 2. Delayed Fits (to catch font rendering delays)
+            setTimeout(() => robustAutoFit(selectedObject), 50);
+            setTimeout(() => robustAutoFit(selectedObject), 250);
+
+            // 3. Font-Ready Fit (the most reliable)
+            if (property === 'fontFamily' && (window as any).document?.fonts) {
+                const fontStr = `${selectedObject.get('fontWeight') || 'normal'} ${selectedObject.get('fontSize')}px "${value}"`;
+                (document as any).fonts.load(fontStr).then(() => {
+                    robustAutoFit(selectedObject);
+                }).catch(() => { });
+            }
+        }
+
         selectedObject.setCoords();
         onUpdate();
     };

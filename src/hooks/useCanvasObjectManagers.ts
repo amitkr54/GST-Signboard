@@ -11,7 +11,7 @@ export function useCanvasObjectManagers(
     const addText = useCallback((type: 'heading' | 'subheading' | 'body') => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const textbox = new fabric.IText(type === 'heading' ? 'Heading' : 'Text', {
+        const textbox = new fabric.Textbox(type === 'heading' ? 'Heading' : 'Text', {
             left: baseWidth / 2,
             top: baseHeight / 2,
             fontSize: type === 'heading' ? 80 : 40,
@@ -26,7 +26,8 @@ export function useCanvasObjectManagers(
             cornerSize: 14,
             borderScaleFactor: 2.5,
             transparentCorners: false,
-            padding: 10,
+            padding: 0,
+            lineHeight: 1,
             cornerStyle: 'circle'
         });
         canvas.add(textbox);
