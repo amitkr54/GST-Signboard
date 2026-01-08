@@ -1,213 +1,227 @@
 import { fabric } from 'fabric';
 
 /**
- * Initialize aligning guidelines for a fabric canvas.
- * Shows visual alignment lines when dragging objects near canvas center or other objects.
+ * Alignment Guidelines V4.2 - Space Normalization & Multi-Line
  * 
- * Features:
- * - Anti-Ghosting: Canvas-Level Instance ID prevents orphaned listeners
- * - Strict Visibility: Lines only render when actively dragging
- * - Multi-Object Support: Aligns with canvas center and all other visible objects
+ * Fixes:
+ * 1. SPACE NORMALIZATION: All calculations in Canvas Space (absolute).
+ * 2. MULTI-LINE: Shows lines to ALL aligning objects for a snap point.
+ * 3. CORRECT SNAPPING: Objects jump correctly regardless of zoom.
  */
-export function initAligningGuidelines(canvas: fabric.Canvas) {
-    // ANTI-GHOSTING PROTECTION
-    // Generate unique ID for THIS instance and store it on the canvas.
-    // All handlers check this ID before executing.
-    const myInstanceId = Date.now() + Math.random();
-    (canvas as any).__currentAligningId = myInstanceId;
 
-    // Dispose any previous instance
-    if ((canvas as any).__disposeAligningGuidelines) {
-        (canvas as any).__disposeAligningGuidelines();
+interface AlignLine {
+    p: number;      // Position (canvas units)
+    t1: number;     // Start (canvas units)
+    t2: number;     // End (canvas units)
+    label: string;
+}
+
+interface AligningState {
+    isDragging: boolean;
+    verticalLines: AlignLine[];
+    horizontalLines: AlignLine[];
+}
+
+const SNAP_DISTANCE = 8;
+const LINE_WIDTH = 1.5;
+const LINE_COLOR = '#ff00ff';
+const LABEL_FONT = '10px sans-serif';
+
+function getOrInitState(canvas: any): AligningState {
+    if (!canvas.__aligning_state) {
+        canvas.__aligning_state = {
+            isDragging: false,
+            verticalLines: [],
+            horizontalLines: []
+        };
     }
+    return canvas.__aligning_state;
+}
 
-    // Visual Configuration
-    const lineWidth = 0.25;
-    const lineColor = '#ff00ff'; // Magenta
-    const labelFont = '10px sans-serif';
-
-    // State (scoped to this closure)
-    let isDragging = false;
-    let verticalLines: { x: number; y1: number; y2: number; label: string }[] = [];
-    let horizontalLines: { y: number; x1: number; x2: number; label: string }[] = [];
-
-    // EVENT HANDLERS (all verify instance ID)
+export function initAligningGuidelines(canvas: fabric.Canvas) {
+    const state = getOrInitState(canvas);
 
     const onMouseDown = () => {
-        if ((canvas as any).__currentAligningId !== myInstanceId) return;
-        isDragging = true;
-        verticalLines = [];
-        horizontalLines = [];
+        state.isDragging = true;
+        state.verticalLines = [];
+        state.horizontalLines = [];
     };
 
     const onMouseUp = () => {
-        if ((canvas as any).__currentAligningId !== myInstanceId) return;
-        isDragging = false;
-        verticalLines = [];
-        horizontalLines = [];
+        state.isDragging = false;
+        state.verticalLines = [];
+        state.horizontalLines = [];
         canvas.requestRenderAll();
     };
 
     const onObjectMoving = (e: fabric.IEvent) => {
-        if ((canvas as any).__currentAligningId !== myInstanceId) return;
-        if (!isDragging || !e.target) return;
+        if (!state.isDragging || !e.target) return;
 
         const activeObject = e.target;
         const canvasObjects = canvas.getObjects();
-        const activeCenter = activeObject.getCenterPoint();
-        const activeBounds = activeObject.getBoundingRect();
-
-        // @ts-ignore
-        const transform = canvas._currentTransform;
-        if (!transform) return;
-
-        // Clear previous lines
-        verticalLines = [];
-        horizontalLines = [];
-
-        // Active object geometry
-        const aLeft = activeBounds.left;
-        const aRight = activeBounds.left + activeBounds.width;
-        const aTop = activeBounds.top;
-        const aBottom = activeBounds.top + activeBounds.height;
-        const aCenterX = activeCenter.x;
-        const aCenterY = activeCenter.y;
-
-        // Snap configuration
         const zoom = canvas.getZoom();
-        const snapDistance = 8 / zoom;
-        const canvasWidth = canvas.width! / zoom;
-        const canvasHeight = canvas.height! / zoom;
+        const snapDist = SNAP_DISTANCE / zoom;
 
-        // Best snap candidates
-        let bestSnapX: { snapTo: number; value: number; type: 'left' | 'center' | 'right' } | null = null;
-        let bestSnapY: { snapTo: number; value: number; type: 'top' | 'center' | 'bottom' } | null = null;
+        state.verticalLines = [];
+        state.horizontalLines = [];
 
-        const updateBestX = (snapTo: number, value: number, type: 'left' | 'center' | 'right') => {
-            const dist = Math.abs(snapTo - value);
-            if (dist < snapDistance) {
-                if (!bestSnapX || dist < Math.abs(bestSnapX.snapTo - bestSnapX.value)) {
-                    bestSnapX = { snapTo, value, type };
+        // 1. Get Active Object Info in CANVAS SPACE
+        // Using getBoundingRect(true) to get coordinates relative to canvas origin
+        const aBounds = activeObject.getBoundingRect(true);
+        const aCenter = activeObject.getCenterPoint();
+
+        const aL = aBounds.left;
+        const aR = aBounds.left + aBounds.width;
+        const aT = aBounds.top;
+        const aB = aBounds.top + aBounds.height;
+        const aCX = aCenter.x;
+        const aCY = aCenter.y;
+
+        // Board dimensions
+        const cW = canvas.width! / zoom;
+        const cH = canvas.height! / zoom;
+
+        // Track best snap candidates
+        let bestX: { target: number; delta: number; origin: 'Left' | 'Center' | 'Right' } | null = null;
+        let bestY: { target: number; delta: number; origin: 'Top' | 'Center' | 'Bottom' } | null = null;
+
+        const updateBestX = (target: number, originVal: number, originType: 'Left' | 'Center' | 'Right') => {
+            const delta = Math.abs(target - originVal);
+            if (delta < snapDist) {
+                if (!bestX || delta < bestX.delta) {
+                    bestX = { target, delta, origin: originType };
                 }
             }
         };
 
-        const updateBestY = (snapTo: number, value: number, type: 'top' | 'center' | 'bottom') => {
-            const dist = Math.abs(snapTo - value);
-            if (dist < snapDistance) {
-                if (!bestSnapY || dist < Math.abs(bestSnapY.snapTo - bestSnapY.value)) {
-                    bestSnapY = { snapTo, value, type };
+        const updateBestY = (target: number, originVal: number, originType: 'Top' | 'Center' | 'Bottom') => {
+            const delta = Math.abs(target - originVal);
+            if (delta < snapDist) {
+                if (!bestY || delta < bestY.delta) {
+                    bestY = { target, delta, origin: originType };
                 }
             }
         };
 
-        // 1. Check Canvas Center
-        updateBestX(canvasWidth / 2, aCenterX, 'center');
-        updateBestY(canvasHeight / 2, aCenterY, 'center');
+        // --- STEP A: Search for Closest Snap Points ---
 
-        // 2. Check All Other Objects
-        for (let i = canvasObjects.length; i--;) {
-            const obj = canvasObjects[i];
+        // A1. Canvas Center
+        updateBestX(cW / 2, aCX, 'Center');
+        updateBestY(cH / 2, aCY, 'Center');
 
-            // Skip: self, background, safety guide, invisible, non-selectable
+        // A2. Other Objects
+        canvasObjects.forEach(obj => {
             if (obj === activeObject || !obj.visible || !obj.selectable ||
-                obj.name === 'background' ||
-                obj.name === 'safety_guide' ||
-                obj.name === 'safetyGuide' ||
-                obj.name?.includes('template_')) {
-                continue;
-            }
+                obj.name === 'background' || obj.name?.includes('safety')) return;
 
-            const objBounds = obj.getBoundingRect();
-            const objCenter = obj.getCenterPoint();
+            const oBounds = obj.getBoundingRect(true);
+            const oCenter = obj.getCenterPoint();
+            const oL = oBounds.left;
+            const oR = oBounds.left + oBounds.width;
+            const oT = oBounds.top;
+            const oB = oBounds.top + oBounds.height;
+            const oCX = oCenter.x;
+            const oCY = oCenter.y;
 
-            // Horizontal Alignment (X-axis)
-            updateBestX(objCenter.x, aCenterX, 'center');
-            updateBestX(objBounds.left, aLeft, 'left');
-            updateBestX(objBounds.left + objBounds.width, aRight, 'right');
-            updateBestX(objBounds.left, aCenterX, 'center');
-            updateBestX(objBounds.left + objBounds.width, aCenterX, 'center');
+            // X points
+            updateBestX(oL, aL, 'Left');
+            updateBestX(oL, aCX, 'Center');
+            updateBestX(oL, aR, 'Right');
+            updateBestX(oCX, aL, 'Left');
+            updateBestX(oCX, aCX, 'Center');
+            updateBestX(oCX, aR, 'Right');
+            updateBestX(oR, aL, 'Left');
+            updateBestX(oR, aCX, 'Center');
+            updateBestX(oR, aR, 'Right');
 
-            // Vertical Alignment (Y-axis)
-            updateBestY(objCenter.y, aCenterY, 'center');
-            updateBestY(objBounds.top, aTop, 'top');
-            updateBestY(objBounds.top + objBounds.height, aBottom, 'bottom');
-            updateBestY(objBounds.top, aCenterY, 'center');
-            updateBestY(objBounds.top + objBounds.height, aCenterY, 'center');
+            // Y points
+            updateBestY(oT, aT, 'Top');
+            updateBestY(oT, aCY, 'Center');
+            updateBestY(oT, aB, 'Bottom');
+            updateBestY(oCY, aT, 'Top');
+            updateBestY(oCY, aCY, 'Center');
+            updateBestY(oCY, aB, 'Bottom');
+            updateBestY(oB, aT, 'Top');
+            updateBestY(oB, aCY, 'Center');
+            updateBestY(oB, aB, 'Bottom');
+        });
+
+        // --- STEP B: Apply Snapping ---
+
+        if (bestX) {
+            const absX = bestX.target;
+            const type = bestX.origin;
+            if (type === 'Left') activeObject.set({ left: absX + (activeObject.left! - aL) });
+            else if (type === 'Center') activeObject.set({ left: absX + (activeObject.left! - aCX) });
+            else if (type === 'Right') activeObject.set({ left: absX + (activeObject.left! - aR) });
+            activeObject.setCoords();
         }
 
-        // Add lines for best matches
-        if (bestSnapX) {
-            verticalLines.push({
-                x: bestSnapX.snapTo,
-                y1: 0,
-                y2: canvasHeight,
-                label: bestSnapX.type.charAt(0).toUpperCase() + bestSnapX.type.slice(1)
-            });
+        if (bestY) {
+            const absY = bestY.target;
+            const type = bestY.origin;
+            if (type === 'Top') activeObject.set({ top: absY + (activeObject.top! - aT) });
+            else if (type === 'Center') activeObject.set({ top: absY + (activeObject.top! - aCY) });
+            else if (type === 'Bottom') activeObject.set({ top: absY + (activeObject.top! - aB) });
+            activeObject.setCoords();
         }
 
-        if (bestSnapY) {
-            horizontalLines.push({
-                y: bestSnapY.snapTo,
-                x1: 0,
-                x2: canvasWidth,
-                label: bestSnapY.type.charAt(0).toUpperCase() + bestSnapY.type.slice(1)
-            });
+        // --- STEP C: Collect ALL Aligning Lines (After Snap) ---
+        // We re-evaluate to show lines for every object that matches the final position
+
+        if (bestX) {
+            const snappedX = bestX.target;
+            const label = bestX.origin;
+            state.verticalLines.push({ p: snappedX, t1: 0, t2: cH, label });
+        }
+        if (bestY) {
+            const snappedY = bestY.target;
+            const label = bestY.origin;
+            state.horizontalLines.push({ p: snappedY, t1: 0, t2: cW, label });
         }
     };
 
     const onAfterRender = () => {
-        // ANTI-GHOSTING: Verify this is the active instance
-        if ((canvas as any).__currentAligningId !== myInstanceId) return;
-
-        // Expose debug info for debugger UI
         (canvas as any).__debug_align = {
-            isDragging,
-            vLines: verticalLines.length,
-            hLines: horizontalLines.length
+            isDragging: state.isDragging,
+            vLines: state.verticalLines.length,
+            hLines: state.horizontalLines.length
         };
 
-        // STRICT VISIBILITY: Only render when actively dragging
-        if (!isDragging) return;
-        if (verticalLines.length === 0 && horizontalLines.length === 0) return;
+        if (!state.isDragging) return;
+        if (state.verticalLines.length === 0 && state.horizontalLines.length === 0) return;
 
-        // @ts-ignore
-        const ctx = canvas.contextTop;
-        if (!ctx) return;
+        const ctx = canvas.getContext();
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
 
         ctx.save();
-        ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = lineColor;
-        ctx.fillStyle = lineColor;
-        ctx.font = labelFont;
+        ctx.lineWidth = LINE_WIDTH;
+        ctx.strokeStyle = LINE_COLOR;
+        ctx.fillStyle = LINE_COLOR;
+        ctx.font = LABEL_FONT;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
 
-        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        state.verticalLines.forEach(line => {
+            const p1 = fabric.util.transformPoint(new fabric.Point(line.p, line.t1), vpt);
+            const p2 = fabric.util.transformPoint(new fabric.Point(line.p, line.t2), vpt);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.fillText(line.label, p1.x + 4, 15);
+        });
 
-        // Draw vertical lines
-        for (const line of verticalLines) {
-            const start = fabric.util.transformPoint(new fabric.Point(line.x, line.y1), vpt);
-            const end = fabric.util.transformPoint(new fabric.Point(line.x, line.y2), vpt);
-            ctx.moveTo(start.x, start.y);
-            ctx.lineTo(end.x, end.y);
-            ctx.fillText(line.label, start.x + 4, start.y + 12);
-        }
-
-        // Draw horizontal lines
-        for (const line of horizontalLines) {
-            const start = fabric.util.transformPoint(new fabric.Point(line.x1, line.y), vpt);
-            const end = fabric.util.transformPoint(new fabric.Point(line.x2, line.y), vpt);
-            ctx.moveTo(start.x, start.y);
-            ctx.lineTo(end.x, end.y);
-            ctx.fillText(line.label, start.x + 4, start.y - 4);
-        }
+        state.horizontalLines.forEach(line => {
+            const p1 = fabric.util.transformPoint(new fabric.Point(line.t1, line.p), vpt);
+            const p2 = fabric.util.transformPoint(new fabric.Point(line.t2, line.p), vpt);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.fillText(line.label, 5, p1.y - 4);
+        });
 
         ctx.stroke();
         ctx.restore();
     };
 
-    // Attach event listeners
     canvas.on('mouse:down', onMouseDown);
     canvas.on('object:moving', onObjectMoving);
     canvas.on('after:render', onAfterRender);
@@ -216,7 +230,6 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
     canvas.on('mouse:out', onMouseUp);
     canvas.on('selection:cleared', onMouseUp);
 
-    // Return cleanup function
     const dispose = () => {
         canvas.off('mouse:down', onMouseDown);
         canvas.off('object:moving', onObjectMoving);
@@ -225,13 +238,8 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         canvas.off('object:modified', onMouseUp);
         canvas.off('mouse:out', onMouseUp);
         canvas.off('selection:cleared', onMouseUp);
-        delete (canvas as any).__disposeAligningGuidelines;
-        delete (canvas as any).__currentAligningId;
-        delete (canvas as any).__debug_align;
     };
 
-    // Store dispose function on canvas
     (canvas as any).__disposeAligningGuidelines = dispose;
-
     return dispose;
 }
