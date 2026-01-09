@@ -168,16 +168,67 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Background Color</label>
-                    <input
-                        type="color"
-                        name="backgroundColor"
-                        value={design.backgroundColor}
-                        onChange={handleChange}
-                        className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border"
-                    />
+                <div className="col-span-2 p-4 bg-gray-50 rounded-lg border mt-2">
+                    <div className="flex items-center justify-between mb-4">
+                        <label className="text-sm font-semibold text-gray-700">Background Style</label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">Solid</span>
+                            <button
+                                onClick={() => onChange({ ...design, backgroundGradientEnabled: !design.backgroundGradientEnabled })}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${design.backgroundGradientEnabled ? 'bg-blue-600' : 'bg-gray-200'}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${design.backgroundGradientEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            <span className="text-xs text-gray-500">Gradient</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                                {design.backgroundGradientEnabled ? 'Start Color' : 'Background Color'}
+                            </label>
+                            <input
+                                type="color"
+                                name="backgroundColor"
+                                value={design.backgroundColor}
+                                onChange={handleChange}
+                                className="block w-full h-10 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border cursor-pointer"
+                            />
+                        </div>
+
+                        {design.backgroundGradientEnabled && (
+                            <>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">End Color</label>
+                                    <input
+                                        type="color"
+                                        name="backgroundColor2"
+                                        value={design.backgroundColor2}
+                                        onChange={handleChange}
+                                        className="block w-full h-10 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border cursor-pointer"
+                                    />
+                                </div>
+                                <div className="col-span-2 mt-2">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-xs font-medium text-gray-500">Gradient Angle</label>
+                                        <span className="text-xs font-bold text-blue-600">{design.backgroundGradientAngle}°</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        name="backgroundGradientAngle"
+                                        min="0"
+                                        max="360"
+                                        value={design.backgroundGradientAngle}
+                                        onChange={handleChange}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Text Color</label>
                     <input
@@ -185,7 +236,7 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
                         name="textColor"
                         value={design.textColor}
                         onChange={handleChange}
-                        className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border"
+                        className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border cursor-pointer"
                     />
                 </div>
                 <div>

@@ -1,5 +1,8 @@
 'use server';
 
+import fs from 'fs';
+import path from 'path';
+
 import { createClient } from '@supabase/supabase-js';
 import { SignageData, DesignConfig } from '@/lib/types';
 import QRCode from 'qrcode';
@@ -415,19 +418,14 @@ export async function getReferrerByEmail(email: string) {
 }
 
 export async function uploadTemplate(formData: FormData) {
-    const pin = formData.get('pin');
+    const file = formData.get('file') as File;
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
-    const file = formData.get('file') as File;
-    const fabricConfigJson = formData.get('fabricConfig') as string;
-    const fabricConfig = fabricConfigJson ? JSON.parse(fabricConfigJson) : undefined;
+    const fabricConfigStr = formData.get('fabricConfig') as string;
+    const fabricConfig = fabricConfigStr ? JSON.parse(fabricConfigStr) : {};
 
-    if (pin !== '1234') { // Simple PIN for demo
-        return { success: false, error: 'Invalid Admin PIN' };
-    }
-
-    if (!file || !name) {
-        return { success: false, error: 'Missing file or name' };
+    if (!file) {
+        return { success: false, error: 'No file provided' };
     }
 
     try {
@@ -622,7 +620,7 @@ export async function uploadTemplate(formData: FormData) {
 
         // --- 4. Content-Based Normalization (Actual Size) ---
         // This ensures the template data tightly fits the design, ignoring CorelDRAW's massive empty workspace.
-        if (components.text.length > 0 || components.backgroundObjects.length > 0) {
+        if (components && (components.text.length > 0 || components.backgroundObjects.length > 0)) {
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
             components.text.forEach((t: any) => {
@@ -635,7 +633,7 @@ export async function uploadTemplate(formData: FormData) {
             });
 
             components.backgroundObjects.forEach((o: any) => {
-                // Basic bounds check for rect, circle etc. 
+                // Basic bounds check for rect, circle etc.
                 // Paths are hard to parse via regex, so we'll at least use their starting position if nothing else.
                 const s = o.styles;
                 let x = parseFloat(s.x || s.cx || 0);
@@ -679,31 +677,26 @@ export async function uploadTemplate(formData: FormData) {
             }
         }
 
-        // Update JSON Database
-        const dbPath = path.join(process.cwd(), 'src', 'data', 'templates.json');
-        let templates = [];
-        try {
-            if (fs.existsSync(dbPath)) {
-                templates = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-            }
-        } catch (e) {
-            console.warn('Could not read templates.json, starting fresh');
-        }
-
+        // Update Supabase Database
         const newTemplate = {
             id: `custom-${Date.now()}`,
             name,
             description,
-            thumbnailColor: '#ffffff',
-            layoutType: 'centered',
-            svgPath: `/templates/${filename}`,
-            isCustom: true,
+            thumbnail_color: '#ffffff',
+            layout_type: 'centered',
+            svg_path: `/templates/${filename}`,
+            is_custom: true,
             components: ext === 'svg' ? components : undefined,
-            fabricConfig: fabricConfig
+            fabric_config: fabricConfig
         };
 
-        templates.unshift(newTemplate); // Add to top
-        fs.writeFileSync(dbPath, JSON.stringify(templates, null, 2));
+        const { error: insertError } = await supabase
+            .from('templates')
+            .insert(newTemplate);
+
+        if (insertError) {
+            throw new Error(insertError.message);
+        }
 
         return { success: true };
 
@@ -714,22 +707,8 @@ export async function uploadTemplate(formData: FormData) {
 }
 
 export async function getTemplates() {
-    const fs = require('fs');
-    const path = require('path');
-    const dbPath = path.join(process.cwd(), 'src', 'data', 'templates.json');
-
-    try {
-        if (fs.existsSync(dbPath)) {
-            const data = fs.readFileSync(dbPath, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (error) {
-        console.error('Error reading templates:', error);
-    }
-
-    // Fallback to empty or initial if needed
-    // In a real app we might return the hardcoded list as fallback here
-    return [];
+    const { getTemplates: getTemplatesLib } = await import('@/lib/templates');
+    return getTemplatesLib(); // Uses db.ts with fallback
 }
 
 export async function deleteTemplate(templateId: string, pin: string) {
@@ -737,35 +716,37 @@ export async function deleteTemplate(templateId: string, pin: string) {
         return { success: false, error: 'Invalid Admin PIN' };
     }
 
-    const fs = require('fs');
-    const path = require('path');
-    const dbPath = path.join(process.cwd(), 'src', 'data', 'templates.json');
-
     try {
-        if (!fs.existsSync(dbPath)) {
-            return { success: false, error: 'Database not found' };
+        // 1. Get template to delete file
+        const { data: template, error: fetchError } = await supabase
+            .from('templates')
+            .select('svg_path')
+            .eq('id', templateId)
+            .single();
+
+        if (fetchError) {
+            console.warn('Template not found in DB, maybe local?', fetchError.message);
         }
 
-        const templates = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-        const templateIndex = templates.findIndex((t: any) => t.id === templateId);
+        // 2. Delete from DB
+        const { error: deleteError } = await supabase
+            .from('templates')
+            .delete()
+            .eq('id', templateId);
 
-        if (templateIndex === -1) {
-            return { success: false, error: 'Template not found' };
+        if (deleteError) {
+            return { success: false, error: deleteError.message };
         }
 
-        const template = templates[templateIndex];
-
-        // Delete the file if it exists
-        if (template.svgPath) {
-            const filePath = path.join(process.cwd(), 'public', template.svgPath);
+        // 3. Delete file if exists
+        if (template?.svg_path) {
+            const fs = require('fs');
+            const path = require('path');
+            const filePath = path.join(process.cwd(), 'public', template.svg_path);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
             }
         }
-
-        // Remove from array
-        templates.splice(templateIndex, 1);
-        fs.writeFileSync(dbPath, JSON.stringify(templates, null, 2));
 
         return { success: true };
     } catch (error: any) {
@@ -824,4 +805,66 @@ export async function getOrder(orderId: string) {
     }
 
     return { success: true, order: data };
+}
+
+export async function saveProductAction(product: any, pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    const { db } = await import('@/lib/db');
+    try {
+        await db.saveProduct(product);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteProductAction(id: string, pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    const { db } = await import('@/lib/db');
+    try {
+        await db.deleteProduct(id);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function uploadProductImages(formData: FormData) {
+    const files = formData.getAll('images') as File[];
+    const uploadedUrls: string[] = [];
+
+    if (!files || files.length === 0) {
+        return { success: false, error: 'No files provided' };
+    }
+
+    try {
+        const publicDir = path.join(process.cwd(), 'public', 'products');
+
+        if (!fs.existsSync(publicDir)) {
+            fs.mkdirSync(publicDir, { recursive: true });
+        }
+
+        for (const file of files) {
+            if (file.size === 0) continue;
+
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const ext = path.extname(file.name) || '.jpg';
+            const filename = `${crypto.randomUUID()}${ext}`;
+            const filePath = path.join(publicDir, filename);
+
+            fs.writeFileSync(filePath, buffer);
+            uploadedUrls.push(`/products/${filename}`);
+        }
+
+        return { success: true, urls: uploadedUrls };
+    } catch (error: any) {
+        console.error('Image upload error:', error);
+        return { success: false, error: `Image upload failed: ${error.message}` };
+    }
 }

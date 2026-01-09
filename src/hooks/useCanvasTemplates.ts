@@ -43,6 +43,28 @@ export function useCanvasTemplates(
             });
             canvas.add(bgRect);
             canvas.sendToBack(bgRect);
+        }
+
+        if (design.backgroundGradientEnabled) {
+            const angleRad = (design.backgroundGradientAngle || 0) * (Math.PI / 180);
+
+            // Calculate gradient coordinates starting from center
+            // We want the gradient to span the bounding box
+            const x1 = 0.5 - 0.5 * Math.cos(angleRad);
+            const y1 = 0.5 - 0.5 * Math.sin(angleRad);
+            const x2 = 0.5 + 0.5 * Math.cos(angleRad);
+            const y2 = 0.5 + 0.5 * Math.sin(angleRad);
+
+            const gradient = new fabric.Gradient({
+                type: 'linear',
+                gradientUnits: 'percentage',
+                coords: { x1, y1, x2, y2 },
+                colorStops: [
+                    { offset: 0, color: design.backgroundColor },
+                    { offset: 1, color: design.backgroundColor2 || '#ffffff' }
+                ]
+            });
+            bgRect.set({ fill: gradient });
         } else {
             bgRect.set({ fill: design.backgroundColor });
         }

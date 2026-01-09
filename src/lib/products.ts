@@ -1,0 +1,182 @@
+import { MaterialId } from './utils';
+
+export interface ProductSize {
+    id: string;
+    name: string;
+    dimensions: {
+        width: number;
+        height: number;
+        unit: 'in' | 'cm' | 'mm' | 'ft';
+    };
+    priceMultiplier: number;
+}
+
+export interface Product {
+    id: string;
+    name: string;
+    category: 'business' | 'marketing' | 'events' | 'retail';
+    description: string;
+    image: string;
+    images?: string[];
+    priceFrom: number;
+    features: string[];
+    sizes: ProductSize[];
+    materials: MaterialId[];
+    popularTemplates?: string[];
+    rating: number;
+    reviewCount: number;
+}
+
+export const PRODUCTS: Product[] = [
+    {
+        id: 'visiting-cards',
+        name: 'Visiting Cards',
+        category: 'business',
+        description: 'Professional business cards with a premium finish',
+        image: '/products/visiting-cards.jpg',
+        priceFrom: 200,
+        rating: 4.8,
+        reviewCount: 234,
+        features: [
+            '4000+ design options available',
+            'Standard or Premium paper included',
+            'Multiple finish options',
+            'Same Day Delivery available on select pin codes',
+            'Can use uploaded designs, or contact us for custom design from our inhouse design'
+        ],
+        sizes: [
+            { id: 'standard', name: 'Standard (3.5" × 2")', dimensions: { width: 3.5, height: 2, unit: 'in' }, priceMultiplier: 1 },
+            { id: 'rounded', name: 'Rounded Corner (3.5" × 2")', dimensions: { width: 3.5, height: 2, unit: 'in' }, priceMultiplier: 1.2 }
+        ],
+        materials: ['flex', 'sunboard'],
+        popularTemplates: []
+    },
+    {
+        id: 'flex-banners',
+        name: 'Flex Banners',
+        category: 'marketing',
+        description: 'Durable outdoor banners for advertising and events',
+        image: '/products/flex-banner.jpg',
+        priceFrom: 500,
+        rating: 4.9,
+        reviewCount: 456,
+        features: [
+            'Weather-resistant flex material',
+            'Full-color printing',
+            'Custom sizes available',
+            'Grommets for easy hanging',
+            'Indoor & outdoor use'
+        ],
+        sizes: [
+            { id: '3x2', name: '3ft × 2ft', dimensions: { width: 3, height: 2, unit: 'ft' }, priceMultiplier: 1 },
+            { id: '4x3', name: '4ft × 3ft', dimensions: { width: 4, height: 3, unit: 'ft' }, priceMultiplier: 1.5 },
+            { id: '6x3', name: '6ft × 3ft', dimensions: { width: 6, height: 3, unit: 'ft' }, priceMultiplier: 2 },
+            { id: '8x4', name: '8ft × 4ft', dimensions: { width: 8, height: 4, unit: 'ft' }, priceMultiplier: 2.5 }
+        ],
+        materials: ['flex'],
+        popularTemplates: []
+    },
+    {
+        id: 'standees',
+        name: 'Standees',
+        category: 'retail',
+        description: 'Free-standing displays for promotions and branding',
+        image: '/products/standee.jpg',
+        priceFrom: 800,
+        rating: 4.7,
+        reviewCount: 189,
+        features: [
+            'Lightweight and portable',
+            'Easy to assemble',
+            'High-quality printing',
+            'Reusable frame',
+            'Multiple sizes available'
+        ],
+        sizes: [
+            { id: '5x3', name: '5ft × 3ft', dimensions: { width: 5, height: 3, unit: 'ft' }, priceMultiplier: 1 },
+            { id: '6x3', name: '6ft × 3ft', dimensions: { width: 6, height: 3, unit: 'ft' }, priceMultiplier: 1.3 },
+            { id: '7x4', name: '7ft × 4ft', dimensions: { width: 7, height: 4, unit: 'ft' }, priceMultiplier: 1.6 }
+        ],
+        materials: ['sunboard', 'acrylic'],
+        popularTemplates: []
+    },
+    {
+        id: 'sunboard-signage',
+        name: 'Sunboard Signage',
+        category: 'business',
+        description: 'Rigid and durable signage for indoor and outdoor use',
+        image: '/products/sunboard.jpg',
+        priceFrom: 300,
+        rating: 4.8,
+        reviewCount: 312,
+        features: [
+            'Lightweight yet sturdy',
+            'UV-resistant printing',
+            'Clean and professional look',
+            'Easy to mount',
+            'Custom shapes available'
+        ],
+        sizes: [
+            { id: '2x1', name: '2ft × 1ft', dimensions: { width: 2, height: 1, unit: 'ft' }, priceMultiplier: 1 },
+            { id: '3x2', name: '3ft × 2ft', dimensions: { width: 3, height: 2, unit: 'ft' }, priceMultiplier: 1.5 },
+            { id: '4x3', name: '4ft × 3ft', dimensions: { width: 4, height: 3, unit: 'ft' }, priceMultiplier: 2 }
+        ],
+        materials: ['sunboard'],
+        popularTemplates: []
+    },
+    {
+        id: 'led-signage',
+        name: 'LED Signage',
+        category: 'retail',
+        description: 'Eye-catching illuminated signs for maximum visibility',
+        image: '/products/led-signage.jpg',
+        priceFrom: 2000,
+        rating: 4.9,
+        reviewCount: 145,
+        features: [
+            'Energy-efficient LEDs',
+            'Customizable colors',
+            'Indoor and outdoor options',
+            'Long-lasting durability',
+            'Professional installation available'
+        ],
+        sizes: [
+            { id: '2x1', name: '2ft × 1ft', dimensions: { width: 2, height: 1, unit: 'ft' }, priceMultiplier: 1 },
+            { id: '3x1', name: '3ft × 1ft', dimensions: { width: 3, height: 1, unit: 'ft' }, priceMultiplier: 1.5 },
+            { id: '4x2', name: '4ft × 2ft', dimensions: { width: 4, height: 2, unit: 'ft' }, priceMultiplier: 2 }
+        ],
+        materials: ['acrylic'],
+        popularTemplates: []
+    },
+    {
+        id: 'wall-calendars',
+        name: 'Wall Calendars',
+        category: 'business',
+        description: 'Custom branded calendars for year-round promotion',
+        image: '/products/calendar.jpg',
+        priceFrom: 150,
+        rating: 4.7,
+        reviewCount: 267,
+        features: [
+            'Customizable design and branding',
+            'High-quality paper stock',
+            'Multiple layout options',
+            'Bulk ordering available',
+            'Perfect for corporate gifting'
+        ],
+        sizes: [
+            { id: 'a4', name: 'A4 Size', dimensions: { width: 8.3, height: 11.7, unit: 'in' }, priceMultiplier: 1 },
+            { id: 'a3', name: 'A3 Size', dimensions: { width: 11.7, height: 16.5, unit: 'in' }, priceMultiplier: 1.5 }
+        ],
+        materials: ['flex'],
+        popularTemplates: []
+    }
+];
+
+export const PRODUCT_CATEGORIES = [
+    { id: 'all', name: 'All Products' },
+    { id: 'business', name: 'Business' },
+    { id: 'marketing', name: 'Marketing' },
+    { id: 'events', name: 'Events' },
+    { id: 'retail', name: 'Retail' }
+] as const;

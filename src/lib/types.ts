@@ -23,6 +23,9 @@ export interface DesignConfig {
     height: number;
     unit: 'px' | 'in' | 'cm' | 'mm'; // Added unit
     backgroundColor: string;
+    backgroundGradientEnabled: boolean;
+    backgroundColor2: string;
+    backgroundGradientAngle: number;
     textColor: string;
     fontFamily: string;
     borderColor: string;
@@ -37,6 +40,9 @@ export const DEFAULT_DESIGN: DesignConfig = {
     height: 16,
     unit: 'in',
     backgroundColor: '#ffffff',
+    backgroundGradientEnabled: false,
+    backgroundColor2: '#f3f4f6',
+    backgroundGradientAngle: 90,
     textColor: '#1a1a1a',
     fontFamily: 'Inter',
     borderColor: '#e5e7eb',

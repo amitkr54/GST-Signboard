@@ -721,28 +721,72 @@ function DesignContent() {
                                 </button>
                                 {activePicker === 'background' && (
                                     <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 min-w-[280px] animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Board Color</p>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Board Style</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-gray-400">Solid</span>
+                                                <button
+                                                    onClick={() => setDesign({ ...design, backgroundGradientEnabled: !design.backgroundGradientEnabled })}
+                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${design.backgroundGradientEnabled ? 'bg-purple-600' : 'bg-gray-200'}`}
+                                                >
+                                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${design.backgroundGradientEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                                                </button>
+                                                <span className="text-[10px] text-gray-400">Gradient</span>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-5 gap-2 mb-4">
                                             {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
                                                 <button
                                                     key={color}
                                                     onClick={() => {
                                                         setDesign({ ...design, backgroundColor: color });
-                                                        setActivePicker(null);
+                                                        // setActivePicker(null); // Keep open for gradient tweaks
                                                     }}
                                                     className={`aspect-square rounded-lg border-2 transition-all ${design.backgroundColor === color ? 'border-purple-600 scale-110 shadow-sm' : 'border-gray-100 hover:border-gray-300'}`}
                                                     style={{ backgroundColor: color }}
                                                 />
                                             ))}
                                         </div>
-                                        <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
-                                            <label className="text-xs font-medium text-gray-500">Custom:</label>
-                                            <input
-                                                type="color"
-                                                value={design.backgroundColor}
-                                                onChange={(e) => setDesign({ ...design, backgroundColor: e.target.value })}
-                                                className="flex-1 h-8 rounded cursor-pointer border border-gray-200"
-                                            />
+
+                                        <div className="space-y-4 pt-3 border-t border-gray-100">
+                                            <div className="flex items-center gap-3">
+                                                <label className="text-xs font-medium text-gray-500 whitespace-nowrap">{design.backgroundGradientEnabled ? 'Start Color:' : 'Custom:'}</label>
+                                                <input
+                                                    type="color"
+                                                    value={design.backgroundColor}
+                                                    onChange={(e) => setDesign({ ...design, backgroundColor: e.target.value })}
+                                                    className="flex-1 h-8 rounded cursor-pointer border border-gray-200"
+                                                />
+                                            </div>
+
+                                            {design.backgroundGradientEnabled && (
+                                                <>
+                                                    <div className="flex items-center gap-3">
+                                                        <label className="text-xs font-medium text-gray-500 whitespace-nowrap">End Color:</label>
+                                                        <input
+                                                            type="color"
+                                                            value={design.backgroundColor2}
+                                                            onChange={(e) => setDesign({ ...design, backgroundColor2: e.target.value })}
+                                                            className="flex-1 h-8 rounded cursor-pointer border border-gray-200"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <div className="flex justify-between items-center">
+                                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Angle</label>
+                                                            <span className="text-[10px] font-bold text-purple-600">{design.backgroundGradientAngle}°</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="360"
+                                                            value={design.backgroundGradientAngle}
+                                                            onChange={(e) => setDesign({ ...design, backgroundGradientAngle: parseInt(e.target.value) })}
+                                                            className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -1071,14 +1115,14 @@ function DesignContent() {
                 </div>
 
                 {/* 3. Properties & Checkout Panel (Right) */}
-                <div className="w-[340px] bg-white border-l border-gray-200 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar flex flex-col">
+                <div className="w-[340px] bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar flex flex-col">
                     <div className="p-0 flex-1">
                         {/* Header */}
-                        <div className="h-14 px-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-sm z-10">
-                            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                        <div className="h-14 px-6 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
+                            <h3 className="font-bold text-white flex items-center gap-2">
                                 Configuration
                             </h3>
-                            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Need Help?</button>
+                            <button className="text-xs font-semibold text-indigo-400 hover:text-indigo-300">Need Help?</button>
                         </div>
 
                         <div className="p-6 space-y-8">
@@ -1088,47 +1132,98 @@ function DesignContent() {
                                 {/* Size Controls (ReadOnly) */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Dimensions</label>
-                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-gray-100 text-gray-600 rounded border border-gray-200">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Dimensions</label>
+                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-800 text-gray-300 rounded border border-slate-700">
                                             {design.unit}
                                         </span>
                                     </div>
                                     <div className="flex gap-3">
-                                        <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex justify-between items-center group">
-                                            <span className="text-xs text-gray-500 font-medium group-hover:text-indigo-600 transition-colors">W</span>
-                                            <span className="text-sm font-bold text-gray-900">{design.width}</span>
+                                        <div className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg flex justify-between items-center group">
+                                            <span className="text-xs text-gray-400 font-medium group-hover:text-indigo-400 transition-colors">W</span>
+                                            <span className="text-sm font-bold text-white">{design.width}</span>
                                         </div>
-                                        <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex justify-between items-center group">
-                                            <span className="text-xs text-gray-500 font-medium group-hover:text-indigo-600 transition-colors">H</span>
-                                            <span className="text-sm font-bold text-gray-900">{design.height}</span>
+                                        <div className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg flex justify-between items-center group">
+                                            <span className="text-xs text-gray-400 font-medium group-hover:text-indigo-400 transition-colors">H</span>
+                                            <span className="text-sm font-bold text-white">{design.height}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Background & Export Row */}
-                                <div className="grid grid-cols-1 gap-6 pt-6 border-t border-gray-100">
+                                <div className="grid grid-cols-1 gap-6 pt-6 border-t border-slate-800">
                                     <div className="space-y-3">
-                                        <label className="text-sm font-bold text-gray-900 block">Background</label>
-                                        <div className="flex flex-wrap gap-2.5">
-                                            {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-sm font-bold text-white block">Background</label>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-gray-400">Solid</span>
                                                 <button
-                                                    key={color}
-                                                    onClick={() => setDesign({ ...design, backgroundColor: color })}
-                                                    className={`w-7 h-7 rounded-full shadow-sm transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${design.backgroundColor === color ? 'ring-2 ring-offset-1 ring-indigo-600 scale-110 z-10' : 'ring-1 ring-black/5 hover:ring-black/10'}`}
-                                                    style={{ backgroundColor: color }}
-                                                    title={color}
-                                                />
-                                            ))}
-                                            <div className="relative w-7 h-7 rounded-full ring-1 ring-black/5 overflow-hidden shadow-sm hover:ring-black/20 transition-all">
-                                                <input
-                                                    type="color"
-                                                    value={design.backgroundColor}
-                                                    onChange={(e) => setDesign({ ...design, backgroundColor: e.target.value })}
-                                                    className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer opacity-0"
-                                                    title="Custom Color"
-                                                />
-                                                <div className="w-full h-full bg-[conic-gradient(from_180deg_at_50%_50%,#FF0000_0deg,#00FF00_120deg,#0000FF_240deg,#FF0000_360deg)] opacity-80 hover:opacity-100" />
+                                                    onClick={() => setDesign({ ...design, backgroundGradientEnabled: !design.backgroundGradientEnabled })}
+                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${design.backgroundGradientEnabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                                                >
+                                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${design.backgroundGradientEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                                                </button>
+                                                <span className="text-[10px] text-gray-400">Gradient</span>
                                             </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="flex flex-wrap gap-2.5">
+                                                {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
+                                                    <button
+                                                        key={color}
+                                                        onClick={() => setDesign({ ...design, backgroundColor: color })}
+                                                        className={`w-7 h-7 rounded-full shadow-sm transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${design.backgroundColor === color ? 'ring-2 ring-offset-1 ring-indigo-600 scale-110 z-10' : 'ring-1 ring-black/5 hover:ring-black/10'}`}
+                                                        style={{ backgroundColor: color }}
+                                                        title={color}
+                                                    />
+                                                ))}
+                                                <div className="relative w-7 h-7 rounded-full ring-1 ring-black/5 overflow-hidden shadow-sm hover:ring-black/20 transition-all">
+                                                    <input
+                                                        type="color"
+                                                        value={design.backgroundColor}
+                                                        onChange={(e) => setDesign({ ...design, backgroundColor: e.target.value })}
+                                                        className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer opacity-0"
+                                                        title="Custom Color"
+                                                    />
+                                                    <div className="w-full h-full bg-[conic-gradient(from_180deg_at_50%_50%,#FF0000_0deg,#00FF00_120deg,#0000FF_240deg,#FF0000_360deg)] opacity-80 hover:opacity-100" />
+                                                </div>
+                                            </div>
+
+                                            {design.backgroundGradientEnabled && (
+                                                <div className="p-4 bg-slate-800 rounded-xl border border-slate-700 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex-1 space-y-1">
+                                                            <label className="text-[10px] font-bold text-gray-300 uppercase">End Color</label>
+                                                            <div className="relative h-8 w-full rounded-lg border border-slate-600 overflow-hidden group">
+                                                                <input
+                                                                    type="color"
+                                                                    value={design.backgroundColor2}
+                                                                    onChange={(e) => setDesign({ ...design, backgroundColor2: e.target.value })}
+                                                                    className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer opacity-0 z-10"
+                                                                />
+                                                                <div
+                                                                    className="w-full h-full transition-transform group-hover:scale-110 duration-200"
+                                                                    style={{ backgroundColor: design.backgroundColor2 }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex-1 space-y-1">
+                                                            <div className="flex justify-between items-center">
+                                                                <label className="text-[10px] font-bold text-gray-300 uppercase">Angle</label>
+                                                                <span className="text-[10px] font-bold text-indigo-400">{design.backgroundGradientAngle}°</span>
+                                                            </div>
+                                                            <input
+                                                                type="range"
+                                                                min="0"
+                                                                max="360"
+                                                                value={design.backgroundGradientAngle}
+                                                                onChange={(e) => setDesign({ ...design, backgroundGradientAngle: parseInt(e.target.value) })}
+                                                                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500 mt-2"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -1137,7 +1232,7 @@ function DesignContent() {
                                         <Button
                                             onClick={() => handleDownload('svg')}
                                             variant="outline"
-                                            className="flex-1 gap-2 h-9 text-xs border-gray-200 bg-white hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200"
+                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-indigo-400 hover:border-indigo-500"
                                         >
                                             <Download className="w-3.5 h-3.5" />
                                             SVG
@@ -1145,7 +1240,7 @@ function DesignContent() {
                                         <Button
                                             onClick={() => handleDownload('pdf')}
                                             variant="outline"
-                                            className="flex-1 gap-2 h-9 text-xs border-gray-200 bg-white hover:bg-gray-50 hover:text-red-600 hover:border-red-200"
+                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-red-400 hover:border-red-500"
                                         >
                                             <Download className="w-3.5 h-3.5" />
                                             PDF
@@ -1154,8 +1249,8 @@ function DesignContent() {
                                 </div>
 
                                 {/* Material Select */}
-                                <div className="pt-6 border-t border-gray-100">
-                                    <label className="text-sm font-bold text-gray-900 mb-3 block">Material</label>
+                                <div className="pt-6 border-t border-slate-800">
+                                    <label className="text-sm font-bold text-white mb-3 block">Material</label>
                                     <MaterialSelector
                                         selectedMaterial={material}
                                         onSelect={setMaterial}
@@ -1163,9 +1258,9 @@ function DesignContent() {
                                 </div>
 
                                 {/* Professional Installation */}
-                                <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                                     <label className="flex items-start gap-3 cursor-pointer group">
-                                        <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-all shadow-sm ${includeInstallation ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-white border-gray-300 group-hover:border-indigo-400'}`}>
+                                        <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-all shadow-sm ${includeInstallation ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-slate-700 border-slate-600 group-hover:border-indigo-500'}`}>
                                             {includeInstallation && <Check className="w-3.5 h-3.5 text-white" />}
                                         </div>
                                         <input
@@ -1176,10 +1271,10 @@ function DesignContent() {
                                         />
                                         <div className="flex-1">
                                             <div className="flex justify-between items-center mb-0.5">
-                                                <span className="text-sm font-bold text-gray-900">Professional Installation</span>
-                                                <span className="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">+₹{INSTALLATION_COST}</span>
+                                                <span className="text-sm font-bold text-white">Professional Installation</span>
+                                                <span className="text-xs font-bold text-indigo-300 bg-indigo-900/50 px-2 py-0.5 rounded-full">+₹{INSTALLATION_COST}</span>
                                             </div>
-                                            <p className="text-xs text-indigo-700/70">Our expert team handles the mounting.</p>
+                                            <p className="text-xs text-gray-400">Our expert team handles the mounting.</p>
                                         </div>
                                     </label>
                                 </div>
@@ -1187,46 +1282,46 @@ function DesignContent() {
 
                             {/* Payment Section */}
                             <div className="pt-2">
-                                <label className="text-sm font-bold text-gray-900 mb-3 block">Payment Scheme</label>
+                                <label className="text-sm font-bold text-white mb-3 block">Payment Scheme</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setPaymentScheme('part')}
-                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-purple-600 bg-purple-50 shadow-sm' : 'border-gray-100 hover:border-gray-300 bg-white'}`}
+                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-indigo-500 bg-indigo-900/30 shadow-sm' : 'border-slate-700 hover:border-slate-600 bg-slate-800'}`}
                                     >
-                                        <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'part' ? 'border-purple-600' : 'border-gray-300'}`}>
-                                            {paymentScheme === 'part' && <div className="w-2 h-2 rounded-full bg-purple-600" />}
+                                        <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'part' ? 'border-indigo-500' : 'border-slate-600'}`}>
+                                            {paymentScheme === 'part' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
                                         </div>
-                                        <p className="font-bold text-sm text-gray-900">Part Pay</p>
-                                        <p className="text-[10px] text-gray-500 leading-tight mt-1">Pay 25% now, rest on delivery</p>
+                                        <p className="font-bold text-sm text-white">Part Pay</p>
+                                        <p className="text-[10px] text-gray-400 leading-tight mt-1">Pay 25% now, rest on delivery</p>
                                     </button>
 
                                     <button
                                         onClick={() => setPaymentScheme('full')}
-                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-purple-600 bg-purple-50 shadow-sm' : 'border-gray-100 hover:border-gray-300 bg-white'}`}
+                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-indigo-500 bg-indigo-900/30 shadow-sm' : 'border-slate-700 hover:border-slate-600 bg-slate-800'}`}
                                     >
-                                        <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'full' ? 'border-purple-600' : 'border-gray-300'}`}>
-                                            {paymentScheme === 'full' && <div className="w-2 h-2 rounded-full bg-purple-600" />}
+                                        <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'full' ? 'border-indigo-500' : 'border-slate-600'}`}>
+                                            {paymentScheme === 'full' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
                                         </div>
-                                        <p className="font-bold text-sm text-gray-900">Full Pay</p>
-                                        <p className="text-[10px] text-gray-500 leading-tight mt-1">Pay 100% upfront</p>
+                                        <p className="font-bold text-sm text-white">Full Pay</p>
+                                        <p className="text-[10px] text-gray-400 leading-tight mt-1">Pay 100% upfront</p>
                                     </button>
                                 </div>
 
                                 {paymentScheme === 'part' && (
-                                    <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg animate-in slide-in-from-top-2">
+                                    <div className="mt-3 p-3 bg-slate-800 border border-slate-700 rounded-lg animate-in slide-in-from-top-2">
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-semibold text-gray-500">Advance Amount</label>
-                                            <span className="text-[10px] text-purple-600 font-medium">Min: ₹{Math.ceil(price * 0.25)}</span>
+                                            <label className="text-xs font-semibold text-gray-300">Advance Amount</label>
+                                            <span className="text-[10px] text-indigo-400 font-medium">Min: ₹{Math.ceil(price * 0.25)}</span>
                                         </div>
                                         <div className="relative">
-                                            <span className="absolute left-3 top-2 text-gray-900 font-semibold">₹</span>
+                                            <span className="absolute left-3 top-2 text-white font-semibold">₹</span>
                                             <input
                                                 type="number"
                                                 value={advanceAmount}
                                                 onChange={(e) => setAdvanceAmount(Math.max(Math.ceil(price * 0.25), parseFloat(e.target.value) || 0))}
                                                 min={Math.ceil(price * 0.25)}
                                                 max={price}
-                                                className="w-full pl-6 pr-3 py-1.5 text-sm font-bold text-gray-900 border border-gray-200 rounded-md focus:ring-1 focus:ring-purple-500 outline-none"
+                                                className="w-full pl-6 pr-3 py-1.5 text-sm font-bold text-white bg-slate-700 border border-slate-600 rounded-md focus:ring-1 focus:ring-indigo-500 outline-none"
                                             />
                                         </div>
                                     </div>
@@ -1236,29 +1331,29 @@ function DesignContent() {
                     </div>
 
                     {/* Footer / Checkout */}
-                    <div className="p-5 border-t border-gray-200 bg-gray-50/50 space-y-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                    <div className="p-5 border-t border-slate-800 bg-slate-900/80 space-y-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.4)] z-20">
                         {/* Price Rows */}
                         <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-gray-500">
+                            <div className="flex justify-between text-xs text-gray-400">
                                 <span>Subtotal</span>
                                 <span>₹{basePrice}</span>
                             </div>
                             {(deliveryCost > 0 || installationCost > 0) && (
-                                <div className="flex justify-between text-xs text-gray-500">
+                                <div className="flex justify-between text-xs text-gray-400">
                                     <span>Extras (Delivery/Install)</span>
                                     <span>₹{deliveryCost + installationCost}</span>
                                 </div>
                             )}
                             {discount > 0 && (
-                                <div className="flex justify-between text-xs text-green-600 font-medium">
+                                <div className="flex justify-between text-xs text-green-400 font-medium">
                                     <span>Discount</span>
                                     <span>-₹{discount}</span>
                                 </div>
                             )}
-                            <div className="flex justify-between items-end pt-2 border-t border-gray-200 mt-2">
-                                <span className="font-bold text-gray-900 text-lg">Total</span>
+                            <div className="flex justify-between items-end pt-2 border-t border-slate-700 mt-2">
+                                <span className="font-bold text-white text-lg">Total</span>
                                 <div className="text-right">
-                                    <span className="font-black text-2xl text-purple-700 leading-none">₹{price}</span>
+                                    <span className="font-black text-2xl text-indigo-400 leading-none">₹{price}</span>
                                 </div>
                             </div>
                         </div>
@@ -1278,15 +1373,15 @@ function DesignContent() {
                                     }
                                 }}
                                 placeholder="Referral Code (Optional)"
-                                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-300 ring-green-500 bg-green-50 text-green-700 placeholder-green-400' : 'border-gray-300 focus:border-blue-500 bg-white'}`}
+                                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-500 ring-green-500 bg-green-900/30 text-green-300 placeholder-green-500' : 'border-slate-700 focus:border-indigo-500 bg-slate-800 text-white placeholder-gray-500'}`}
                             />
-                            {codeValidated && <div className="absolute right-3 top-2 text-green-600 text-xs font-bold">✓ APPLIED</div>}
+                            {codeValidated && <div className="absolute right-3 top-2 text-green-400 text-xs font-bold">✓ APPLIED</div>}
                         </div>
 
                         <button
                             onClick={() => setShowReviewModal(true)}
                             disabled={isProcessing}
-                            className="w-full group bg-gray-900 hover:bg-black text-white py-4 rounded-xl font-bold text-base shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100"
+                            className="w-full group bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-base shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100"
                         >
                             {isProcessing ? 'Processing...' : 'Proceed to Checkout'}
                             {!isProcessing && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}

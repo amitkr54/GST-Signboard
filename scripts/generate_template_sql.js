@@ -1,36 +1,10 @@
-import { TemplateId } from './types';
-import { db } from './db';
 
-export interface Template {
-    id: TemplateId;
-    name: string;
-    description: string;
-    thumbnailColor: string; // CSS color for simple preview
-    thumbnail?: string; // Path to thumbnail image
-    svgPath?: string; // Optional path to SVG template file
-    layoutType: 'default' | 'split-left' | 'split-right' | 'centered' | 'banner' | 'centered';
-    isCustom?: boolean;
-    components?: {
-        text?: Array<{
-            text: string;
-            top: number;
-            left: number;
-            fontSize?: number;
-            lineHeight?: number;
-            fontFamily?: string;
-            fontWeight?: string | number;
-            fontStyle?: string;
-            textAlign?: string;
-            fill?: string;
-            originalViewBox?: number[];
-        }>;
-        logo?: any;
-    };
-    fabricConfig?: any;
-}
+const fs = require('fs');
+const path = require('path');
 
-
-export const TEMPLATES: Template[] = [
+// Manually defining data since we can't import TS files in simple node script easily without compilation
+// Copy-pasting data structure from src/lib/templates.ts
+const TEMPLATES = [
     {
         id: 'svg-sample',
         name: 'Gold Royal Border',
@@ -116,27 +90,7 @@ export const TEMPLATES: Template[] = [
     }
 ];
 
-// New dynamic fetcher
-export async function getTemplates(): Promise<Template[]> {
-    try {
-        const templates = await db.getTemplates();
-        if (templates.length === 0) {
-            console.warn('No templates found in DB, falling back to static list');
-            return TEMPLATES;
-        }
-        return templates;
-    } catch (error) {
-        console.error('Failed to fetch templates from DB:', error);
-        // @ts-ignore
-        if (error.message) console.error('Error detail:', error.message);
-        return TEMPLATES; // Fallback
-    }
-}
-
-export const TEMPLATE_DEFAULTS: Record<TemplateId, Partial<{ companyName: string; address: string; additionalText: string[] }>> = {
-    // ... keep existing defaults map for now as it maps ID to default text ...
-    // BUT checking logic: if DB returns 'defaults' json column, we should use that instead.
-    // The UI likely uses this object directly. We should update the UI to use the template object's `defaults` property if available.
+const TEMPLATE_DEFAULTS = {
     'svg-sample': {
         companyName: 'ROYAL PALACE',
         address: '1 Royal Way, Castle District',
@@ -167,7 +121,6 @@ export const TEMPLATE_DEFAULTS: Record<TemplateId, Partial<{ companyName: string
         address: 'Industrial Manufacturing Works, Sector 45',
         additionalText: ['SINCE 1995']
     },
-    // Defaults for existing templates to improve UX
     'modern': { companyName: 'YOUR BRAND', address: '123 Main Street, City' },
     'corporate': { companyName: 'CORPORATE INC', address: 'Business District, City' },
     'bold': { companyName: 'BOLD', address: '' },
@@ -177,3 +130,36 @@ export const TEMPLATE_DEFAULTS: Record<TemplateId, Partial<{ companyName: string
     'luxury': { companyName: 'LUXURY', address: 'Paris • London • New York' },
     'tech': { companyName: 'TECH SYSTEMS', address: 'Innovation Park' }
 };
+
+function generateSQL() {
+    let sql = `-- Seed Data for Templates\n`;
+
+    for (const t of TEMPLATES) {
+        const defaults = TEMPLATE_DEFAULTS[t.id] || {};
+
+        // Escape single quotes for SQL
+        const escape = (str) => str ? str.replace(/'/g, "''") : null;
+
+        const vals = {
+            id: `'${t.id}'`,
+            name: `'${escape(t.name)}'`,
+            description: t.description ? `'${escape(t.description)}'` : 'NULL',
+            thumbnail_color: `'${t.thumbnailColor}'`,
+            thumbnail: t.thumbnail ? `'${t.thumbnail}'` : 'NULL',
+            svg_path: t.svgPath ? `'${t.svgPath}'` : 'NULL',
+            layout_type: `'${t.layoutType}'`,
+            is_custom: false,
+            components: `'${JSON.stringify(t.components || {})}'`,
+            fabric_config: `'${JSON.stringify(t.fabricConfig || {})}'`,
+            defaults: `'${JSON.stringify(defaults)}'`
+        };
+
+        sql += `INSERT INTO public.templates (id, name, description, thumbnail_color, thumbnail, svg_path, layout_type, is_custom, components, fabric_config, defaults) VALUES (${vals.id}, ${vals.name}, ${vals.description}, ${vals.thumbnail_color}, ${vals.thumbnail}, ${vals.svg_path}, ${vals.layout_type}, ${vals.is_custom}, ${vals.components}, ${vals.fabric_config}, ${vals.defaults}) ON CONFLICT (id) DO NOTHING;\n`;
+    }
+
+    return sql;
+}
+
+const sqlOutput = generateSQL();
+console.log(sqlOutput);
+fs.writeFileSync('supabase/seed_templates.sql', sqlOutput);

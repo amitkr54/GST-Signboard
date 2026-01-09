@@ -19,19 +19,19 @@ export function MaterialSelector({ selectedMaterial, onSelect, compact = false }
                     key={material.id}
                     onClick={() => onSelect(material.id)}
                     className={cn(
-                        "border rounded-lg text-left transition-all bg-white",
+                        "border rounded-lg text-left transition-all bg-slate-800",
                         compact ? "p-3" : "p-4",
                         selectedMaterial === material.id
-                            ? "border-purple-600 bg-purple-50 ring-2 ring-purple-200 shadow-md"
-                            : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                            ? "border-indigo-500 bg-indigo-900/30 ring-2 ring-indigo-500/20 shadow-md"
+                            : "border-slate-700 hover:border-indigo-500/50 hover:bg-slate-700"
                     )}
                 >
                     <div className={cn(
-                        "font-semibold text-gray-900",
+                        "font-semibold text-white",
                         compact ? "text-base" : "text-lg"
                     )}>{material.name}</div>
                     <div className={cn(
-                        "text-gray-600",
+                        "text-gray-400",
                         compact ? "text-sm" : "text-base"
                     )}>₹{material.price}</div>
                 </button>

@@ -7,41 +7,72 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { StartDesignModal } from '@/components/StartDesignModal';
-import { ArrowRight, Wand2, Diamond, Truck, Check, Facebook, Twitter, Linkedin, Instagram, Play, PenTool, Sparkles, Layout } from 'lucide-react';
+import { ArrowRight, Wand2, Diamond, Truck, Check, Facebook, Twitter, Linkedin, Instagram, Play, PenTool, Sparkles, Layout, ChevronRight } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
+import { PRODUCTS, PRODUCT_CATEGORIES } from '@/lib/products';
+import { ProductCatalog } from '@/components/ProductCatalog';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+
+  const filteredProducts = activeCategory === 'all'
+    ? PRODUCTS
+    : PRODUCTS.filter(p => p.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white font-sans text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 font-sans text-gray-900 relative overflow-hidden">
+      {/* Animated background gradient orbs */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-200/40 to-purple-200/40 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-blue-200/40 to-cyan-200/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
       <StartDesignModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
       {/* Hero Section */}
-      <section className="relative pt-6 pb-0 lg:pt-6 lg:pb-4 overflow-visible">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <section className="relative pt-8 pb-4 lg:pt-12 lg:pb-8 overflow-visible">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Left Column: Text */}
-            <div className="max-w-2xl text-center lg:text-left mx-auto lg:mx-0 order-2 lg:order-1">
-              <h1 className="text-5xl lg:text-6xl font-black text-gray-900 tracking-tight leading-tight mb-6">
-                Create Professional Signage in Minutes
+            <div className="max-w-2xl text-center lg:text-left mx-auto lg:mx-0 order-2 lg:order-1 relative z-10">
+              {/* Floating Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-indigo-200/50 shadow-lg mb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="flex items-center gap-1">
+                  <svg className="w-4 h-4 text-yellow-500 fill-current" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <span className="font-bold text-sm">4.9</span>
+                </div>
+                <span className="text-sm text-gray-600">from 1,000+ customers</span>
+              </div>
+
+              <h1 className="text-6xl lg:text-7xl xl:text-8xl font-black text-gray-900 tracking-tight leading-[1.1] mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700" style={{ animationDelay: '100ms' }}>
+                Create Professional
+                <span className="block bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mt-2">
+                  Signage in Minutes
+                </span>
               </h1>
-              <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                Craft custom business signs, banners, and displays effortlessly with our intuitive design tools. No design experience needed.
+              <p className="text-xl lg:text-2xl text-gray-600 mb-10 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-8 duration-700" style={{ animationDelay: '200ms' }}>
+                Craft custom business signs, banners, and displays with our intuitive design tools.
+                <span className="block text-indigo-600 font-semibold mt-1">No design experience needed.</span>
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-in fade-in slide-in-from-bottom-10 duration-700" style={{ animationDelay: '300ms' }}>
                 <Button
                   size="lg"
                   onClick={() => setIsModalOpen(true)}
-                  className="rounded-full px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg h-12"
+                  className="group relative rounded-full px-10 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold shadow-2xl shadow-indigo-500/50 hover:shadow-indigo-600/60 transition-all duration-300 hover:scale-105 overflow-hidden"
                 >
-                  Start Designing
+                  <span className="relative z-10 flex items-center gap-2">
+                    Start Designing
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                  {/* Shimmer effect */}
+                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 </Button>
                 <WhatsAppButton
                   text="Get Custom Design"
                   message="Hi, I would like to inquire about your custom design services."
                   variant="secondary"
-                  className="rounded-full px-8 h-12 border-2 border-[#25D366] text-[#128C7E] hover:bg-[#25D366]/10 font-bold shadow-sm transition-all"
+                  className="rounded-full px-8 py-4 border-2 border-[#25D366] text-[#128C7E] hover:bg-[#25D366] hover:text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 />
               </div>
             </div>
@@ -152,45 +183,64 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Product Catalog */}
+      <ProductCatalog />
+
       {/* Popular Templates Section */}
-      <section className="py-12 bg-gray-50 border-b border-gray-200">
+      <section className="py-20 bg-gradient-to-b from-white to-gray-50/50 border-b border-gray-100 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-12">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Start with a Template</h2>
-              <p className="text-gray-600">Choose a professional layout and customize it to fit your brand.</p>
+              <p className="text-sm font-bold text-indigo-600 mb-2 uppercase tracking-wider">Templates</p>
+              <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-3">Start with a Template</h2>
+              <p className="text-lg text-gray-600 max-w-2xl">Choose a professional layout and customize it to fit your brand in seconds.</p>
             </div>
             <Link href="/design?tab=templates">
-              <Button variant="outline" className="mt-4 md:mt-0 gap-2">
-                View All Templates <ArrowRight className="w-4 h-4" />
+              <Button variant="outline" className="mt-6 md:mt-0 gap-2 group border-2 hover:border-indigo-600 hover:text-indigo-600 transition-all">
+                View All Templates
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {TEMPLATES.slice(0, 4).map((template) => (
-              <div key={template.id} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-200 group">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {TEMPLATES.slice(0, 4).map((template, index) => (
+              <div
+                key={template.id}
+                className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 group hover:-translate-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
                 {/* Preview Area */}
                 <div
-                  className="h-40 w-full relative flex items-center justify-center bg-gray-100"
-                  style={{ backgroundColor: template.thumbnailColor }}
+                  className="h-48 w-full relative flex items-center justify-center overflow-hidden"
+                  style={{ background: `linear-gradient(135deg, ${template.thumbnailColor}, ${template.thumbnailColor}dd)` }}
                 >
-                  {/* Simple CSS representation of layout */}
-                  <div className="opacity-60 scale-75 transform transition-transform group-hover:scale-90">
-                    <Layout className="w-16 h-16 text-gray-400" />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/0 via-white/5 to-white/20" />
+
+                  {/* Icon */}
+                  <div className="relative z-10 opacity-40 scale-75 transform transition-all duration-500 group-hover:scale-90 group-hover:opacity-60">
+                    <Layout className="w-20 h-20 text-white drop-shadow-lg" />
                   </div>
 
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
                     <Link href={`/design?template=${template.id}`}>
-                      <Button size="sm" className="bg-white text-gray-900 hover:bg-gray-50 shadow-sm border border-gray-200">
+                      <Button size="sm" className="bg-white text-gray-900 hover:bg-gray-50 shadow-xl border-2 border-white/50 backdrop-blur-sm transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                        <Sparkles className="w-4 h-4 mr-2" />
                         Customize
                       </Button>
                     </Link>
                   </div>
                 </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900">{template.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">{template.description}</p>
+
+                {/* Content */}
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-lg text-gray-900 group-hover:text-indigo-600 transition-colors">{template.name}</h3>
+                    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-full uppercase tracking-wide">Pro</span>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{template.description}</p>
                 </div>
               </div>
             ))}
@@ -199,41 +249,91 @@ export default function Home() {
       </section>
 
       {/* Key Features Section */}
-      <section className="pt-0 pb-10">
+      <section className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Key Features</h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="text-center mb-16">
+            <p className="text-sm font-bold text-indigo-600 mb-2 uppercase tracking-wider">Why Choose Us</p>
+            <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">Key Features</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">Everything you need to create stunning signage for your business</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
             {/* Feature 1 */}
-            <div className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-              <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 mb-4">
-                <Wand2 className="w-6 h-6" />
+            <div className="group relative bg-white p-10 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-indigo-200 hover:-translate-y-2">
+              {/* Gradient border effect */}
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/10 via-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+              <div className="relative">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center text-white mb-6 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-xl shadow-purple-500/50">
+                  <Wand2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors">Easy Design</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Intuitive drag-and-drop interface with thousands of templates. Customize text, images, and colors in a few clicks.
+                </p>
+                <div className="flex items-center gap-2 text-sm font-bold text-purple-600">
+                  <Check className="w-5 h-5" />
+                  <span>1000+ Templates</span>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Easy Design</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Intuitive drag-and-drop interface with thousands of templates. Customize text, images, and colors in a few clicks.
-              </p>
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 mb-4">
-                <Diamond className="w-6 h-6" />
+            <div className="group relative bg-white p-10 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-blue-200 hover:-translate-y-2">
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+              <div className="relative">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-white mb-6 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-xl shadow-blue-500/50">
+                  <Diamond className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">High Quality</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Premium materials and vibrant, professional printing for durable, attention-grabbing signs.
+                </p>
+                <div className="flex items-center gap-2 text-sm font-bold text-blue-600">
+                  <Check className="w-5 h-5" />
+                  <span>Premium Materials</span>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">High Quality</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Premium materials and vibrant, professional printing for durable, attention-grabbing signs.
-              </p>
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-              <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 mb-4">
-                <Truck className="w-6 h-6" />
+            <div className="group relative bg-white p-10 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-indigo-200 hover:-translate-y-2">
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+              <div className="relative">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white mb-6 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-xl shadow-indigo-500/50">
+                  <Truck className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors">Fast Delivery</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Quick turnaround times and reliable shipping options to get your signage when you need it.
+                </p>
+                <div className="flex items-center gap-2 text-sm font-bold text-indigo-600">
+                  <Check className="w-5 h-5" />
+                  <span>3-5 Day Shipping</span>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Fast Delivery</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Quick turnaround times and reliable shipping options to get your signage when you need it.
-              </p>
+            </div>
+          </div>
+
+          {/* Statistics Bar */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 p-8 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-2xl">
+            <div className="text-center">
+              <div className="text-4xl lg:text-5xl font-black text-white mb-2">5K+</div>
+              <div className="text-sm lg:text-base text-white/80 font-medium">Happy Customers</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl lg:text-5xl font-black text-white mb-2">1K+</div>
+              <div className="text-sm lg:text-base text-white/80 font-medium">Templates</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl lg:text-5xl font-black text-white mb-2">4.9★</div>
+              <div className="text-sm lg:text-base text-white/80 font-medium">Rating</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl lg:text-5xl font-black text-white mb-2">24/7</div>
+              <div className="text-sm lg:text-base text-white/80 font-medium">Support</div>
             </div>
           </div>
         </div>
@@ -344,38 +444,90 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-50 pt-16 pb-8 border-t border-gray-200">
+      <footer className="bg-gradient-to-b from-gray-50 to-white pt-20 pb-8 border-t border-gray-200 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+          {/* Newsletter Section */}
+          <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-10 lg:p-12 mb-16 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+
+            <div className="relative z-10 max-w-3xl mx-auto text-center">
+              <h3 className="text-3xl lg:text-4xl font-black text-white mb-4">
+                Get Design Tips & Exclusive Offers
+              </h3>
+              <p className="text-lg text-white/90 mb-8">
+                Subscribe to our newsletter for the latest templates, design inspiration, and special discounts.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="flex-1 px-6 py-4 rounded-full border-2 border-white/20 bg-white/10 backdrop-blur-md text-white placeholder-white/60 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all"
+                />
+                <Button className="px-8 py-4 bg-white text-indigo-600 hover:bg-gray-50 font-bold rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-105">
+                  Subscribe
+                </Button>
+              </div>
+              <p className="text-xs text-white/70 mt-4">
+                ✓ No spam, unsubscribe anytime
+              </p>
+            </div>
+          </div>
+
+          {/* Footer Links */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+            {/* Brand Column */}
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg">
+                  S
+                </div>
+                <span className="font-black text-xl text-gray-900">SignagePro</span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                Professional signage design made simple.
+              </p>
+              {/* Trust Badges */}
+              <div className="flex gap-2">
+                <div className="px-2 py-1 bg-green-50 border border-green-200 rounded text-[10px] font-bold text-green-700 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Secure
+                </div>
+                <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-[10px] font-bold text-blue-700">
+                  24/7
+                </div>
+              </div>
+            </div>
+
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4 text-sm">Product</h4>
-              <ul className="space-y-2">
+              <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Product</h4>
+              <ul className="space-y-3">
                 {['Features', 'Pricing', 'Templates', 'Gallery'].map(item => (
-                  <li key={item}><Link href="#" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">{item}</Link></li>
+                  <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4 text-sm">Company</h4>
-              <ul className="space-y-2">
+              <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Company</h4>
+              <ul className="space-y-3">
                 {['About Us', 'Careers', 'Press', 'Blog'].map(item => (
-                  <li key={item}><Link href="#" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">{item}</Link></li>
+                  <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4 text-sm">Support</h4>
-              <ul className="space-y-2">
+              <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Support</h4>
+              <ul className="space-y-3">
                 {['Help Center', 'Contact Us', 'Tutorials'].map(item => (
-                  <li key={item}><Link href="#" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">{item}</Link></li>
+                  <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4 text-sm">Legal</h4>
-              <ul className="space-y-2">
+              <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Legal</h4>
+              <ul className="space-y-3">
                 {['Privacy Policy', 'Terms of Service'].map(item => (
-                  <li key={item}><Link href="#" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">{item}</Link></li>
+                  <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
                 ))}
               </ul>
             </div>
@@ -383,19 +535,19 @@ export default function Home() {
 
           <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-gray-200">
             <div className="text-sm text-gray-600 mb-4 md:mb-0">
-              © 2024 SignagePro Inc. All rights reserved.
+              © 2024 SignagePro Inc. All rights reserved. Made with ♥ for creators.
             </div>
-            <div className="flex gap-4">
-              <Link href="#" className="text-gray-600 hover:text-gray-900 transition-colors">
+            <div className="flex gap-6">
+              <Link href="#" className="text-gray-600 hover:text-indigo-600 transition-colors transform hover:scale-110">
                 <Twitter className="w-5 h-5" />
               </Link>
-              <Link href="#" className="text-gray-600 hover:text-gray-900 transition-colors">
+              <Link href="#" className="text-gray-600 hover:text-indigo-600 transition-colors transform hover:scale-110">
                 <Facebook className="w-5 h-5" />
               </Link>
-              <Link href="#" className="text-gray-600 hover:text-gray-900 transition-colors">
+              <Link href="#" className="text-gray-600 hover:text-indigo-600 transition-colors transform hover:scale-110">
                 <Linkedin className="w-5 h-5" />
               </Link>
-              <Link href="#" className="text-gray-600 hover:text-gray-900 transition-colors">
+              <Link href="#" className="text-gray-600 hover:text-indigo-600 transition-colors transform hover:scale-110">
                 <Instagram className="w-5 h-5" />
               </Link>
             </div>
