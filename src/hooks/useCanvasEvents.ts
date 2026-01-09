@@ -31,36 +31,80 @@ export function useCanvasEvents({
     const checkSafetyArea = useCallback((canvas: fabric.Canvas) => {
         if (!onSafetyChange) return;
 
+        const zoom = canvas.getZoom() || 1;
         const objects = canvas.getObjects();
         const marginScale = 0.05;
-        const margin = Math.min(canvas.width || 1800, canvas.height || 1200) * marginScale;
+        const margin = Math.min(baseWidth, baseHeight) * marginScale;
 
         const safeBounds = {
             left: margin,
             top: margin,
-            right: (canvas.width || 1800) - margin,
-            bottom: (canvas.height || 1200) - margin
+            right: baseWidth - margin,
+            bottom: baseHeight - margin
         };
 
         let violation = false;
         objects.forEach(obj => {
-            if (obj.name === 'safetyGuide' || obj.name === 'background' || !obj.selectable) return;
+            if (obj.name === 'safety_bleed_rect' || obj.name === 'safetyGuide' || obj.name === 'background' || (obj as any).isBackground || !obj.selectable) return;
 
+            // Convert viewport bounds to design units
             const bounds = obj.getBoundingRect();
-            const buffer = 1;
+            const designLeft = bounds.left / zoom;
+            const designTop = bounds.top / zoom;
+            const designWidth = bounds.width / zoom;
+            const designHeight = bounds.height / zoom;
 
+            let actualLeft = designLeft;
+            let actualRight = designLeft + designWidth;
+            let actualTop = designTop;
+            let actualBottom = designTop + designHeight;
+
+            if (obj.type === 'textbox') {
+                const textbox = obj as fabric.Textbox;
+                const padding = textbox.padding || 0;
+                let maxLineWidth = 0;
+                // @ts-ignore - access internal line widths
+                const lines = (textbox as any)._textLines || [];
+                for (let i = 0; i < lines.length; i++) {
+                    maxLineWidth = Math.max(maxLineWidth, textbox.getLineWidth(i));
+                }
+
+                const totalWidth = textbox.width || 0;
+                const scaleX = textbox.scaleX || 1;
+                const align = textbox.textAlign || 'left';
+
+                let offset = 0;
+                if (align === 'center') offset = (totalWidth - maxLineWidth) / 2;
+                else if (align === 'right') offset = totalWidth - maxLineWidth;
+
+                // actualLeft/Right are now correctly calculated in Design units
+                actualLeft = designLeft + ((padding + offset) * scaleX);
+                actualRight = actualLeft + (maxLineWidth * scaleX);
+
+                // Vertical bounds (also design units)
+                actualTop = designTop + (padding * (textbox.scaleY || 1));
+                actualBottom = actualTop + ((textbox.height || 0) * (textbox.scaleY || 1));
+            }
+
+            const safetyBuffer = 2; // Tolerance for rounding
             if (
-                bounds.left < safeBounds.left - buffer ||
-                bounds.top < safeBounds.top - buffer ||
-                (bounds.left + bounds.width) > safeBounds.right + buffer ||
-                (bounds.top + bounds.height) > safeBounds.bottom + buffer
+                actualLeft < safeBounds.left - safetyBuffer ||
+                actualTop < safeBounds.top - safetyBuffer ||
+                actualRight > safeBounds.right + safetyBuffer ||
+                actualBottom > safeBounds.bottom + safetyBuffer
             ) {
                 violation = true;
             }
         });
 
         onSafetyChange(violation);
-    }, [onSafetyChange]);
+
+        // Toggle bleed rects visibility
+        objects.filter(o => o.name === 'safety_bleed_rect').forEach(r => {
+            r.set('opacity', violation ? 0.3 : 0);
+        });
+        canvas.requestRenderAll();
+    }, [onSafetyChange, baseWidth, baseHeight]);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         const canvas = canvasInstance;
@@ -187,6 +231,34 @@ export function useCanvasEvents({
             checkSafetyArea(canvasInstance);
         });
 
+        canvasInstance.on('text:changed', (e) => {
+            const obj = e.target as fabric.Textbox;
+            if (!obj || obj.type !== 'textbox') return;
+
+            const marginScale = 0.05;
+            const margin = Math.min(baseWidth, baseHeight) * marginScale;
+            // Cap at board safety margins
+            const maxWidth = baseWidth - (margin * 2);
+
+            // Fast measurement using fabric.Text (avoiding Textbox layout engine overhead)
+            const measurer = new fabric.Text(obj.text || '', {
+                fontFamily: obj.fontFamily,
+                fontSize: obj.fontSize,
+                fontWeight: obj.fontWeight,
+                fontStyle: obj.fontStyle,
+                charSpacing: obj.charSpacing
+            });
+
+            // Large buffer (+15) prevents premature wrapping across different browsers
+            const targetWidth = Math.min((measurer.width || 0) + 15, maxWidth);
+
+            // padding: 4 provides generous room for character glyphs (like 'Y')
+            obj.set({ width: targetWidth, padding: 4 });
+            obj.setCoords();
+            checkSafetyArea(canvasInstance);
+            canvasInstance.requestRenderAll();
+        });
+
         const json = JSON.stringify(canvasInstance.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'editable', 'id']));
         setInitialHistory(json);
 
@@ -195,13 +267,15 @@ export function useCanvasEvents({
             canvasInstance.off('selection:updated', handleSelection);
             canvasInstance.off('selection:cleared', handleCleared);
             canvasInstance.off('mouse:down', handleMouseDown);
+            canvasInstance.off('text:selection:changed', handleSelection);
+            canvasInstance.off('text:changed');
             canvasInstance.off('object:modified');
             canvasInstance.off('object:added');
             canvasInstance.off('object:removed');
             canvasInstance.off('object:moving');
             canvasInstance.off('object:scaling');
         };
-    }, [canvasInstance, setSelectedObject, setContextMenu, saveHistory, setInitialHistory, checkSafetyArea]);
+    }, [canvasInstance, setSelectedObject, setContextMenu, saveHistory, setInitialHistory, checkSafetyArea, baseWidth, baseHeight]);
 
     return { checkSafetyArea };
 }

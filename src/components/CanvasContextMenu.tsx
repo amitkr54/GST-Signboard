@@ -92,6 +92,12 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                 shortcut="Alt+Shift+L"
                 disabled={!hasSelection}
             />
+            <MenuItem
+                icon={Layout}
+                label="Mark as Background"
+                action="markAsBackground"
+                disabled={!hasSelection || isLocked}
+            />
 
             <Divider />
 

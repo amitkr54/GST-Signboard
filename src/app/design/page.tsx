@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TEMPLATE_DEFAULTS } from '@/lib/templates';
 import { MaterialSelector } from '@/components/MaterialSelector';
@@ -98,6 +98,12 @@ function DesignContent() {
     const searchParams = useSearchParams();
     const { user } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
+
+    // Stabilized registration callbacks to prevent infinite loops
+    const registerAddText = useCallback((fn: any) => setAddTextFn(() => fn), []);
+    const registerAddIcon = useCallback((fn: any) => setAddIconFn(() => fn), []);
+    const registerAddShape = useCallback((fn: any) => setAddShapeFn(() => fn), []);
+    const registerAddImage = useCallback((fn: any) => setAddImageFn(() => fn), []);
 
     // 1. Initial Load from URL or localStorage
     useEffect(() => {
@@ -609,10 +615,10 @@ function DesignContent() {
                                     isLandscape={isLandscape}
                                     compact={true}
                                     onDesignChange={setDesign}
-                                    onAddText={(fn) => setAddTextFn(() => fn)}
-                                    onAddIcon={(fn) => setAddIconFn(() => fn)}
-                                    onAddShape={(fn) => setAddShapeFn(() => fn)}
-                                    onAddImage={(fn) => setAddImageFn(() => fn)}
+                                    onAddText={registerAddText}
+                                    onAddIcon={registerAddIcon}
+                                    onAddShape={registerAddShape}
+                                    onAddImage={registerAddImage}
                                 />
                             </div>
 
@@ -1106,10 +1112,10 @@ function DesignContent() {
                             design={design}
                             onDesignChange={setDesign}
                             material={material}
-                            onAddText={(fn) => setAddTextFn(() => fn)}
-                            onAddIcon={(fn) => setAddIconFn(() => fn)}
-                            onAddShape={(fn) => setAddShapeFn(() => fn)}
-                            onAddImage={(fn) => setAddImageFn(() => fn)}
+                            onAddText={registerAddText}
+                            onAddIcon={registerAddIcon}
+                            onAddShape={registerAddShape}
+                            onAddImage={registerAddImage}
                         />
                     </div>
                 </div>

@@ -94,7 +94,38 @@ export function useCanvasTemplates(
         }
         canvas.moveTo(safety, 1);
 
-        // 3. Sync Text (Protecting Editing State)
+        // 3. Bleed Rects (Canva-style red areas)
+        const bleedRects = existing.filter(o => (o as any).name === 'safety_bleed_rect');
+        if (bleedRects.length === 0) {
+            const rectProps = {
+                fill: '#ff0000',
+                opacity: 0,
+                selectable: false,
+                evented: false,
+                name: 'safety_bleed_rect',
+                excludeFromExport: true
+            };
+
+            const top = new fabric.Rect({ ...rectProps, left: 0, top: 0, width: baseWidth, height: margin, originX: 'left', originY: 'top' });
+            const bottom = new fabric.Rect({ ...rectProps, left: 0, top: baseHeight - margin, width: baseWidth, height: margin, originX: 'left', originY: 'top' });
+            const left = new fabric.Rect({ ...rectProps, left: 0, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
+            const right = new fabric.Rect({ ...rectProps, left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
+
+            canvas.add(top, bottom, left, right);
+            [top, bottom, left, right].forEach(r => canvas.moveTo(r, 1));
+            canvas.moveTo(safety, 5); // Ensure safety guide is above bleed rects
+        } else {
+            // Update positions on resize
+            bleedRects.forEach((r: any, i) => {
+                if (i === 0) r.set({ left: 0, top: 0, width: baseWidth, height: margin }); // Top
+                if (i === 1) r.set({ left: 0, top: baseHeight - margin, width: baseWidth, height: margin }); // Bottom
+                if (i === 2) r.set({ left: 0, top: margin, width: margin, height: baseHeight - (margin * 2) }); // Left
+                if (i === 3) r.set({ left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2) }); // Right
+                r.setCoords();
+            });
+        }
+
+        // 4. Sync Text (Protecting Editing State)
         const company = existing.find(obj => (obj as any).name === 'template_company') as fabric.Textbox;
         if (company && !(company as any).isEditing) {
             const newText = (data.companyName || '').toUpperCase();
@@ -121,14 +152,20 @@ export function useCanvasTemplates(
             if (design.companyNameSize && company.fontSize !== design.companyNameSize) company.set('fontSize', design.companyNameSize);
 
             // Auto-fit company text
-            company.set('width', 10000);
-            company.initDimensions();
-            let maxCW = 0;
-            const cLines = (company as any)._textLines || [];
-            for (let i = 0; i < cLines.length; i++) {
-                maxCW = Math.max(maxCW, company.getLineWidth(i));
-            }
-            company.set('width', maxCW + 1);
+            const marginScale = 0.05;
+            const margin = Math.min(baseWidth, baseHeight) * marginScale;
+            const maxWidth = baseWidth - (margin * 2);
+
+            // Fast measurement using fabric.Text
+            const measurer = new fabric.Text(company.text || '', {
+                fontFamily: company.fontFamily,
+                fontSize: company.fontSize,
+                fontWeight: company.fontWeight,
+                fontStyle: company.fontStyle,
+                charSpacing: company.charSpacing
+            });
+            const targetWidth = Math.min((measurer.width || 0) + 15, maxWidth);
+            company.set({ width: targetWidth, padding: 4 });
             company.setCoords();
         }
 
@@ -151,14 +188,19 @@ export function useCanvasTemplates(
                 if (design.fontSize && det.fontSize !== design.fontSize) det.set('fontSize', design.fontSize);
 
                 // Auto-fit details text
-                det.set('width', 10000);
-                det.initDimensions();
-                let maxDW = 0;
-                const dLines = (det as any)._textLines || [];
-                for (let i = 0; i < dLines.length; i++) {
-                    maxDW = Math.max(maxDW, det.getLineWidth(i));
-                }
-                det.set('width', maxDW + 1);
+                const marginScale = 0.05;
+                const margin = Math.min(baseWidth, baseHeight) * marginScale;
+                const maxWidth = baseWidth - (margin * 2);
+
+                const detMeasurer = new fabric.Text(det.text || '', {
+                    fontFamily: det.fontFamily,
+                    fontSize: det.fontSize,
+                    fontWeight: det.fontWeight,
+                    fontStyle: det.fontStyle,
+                    charSpacing: det.charSpacing
+                });
+                const targetWidth = Math.min((detMeasurer.width || 0) + 15, maxWidth);
+                det.set({ width: targetWidth, padding: 4 });
                 det.setCoords();
             }
         });

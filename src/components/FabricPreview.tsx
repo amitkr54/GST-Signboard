@@ -75,7 +75,7 @@ export function FabricPreview({
 
     // 2. Object Managers
     const { addText, addIcon, addShape, addImage } = useCanvasObjectManagers(
-        fabricCanvasRef, baseWidth, baseHeight, onDesignChange, design
+        fabricCanvasRef, baseWidth, baseHeight, onDesignChange, design, saveHistory
     );
 
     // 3. Canvas Events & Keyboard
@@ -140,6 +140,9 @@ export function FabricPreview({
         fabricCanvasRef.current = canvas;
         setCanvasInstance(canvas);
 
+        // Attach to window for global access (e.g. handleDownload)
+        (window as any).fabricCanvas = canvas;
+
         // Initialize alignment guidelines
         const disposeGuidelines = initAligningGuidelines(canvas);
 
@@ -182,19 +185,19 @@ export function FabricPreview({
                 textObjects.forEach(obj => {
                     const tObj = obj as any;
                     if (obj.type === 'textbox') {
-                        const oldWidth = tObj.width;
-                        tObj.set('width', 10000);
-                        tObj.initDimensions();
-                        let maxWidth = 0;
-                        const lines = tObj._textLines || [];
-                        if (lines.length > 0) {
-                            for (let i = 0; i < lines.length; i++) {
-                                maxWidth = Math.max(maxWidth, tObj.getLineWidth(i));
-                            }
-                            tObj.set('width', maxWidth + 1);
-                        } else {
-                            tObj.set('width', oldWidth);
-                        }
+                        const marginScale = 0.05;
+                        const margin = Math.min(baseWidth, baseHeight) * marginScale;
+                        const maxWidth = baseWidth - (margin * 2);
+
+                        const measurer = new fabric.Text(tObj.text || '', {
+                            fontFamily: tObj.fontFamily,
+                            fontSize: tObj.fontSize,
+                            fontWeight: tObj.fontWeight,
+                            fontStyle: tObj.fontStyle,
+                            charSpacing: tObj.charSpacing
+                        });
+                        const targetWidth = Math.min((measurer.width || 0) + 15, maxWidth);
+                        tObj.set({ width: targetWidth, padding: 4 });
                     }
                     tObj.setCoords();
                 });
@@ -279,6 +282,16 @@ export function FabricPreview({
                     else activeObject.sendToBack();
                 }
                 break;
+            case 'markAsBackground':
+                if (activeObject) {
+                    (activeObject as any).isBackground = true;
+                    const bg = canvas.getObjects().find(o => (o as any).name === 'background');
+                    if (bg) activeObject.moveTo(canvas.getObjects().indexOf(bg) + 1);
+                    else activeObject.sendToBack();
+                    saveHistory(canvas);
+                    checkSafetyArea(canvas);
+                }
+                break;
             case 'forward': activeObject?.bringForward(); break;
             case 'backward':
                 if (activeObject) {
@@ -323,6 +336,12 @@ export function FabricPreview({
     }, [canvasInstance, scale, baseWidth, baseHeight]);
 
     // Template Loading Flow
+    // Stable refs for callbacks to avoid re-triggering the loading effect
+    const templateCallbacksRef = useRef({ updateTemplateContent, renderSVGTemplate });
+    useEffect(() => {
+        templateCallbacksRef.current = { updateTemplateContent, renderSVGTemplate };
+    }, [updateTemplateContent, renderSVGTemplate]);
+
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
@@ -350,25 +369,25 @@ export function FabricPreview({
                             canvas.add(newTxt);
                         } else obj.set({ selectable: true, evented: true });
                     });
-                    updateTemplateContent();
+                    templateCallbacksRef.current.updateTemplateContent();
                     finalizeLoad();
                 });
             } else if (templateConfig.svgPath) {
                 fetch(templateConfig.svgPath)
                     .then(r => r.text())
                     .then(svgText => {
-                        renderSVGTemplate(templateConfig.components, svgText);
+                        templateCallbacksRef.current.renderSVGTemplate(templateConfig.components, svgText);
                         finalizeLoad();
                     });
             } else {
-                updateTemplateContent();
+                templateCallbacksRef.current.updateTemplateContent();
                 finalizeLoad();
             }
         } else {
-            updateTemplateContent();
+            templateCallbacksRef.current.updateTemplateContent();
             finalizeLoad();
         }
-    }, [design.templateId, dynamicTemplates, updateTemplateContent, renderSVGTemplate, setIsProcessing, saveHistory]);
+    }, [design.templateId, dynamicTemplates, setIsProcessing, saveHistory]);
 
     // Prop sync
     useEffect(() => { updateTemplateContent(); }, [data, design.backgroundColor, design.fontFamily, design.textColor, design.fontSize, design.companyNameSize]);
@@ -414,24 +433,19 @@ export function FabricPreview({
             </div>
 
             <div ref={containerRef} className="flex-1 min-h-0 h-full flex items-center justify-center w-full relative overflow-hidden bg-gray-200/50" onContextMenu={handleContextMenu}>
-                <div className="bg-white rounded-sm shadow-2xl relative overflow-hidden flex items-center justify-center" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
+                <div className="bg-white rounded-sm shadow-2xl relative flex items-center justify-center shrink-0" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
                     <canvas ref={canvasRef} />
-                </div>
 
-                {/* Safety Warning Banner */}
-                {hasSafetyViolation && (
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-2.5 bg-white/95 backdrop-blur border border-amber-200 rounded-2xl shadow-xl animate-in slide-in-from-top-8 duration-500">
-                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
+                    {/* Safety Danger Zone Label */}
+                    {hasSafetyViolation && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-1.5 px-3 py-1 bg-[#cc0000] rounded-full shadow-lg ring-1 ring-white/20 animate-in fade-in zoom-in duration-300">
+                            <div className="w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center">
+                                <span className="text-[9px] font-bold text-white mb-[0.5px]">i</span>
+                            </div>
+                            <span className="text-[11px] font-black text-white uppercase tracking-wider whitespace-nowrap leading-none pt-[1px]">Danger zone</span>
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-bold text-gray-900">Safety Warning</span>
-                            <span className="text-[10px] font-medium text-amber-700 uppercase tracking-wider">Some items are outside the safety area</span>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {contextMenu && (
                     <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onAction={handleAction} hasSelection={!!selectedObject} isLocked={!!selectedObject?.lockMovementX} />

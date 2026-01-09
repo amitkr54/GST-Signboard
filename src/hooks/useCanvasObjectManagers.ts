@@ -6,7 +6,8 @@ export function useCanvasObjectManagers(
     baseWidth: number,
     baseHeight: number,
     onDesignChange?: (design: any) => void,
-    design?: any
+    design?: any,
+    saveHistory?: (canvas: fabric.Canvas | null) => void
 ) {
     const addText = useCallback((type: 'heading' | 'subheading' | 'body') => {
         const canvas = canvasRef.current;
@@ -15,6 +16,8 @@ export function useCanvasObjectManagers(
             left: baseWidth / 2,
             top: baseHeight / 2,
             fontSize: type === 'heading' ? 80 : 40,
+            fontFamily: design?.fontFamily || 'Inter',
+            fill: design?.textColor || '#000000',
             originX: 'center',
             originY: 'center',
             name: 'user_added_text',
@@ -26,14 +29,15 @@ export function useCanvasObjectManagers(
             cornerSize: 14,
             borderScaleFactor: 2.5,
             transparentCorners: false,
-            padding: 0,
+            padding: 4,
             lineHeight: 1,
             cornerStyle: 'circle'
         });
         canvas.add(textbox);
         canvas.setActiveObject(textbox);
         canvas.requestRenderAll();
-    }, [canvasRef, baseWidth, baseHeight]);
+        saveHistory?.(canvas);
+    }, [canvasRef, baseWidth, baseHeight, design, saveHistory]);
 
     const addIcon = useCallback((iconName: string) => {
         const canvas = canvasRef.current;
@@ -138,13 +142,15 @@ export function useCanvasObjectManagers(
             const iconPath = new fabric.Path(pathData, {
                 left: baseWidth / 2, top: baseHeight / 2,
                 originX: 'center', originY: 'center',
-                fill: 'transparent', stroke: '#000000', strokeWidth: 2,
+                fill: 'transparent', stroke: design?.textColor || '#000000', strokeWidth: 2,
                 scaleX: 3, scaleY: 3, name: 'user_added_icon'
             });
             canvas.add(iconPath);
             canvas.setActiveObject(iconPath);
         }
-    }, [canvasRef, baseWidth, baseHeight]);
+        canvas.requestRenderAll();
+        saveHistory?.(canvas);
+    }, [canvasRef, baseWidth, baseHeight, design, saveHistory]);
 
     const addShape = useCallback((type: string) => {
         const canvas = canvasRef.current;
@@ -195,7 +201,8 @@ export function useCanvasObjectManagers(
         canvas.add(shape);
         canvas.setActiveObject(shape);
         canvas.requestRenderAll();
-    }, [canvasRef, baseWidth, baseHeight]);
+        saveHistory?.(canvas);
+    }, [canvasRef, baseWidth, baseHeight, saveHistory]);
 
     const addImage = useCallback((url: string) => {
         fabric.Image.fromURL(url, (img) => {
@@ -208,8 +215,9 @@ export function useCanvasObjectManagers(
             });
             canvasRef.current?.add(img);
             canvasRef.current?.setActiveObject(img);
+            saveHistory?.(canvasRef.current);
         }, { crossOrigin: 'anonymous' });
-    }, [canvasRef, baseWidth, baseHeight]);
+    }, [canvasRef, baseWidth, baseHeight, saveHistory]);
 
     return { addText, addIcon, addShape, addImage };
 }
