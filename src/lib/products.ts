@@ -25,6 +25,12 @@ export interface Product {
     popularTemplates?: string[];
     rating: number;
     reviewCount: number;
+    seo?: {
+        metaTitle?: string;
+        metaDescription?: string;
+        keywords?: string[];
+        slug?: string;
+    };
 }
 
 export const PRODUCTS: Product[] = [
