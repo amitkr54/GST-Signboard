@@ -56,7 +56,7 @@ function DesignContent() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [uploadedDesign, setUploadedDesign] = useState<string | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
-    const [canvasSnapshot, setCanvasSnapshot] = useState<string | undefined>(undefined);
+    const [canvasSnapshot, setCanvasSnapshot] = useState<string | null>(null);
 
     // Referral State
     const [referralCode, setReferralCode] = useState('');
@@ -404,7 +404,8 @@ function DesignContent() {
     };
 
     const handleOpenReview = () => {
-        const canvas = (window as any).fabricCanvas;
+        // @ts-expect-error - fabricCanvas is globally attached to window
+        const canvas = window.fabricCanvas;
         if (canvas) {
             const json = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'id', 'data']));
             console.log(`[DesignPage] Capturing canvas snapshot for review modal. Length: ${json.length}`);
