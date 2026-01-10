@@ -411,46 +411,54 @@ export function FabricPreview({
     }, [onAddText, onAddIcon, onAddShape, onAddImage, addText, addIcon, addShape, addImage]);
 
     return (
-        <div className="flex-1 min-h-0 w-full flex flex-col overflow-hidden relative">
-            <div className={`w-full z-10 shrink-0 ${compact ? '' : 'mb-2 min-h-[44px]'}`}>
-                {selectedObject ? (
-                    <TextFormatToolbar
-                        selectedObject={selectedObject} compact={compact} isLandscape={isLandscape}
-                        onUpdate={() => {
-                            if (fabricCanvasRef.current) {
-                                fabricCanvasRef.current.requestRenderAll();
-                                saveHistory(fabricCanvasRef.current);
-                            }
-                        }}
-                        onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
-                        onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
-                        onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
-                        onDuplicate={() => handleAction('duplicate')}
-                        onDelete={() => handleAction('delete')}
-                        onLockToggle={() => handleAction('lock')}
-                    />
-                ) : <div className={compact ? 'h-0' : 'h-[44px]'} />}
-            </div>
-
-            <div ref={containerRef} className="flex-1 min-h-0 h-full flex items-center justify-center w-full relative overflow-hidden bg-gray-200/50" onContextMenu={handleContextMenu}>
-                <div className="bg-white rounded-sm shadow-2xl relative flex items-center justify-center shrink-0" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
-                    <canvas ref={canvasRef} />
-
-                    {/* Safety Danger Zone Label */}
-                    {hasSafetyViolation && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-1.5 px-3 py-1 bg-[#cc0000] rounded-full shadow-lg ring-1 ring-white/20 animate-in fade-in zoom-in duration-300">
-                            <div className="w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center">
-                                <span className="text-[9px] font-bold text-white mb-[0.5px]">i</span>
-                            </div>
-                            <span className="text-[11px] font-black text-white uppercase tracking-wider whitespace-nowrap leading-none pt-[1px]">Danger zone</span>
-                        </div>
+        <div className="flex-1 w-full relative overflow-hidden flex flex-col min-h-0">
+            {/* 1. Floating Toolbar */}
+            <div className="absolute top-0 left-0 right-0 z-[100] transition-all duration-300 pointer-events-none">
+                <div className="flex justify-center p-2 pointer-events-auto">
+                    {selectedObject && (
+                        <TextFormatToolbar
+                            selectedObject={selectedObject}
+                            compact={compact}
+                            isLandscape={isLandscape}
+                            onUpdate={() => {
+                                if (fabricCanvasRef.current) {
+                                    fabricCanvasRef.current.requestRenderAll();
+                                    saveHistory(fabricCanvasRef.current);
+                                }
+                            }}
+                            onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
+                            onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
+                            onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
+                            onDuplicate={() => handleAction('duplicate')}
+                            onDelete={() => handleAction('delete')}
+                            onLockToggle={() => handleAction('lock')}
+                        />
                     )}
                 </div>
+            </div>
 
-                {contextMenu && (
-                    <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onAction={handleAction} hasSelection={!!selectedObject} isLocked={!!selectedObject?.lockMovementX} />
-                )}
-                <CanvasInteractionDebugger selectedObject={selectedObject} alignmentDebug={alignmentDebug} />
+            {/* 2. Main Canvas Container - Absolute Centering Wrapper */}
+            <div className="absolute inset-0 flex items-center justify-center p-4">
+                <div ref={containerRef} className="w-full h-full flex items-center justify-center relative overflow-hidden bg-transparent" onContextMenu={handleContextMenu}>
+                    <div className="bg-white rounded-sm shadow-2xl relative flex items-center justify-center shrink-0" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
+                        <canvas ref={canvasRef} />
+
+                        {/* Safety Danger Zone Label */}
+                        {hasSafetyViolation && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-1.5 px-3 py-1 bg-[#cc0000] rounded-full shadow-lg ring-1 ring-white/20 animate-in fade-in zoom-in duration-300">
+                                <div className="w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center">
+                                    <span className="text-[9px] font-bold text-white mb-[0.5px]">i</span>
+                                </div>
+                                <span className="text-[11px] font-black text-white uppercase tracking-wider whitespace-nowrap leading-none pt-[1px]">Danger zone</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {contextMenu && (
+                        <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onAction={handleAction} hasSelection={!!selectedObject} isLocked={!!selectedObject?.lockMovementX} />
+                    )}
+                    <CanvasInteractionDebugger selectedObject={selectedObject} alignmentDebug={alignmentDebug} />
+                </div>
             </div>
         </div>
     );

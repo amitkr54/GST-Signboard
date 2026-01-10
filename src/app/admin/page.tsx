@@ -190,6 +190,14 @@ export default function AdminPage() {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [activeTab, setActiveTab] = useState<'templates' | 'products'>('products');
     const [sizes, setSizes] = useState<ProductSize[]>([]);
+
+
+    // Template Categorization State
+    const [templateType, setTemplateType] = useState<'universal' | 'specific'>('universal');
+    const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+    const [templateCategory, setTemplateCategory] = useState<string>('Business');
+    const [fileDimensions, setFileDimensions] = useState<{ width: number, height: number } | null>(null);
+
     const router = useRouter();
 
     const handleLogin = (e: React.FormEvent) => {
@@ -236,6 +244,7 @@ export default function AdminPage() {
         if (file && file.name.endsWith('.svg')) {
             try {
                 const text = await file.text();
+                // We use a Promise to wait for Fabric's callback-based loadSVGFromString
                 await new Promise<void>((resolve) => {
                     fabric.loadSVGFromString(text, (objects, options) => {
                         const tempCanvas = new fabric.Canvas(null, {
@@ -290,6 +299,7 @@ export default function AdminPage() {
                         });
                         if (currentGroup.length > 0) mergedGroups.push(currentGroup);
 
+
                         mergedGroups.forEach(group => {
                             if (group.length > 1) {
                                 const first = group[0];
@@ -303,20 +313,20 @@ export default function AdminPage() {
                                 tempCanvas.add(newTextbox);
                             }
                         });
-
-                        tempCanvas.renderAll();
-                        const json = tempCanvas.toJSON();
-                        formData.append('fabricConfig', JSON.stringify(json));
-                        tempCanvas.dispose();
                         resolve();
                     });
                 });
-            } catch (err) {
-                console.error('Error generating Fabric JSON:', err);
+            } catch (e) {
+                console.error('SVG Parse Error', e);
             }
         }
 
-        const res = await uploadTemplate(formData);
+        let res;
+        try {
+            res = await uploadTemplate(formData);
+        } catch (error: any) {
+            res = { success: false, error: error.message };
+        }
 
         if (res.success) {
             setMessage({ type: 'success', text: 'Template uploaded successfully!' });
@@ -500,7 +510,7 @@ export default function AdminPage() {
     };
 
     return (
-        <div className="min-h-screen">
+        <div className="min-h-screen bg-slate-950 font-sans">
             <div className="max-w-7xl mx-auto p-6">
                 <div className="flex justify-between items-center mb-8">
                     <div>
@@ -901,49 +911,170 @@ export default function AdminPage() {
 
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Administrator PIN</label>
+                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Administrator PIN</label>
                                         <input
                                             type="password"
                                             name="pin"
                                             value={pin}
                                             onChange={(e) => setPin(e.target.value)}
                                             placeholder="Enter Admin PIN"
-                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner"
+                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
                                             required
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Template Title</label>
+                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Template Title</label>
                                         <input
                                             type="text"
                                             name="name"
                                             placeholder="e.g. Premium Business Card"
-                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
+                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
                                             required
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Design File (SVG)</label>
-                                        <div className="relative group/file">
+                                        <div className="flex items-center justify-between mb-1.5 ml-1">
+                                            <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest">Usage Type</label>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 p-1 bg-gray-50 rounded-xl border-2 border-gray-100">
+                                            <button
+                                                type="button"
+                                                onClick={() => setTemplateType('universal')}
+                                                className={`py-2.5 px-4 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${templateType === 'universal' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                            >
+                                                Universal
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setTemplateType('specific')}
+                                                className={`py-2.5 px-4 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${templateType === 'specific' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                            >
+                                                Specific
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {templateType === 'specific' && (
+                                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Select Products</label>
+                                            <div className="max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-xl border-2 border-gray-100 space-y-2">
+                                                {products.map(p => (
+                                                    <label key={p.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-200">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedProductIds.includes(p.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) setSelectedProductIds(prev => [...prev, p.id]);
+                                                                else setSelectedProductIds(prev => prev.filter(id => id !== p.id));
+                                                            }}
+                                                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                        />
+                                                        <span className="text-xs font-bold text-gray-700">{p.name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            <input type="hidden" name="productIds" value={JSON.stringify(selectedProductIds)} />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Category</label>
+                                        <select
+                                            name="category"
+                                            value={templateCategory}
+                                            onChange={(e) => setTemplateCategory(e.target.value)}
+                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
+                                        >
+                                            <option value="Business">Business</option>
+                                            <option value="Retail">Retail</option>
+                                            <option value="Event">Event</option>
+                                            <option value="Hospitality">Hospitality</option>
+                                            <option value="Personal">Personal</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Description</label>
+                                        <textarea
+                                            name="description"
+                                            placeholder="Template description..."
+                                            rows={2}
+                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Template File (SVG)</label>
+                                        <div className="space-y-3">
                                             <input
                                                 type="file"
                                                 name="file"
                                                 accept=".svg"
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file && file.name.endsWith('.svg')) {
+                                                        const text = await file.text();
+                                                        fabric.loadSVGFromString(text, (objects, options) => {
+                                                            setFileDimensions({
+                                                                width: options.width || 0,
+                                                                height: options.height || 0
+                                                            });
+                                                        });
+                                                    } else {
+                                                        setFileDimensions(null);
+                                                    }
+                                                }}
+                                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition-all cursor-pointer bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"
                                                 required
                                             />
-                                            <div className="w-full px-4 py-8 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center group-hover/file:border-indigo-500 group-hover/file:bg-indigo-50 transition-all">
-                                                <ImageIcon className="w-8 h-8 text-gray-300 group-hover/file:text-indigo-400 mb-2 transition-colors" />
-                                                <span className="text-xs font-bold text-gray-500 group-hover/file:text-indigo-600">Choose SVG Design File</span>
-                                            </div>
+
+                                            {fileDimensions && (
+                                                <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 animate-in zoom-in-95 duration-300">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Shape Preview</span>
+                                                        <span className="text-[10px] font-black text-indigo-600 bg-white px-2 py-0.5 rounded-lg border border-indigo-100 shadow-sm">
+                                                            {fileDimensions.width.toFixed(0)} × {fileDimensions.height.toFixed(0)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-center py-4">
+                                                        <div
+                                                            className="bg-white border-2 border-indigo-200 rounded-lg shadow-inner flex items-center justify-center relative overflow-hidden"
+                                                            style={{
+                                                                width: '100px',
+                                                                height: `${Math.min(140, Math.max(40, (fileDimensions.height / fileDimensions.width) * 100))}px`,
+                                                            }}
+                                                        >
+                                                            <div className="absolute inset-0 bg-indigo-100/20" />
+                                                            <ImageIcon className="w-5 h-5 text-indigo-300 relative z-10" />
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[9px] text-center text-indigo-400 font-bold uppercase tracking-tighter">
+                                                        {fileDimensions.width > fileDimensions.height ? 'Landscape' : fileDimensions.width < fileDimensions.height ? 'Portrait' : 'Square'} Orientation
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
-                                    <Button type="submit" className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50" disabled={isLoading}>
-                                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Save className="w-6 h-6 mr-2" />}
-                                        Store Template
+                                    <Button
+                                        type="submit"
+                                        disabled={isLoading}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-700 py-6 rounded-2xl font-black text-sm shadow-lg shadow-indigo-100 group relative overflow-hidden"
+                                    >
+                                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                        {isLoading ? (
+                                            <div className="flex items-center gap-2">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <span>Processing...</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <Upload className="w-4 h-4" />
+                                                <span>Upload Template</span>
+                                            </div>
+                                        )}
                                     </Button>
                                 </form>
                             </div>
@@ -955,37 +1086,60 @@ export default function AdminPage() {
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-gray-50/50 border-b border-gray-100">
-                                                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">ID / Preview</th>
-                                                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Template Title</th>
-                                                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                                <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest w-1/3">Preview</th>
+                                                <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest">Template Details</th>
+                                                <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest text-right">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
-                                            {templates.map((template) => (
-                                                <tr key={template.id} className="group hover:bg-indigo-50/30 transition-all duration-300">
-                                                    <td className="px-8 py-4 text-xs font-mono text-gray-400">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-indigo-600 group-hover:border-indigo-600 transition-all">
-                                                                <span className="text-[10px] font-black text-indigo-200 group-hover:text-white">SVG</span>
+                                            {templates.map((template) => {
+                                                return (
+                                                    <tr key={template.id} className="group hover:bg-indigo-50/30 transition-all duration-300">
+                                                        <td className="px-8 py-4">
+                                                            <div className="w-72 aspect-[4/3] bg-white border-2 border-black overflow-hidden shadow-sm shrink-0">
+                                                                {template.thumbnail || template.svgPath ? (
+                                                                    <img
+                                                                        src={template.thumbnail || template.svgPath}
+                                                                        alt={template.name}
+                                                                        className="w-full h-full object-contain p-2"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-[10px] font-black text-gray-300">SVG</span>
+                                                                )}
                                                             </div>
-                                                            <span className="truncate max-w-[120px]">{template.id}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-4">
-                                                        <span className="font-black text-gray-900">{template.name}</span>
-                                                    </td>
-                                                    <td className="px-8 py-4 text-right">
-                                                        <button
-                                                            onClick={() => handleDelete(template.id)}
-                                                            disabled={isLoading}
-                                                            className="p-3 bg-gray-50 hover:bg-red-600 rounded-2xl text-gray-300 hover:text-white transition-all shadow-sm"
-                                                            title="Delete Template"
-                                                        >
-                                                            <Trash2 size={18} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                        </td>
+                                                        <td className="px-8 py-4 align-top">
+                                                            <div className="flex flex-col h-full pt-2">
+                                                                <span className="font-black text-xl text-gray-900 mb-2">{template.name}</span>
+                                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                                    <span className="text-[10px] px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-black uppercase tracking-wider">
+                                                                        {template.category}
+                                                                    </span>
+                                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${template.isUniversal ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                                        {template.isUniversal ? 'Universal' : 'Specific'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="px-2 py-1 bg-gray-100 rounded-md border border-gray-200">
+                                                                        <span className="text-[10px] font-black text-gray-800 uppercase tracking-wider">ID</span>
+                                                                    </div>
+                                                                    <span className="text-xs font-mono text-black font-bold">{template.id}</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-4 text-right align-middle">
+                                                            <button
+                                                                onClick={() => handleDelete(template.id)}
+                                                                disabled={isLoading}
+                                                                className="p-3 bg-white border-2 border-red-100 hover:bg-red-600 hover:border-red-600 rounded-xl text-red-500 hover:text-white transition-all shadow-sm"
+                                                                title="Delete Template"
+                                                            >
+                                                                <Trash2 size={20} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>

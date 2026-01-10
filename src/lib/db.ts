@@ -121,7 +121,12 @@ export const db = {
             isCustom: row.is_custom,
             components: row.components,
             fabricConfig: row.fabric_config,
-            defaults: row.defaults
+            defaults: row.defaults,
+            // New Fields
+            category: row.category,
+            isUniversal: row.is_universal,
+            productIds: row.product_ids,
+            dimensions: row.dimensions
         }));
     }
 };

@@ -27,6 +27,11 @@ export interface Template {
         logo?: any;
     };
     fabricConfig?: any;
+    // Categorization
+    category?: string;
+    isUniversal?: boolean;
+    productIds?: string[]; // strings or jsonb array
+    dimensions?: { width: number; height: number };
 }
 
 

@@ -19,20 +19,22 @@ export function MaterialSelector({ selectedMaterial, onSelect, compact = false }
                     key={material.id}
                     onClick={() => onSelect(material.id)}
                     className={cn(
-                        "border rounded-lg text-left transition-all bg-slate-800",
+                        "border rounded-xl text-left transition-all bg-slate-900/40 backdrop-blur-sm",
                         compact ? "p-3" : "p-4",
                         selectedMaterial === material.id
-                            ? "border-indigo-500 bg-indigo-900/30 ring-2 ring-indigo-500/20 shadow-md"
-                            : "border-slate-700 hover:border-indigo-500/50 hover:bg-slate-700"
+                            ? "border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30"
+                            : "border-white/5 hover:border-indigo-500/30 hover:bg-slate-800/40"
                     )}
                 >
                     <div className={cn(
-                        "font-semibold text-white",
+                        "font-black tracking-tight",
+                        selectedMaterial === material.id ? "text-white" : "text-slate-200",
                         compact ? "text-base" : "text-lg"
                     )}>{material.name}</div>
                     <div className={cn(
-                        "text-gray-400",
-                        compact ? "text-sm" : "text-base"
+                        "font-bold",
+                        selectedMaterial === material.id ? "text-indigo-400" : "text-slate-500",
+                        compact ? "text-xs" : "text-sm"
                     )}>₹{material.price}</div>
                 </button>
             ))}

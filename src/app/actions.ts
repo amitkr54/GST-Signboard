@@ -424,6 +424,12 @@ export async function uploadTemplate(formData: FormData) {
     const fabricConfigStr = formData.get('fabricConfig') as string;
     const fabricConfig = fabricConfigStr ? JSON.parse(fabricConfigStr) : {};
 
+    // Categorization
+    const templateType = formData.get('templateType') as string; // 'universal' | 'specific'
+    const category = formData.get('category') as string;
+    const productIdsStr = formData.get('productIds') as string;
+    const productIds = productIdsStr ? JSON.parse(productIdsStr) : [];
+
     if (!file) {
         return { success: false, error: 'No file provided' };
     }
@@ -687,7 +693,14 @@ export async function uploadTemplate(formData: FormData) {
             svg_path: `/templates/${filename}`,
             is_custom: true,
             components: ext === 'svg' ? components : undefined,
-            fabric_config: fabricConfig
+            fabric_config: fabricConfig,
+            // New Fields
+            category: category || 'Uncategorized',
+            is_universal: templateType === 'universal',
+            product_ids: templateType === 'specific' ? productIds : [],
+            dimensions: components?.originalViewBox
+                ? { width: components.originalViewBox[2], height: components.originalViewBox[3] }
+                : { width: 1000, height: 1000 }
         };
 
         const { error: insertError } = await supabase
@@ -707,8 +720,13 @@ export async function uploadTemplate(formData: FormData) {
 }
 
 export async function getTemplates() {
-    const { getTemplates: getTemplatesLib } = await import('@/lib/templates');
-    return getTemplatesLib(); // Uses db.ts with fallback
+    const { db } = await import('@/lib/db');
+    try {
+        return await db.getTemplates();
+    } catch (error) {
+        console.error('Error fetching templates:', error);
+        return [];
+    }
 }
 
 export async function deleteTemplate(templateId: string, pin: string) {
@@ -717,18 +735,12 @@ export async function deleteTemplate(templateId: string, pin: string) {
     }
 
     try {
-        // 1. Get template to delete file
         const { data: template, error: fetchError } = await supabase
             .from('templates')
             .select('svg_path')
             .eq('id', templateId)
             .single();
 
-        if (fetchError) {
-            console.warn('Template not found in DB, maybe local?', fetchError.message);
-        }
-
-        // 2. Delete from DB
         const { error: deleteError } = await supabase
             .from('templates')
             .delete()
@@ -738,10 +750,7 @@ export async function deleteTemplate(templateId: string, pin: string) {
             return { success: false, error: deleteError.message };
         }
 
-        // 3. Delete file if exists
         if (template?.svg_path) {
-            const fs = require('fs');
-            const path = require('path');
             const filePath = path.join(process.cwd(), 'public', template.svg_path);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
@@ -790,7 +799,6 @@ export async function generateQRCode(text: string) {
         return { success: false, error: error.message };
     }
 }
-
 
 export async function getOrder(orderId: string) {
     const { data, error } = await supabase

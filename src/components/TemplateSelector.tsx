@@ -1,144 +1,174 @@
 import React, { useEffect, useState } from 'react';
 import { TEMPLATES, Template } from '@/lib/templates';
 import { TemplateId } from '@/lib/types';
-import { Check } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import { getTemplates } from '@/app/actions';
 
 interface TemplateSelectorProps {
     selectedTemplateId: TemplateId | undefined;
     onSelect: (id: TemplateId) => void;
+    currentProductId?: string;
+    aspectRatio?: number; // width / height
 }
 
-export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemplateId, onSelect }) => {
+export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemplateId, onSelect, currentProductId, aspectRatio }) => {
     const [templates, setTemplates] = useState<Template[]>(TEMPLATES);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchTemplates = async () => {
-            const data = await getTemplates();
-            if (data && data.length > 0) {
-                // Ensure local hardcoded ones are replaced or merged?
-                // Since we seeded JSON with all of them, replacement is safe.
-                setTemplates(data);
+            setIsLoading(true);
+            try {
+                const data = await getTemplates();
+                if (data && data.length > 0) {
+                    setTemplates(data);
+                }
+            } catch (error) {
+                console.error('Error fetching templates:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
         fetchTemplates();
     }, []);
 
+    const getMatchQuality = (template: Template) => {
+        if (!currentProductId) return 'UNIVERSAL';
+
+        // 1. Exact Product Match
+        if (template.productIds && template.productIds.includes(currentProductId)) {
+            return 'EXACT';
+        }
+
+        // 2. Aspect Ratio Match for Universal
+        if (template.isUniversal) {
+            if (aspectRatio && template.dimensions) {
+                const tRatio = template.dimensions.width / template.dimensions.height;
+                const diff = Math.abs(tRatio - aspectRatio);
+                const tolerance = aspectRatio * 0.2; // 20% tolerance
+
+                if (diff <= tolerance) {
+                    return 'SMART_MATCH';
+                }
+                return 'RATIO_MISMATCH';
+            }
+            return 'UNIVERSAL';
+        }
+
+        return 'HIDDEN';
+    };
+
+    const categorizedTemplates = templates
+        .map(t => ({ ...t, matchQuality: getMatchQuality(t) }))
+        .filter(t => t.matchQuality !== 'HIDDEN')
+        .sort((a, b) => {
+            const order: Record<string, number> = { 'EXACT': 0, 'SMART_MATCH': 1, 'UNIVERSAL': 2, 'RATIO_MISMATCH': 3 };
+            return (order[a.matchQuality] || 5) - (order[b.matchQuality] || 5);
+        });
+
+    if (isLoading) {
+        return (
+            <div className="grid grid-cols-2 gap-3 p-1">
+                {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="aspect-square bg-slate-800/50 animate-pulse rounded-xl border border-white/5" />
+                ))}
+            </div>
+        );
+    }
+
     return (
-        <div className="grid grid-cols-2 gap-3 p-1">
-            {/* Custom Design Option */}
-            <button
-                key="custom-blank"
-                onClick={() => onSelect('custom' as TemplateId)}
-                className={`relative group rounded-xl border-2 transition-all overflow-hidden text-left bg-gray-50
-                    ${selectedTemplateId === 'custom' || !selectedTemplateId
-                        ? 'border-purple-600 shadow-md ring-1 ring-purple-600'
-                        : 'border-gray-200 hover:border-purple-300 hover:shadow-sm'
-                    }`}
-            >
-                <div className="h-24 w-full relative flex items-center justify-center bg-white">
-                    <div className="w-16 h-12 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400">
-                        <span className="text-xl font-light">+</span>
-                    </div>
-                    {/* Validated Badge */}
-                    {(selectedTemplateId === 'custom' || !selectedTemplateId) && (
-                        <div className="absolute top-2 right-2 bg-purple-600 text-white p-1 rounded-full">
-                            <Check className="w-3 h-3" />
-                        </div>
-                    )}
-                </div>
-                <div className="p-3 bg-white">
-                    <h4 className="text-sm font-semibold text-gray-900">Custom Design</h4>
-                    <p className="text-[10px] text-gray-500 line-clamp-2 mt-0.5">Start from scratch</p>
-                </div>
-            </button>
-            {templates.map((template) => (
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 p-1">
+                {/* Custom Design Option */}
                 <button
-                    key={template.id}
-                    onClick={() => onSelect(template.id as TemplateId)}
-                    className={`relative group rounded-xl border-2 transition-all overflow-hidden text-left
-                        ${selectedTemplateId === template.id
-                            ? 'border-purple-600 shadow-md ring-1 ring-purple-600'
-                            : 'border-gray-200 hover:border-purple-300 hover:shadow-sm'
+                    key="custom-blank"
+                    onClick={() => onSelect('custom' as TemplateId)}
+                    className={`relative group rounded-xl border-2 transition-all overflow-hidden text-left bg-slate-900/40 backdrop-blur-sm
+                        ${selectedTemplateId === 'custom' || !selectedTemplateId
+                            ? 'border-indigo-500 shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/50'
+                            : 'border-white/5 hover:border-indigo-500/30 hover:bg-slate-800/40'
                         }`}
                 >
-                    {/* Preview Area */}
-                    <div
-                        className="h-24 w-full relative"
-                        style={{ backgroundColor: template.thumbnailColor }}
-                    >
-                        {/* Thumbnail or Mock Layout */}
-                        {template.thumbnail ? (
-                            <img
-                                src={template.thumbnail}
-                                alt={template.name}
-                                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                            />
-                        ) : template.svgPath ? (
-                            /* SVG Preview - Simple Iframe or Image? Image src='path.svg' works */
-                            <img
-                                src={template.svgPath}
-                                alt={template.name}
-                                className="w-full h-full object-contain p-2 opacity-90 group-hover:opacity-100 transition-opacity"
-                            />
-                        ) : (
-                            <div className="absolute inset-0 p-3 opacity-50 flex items-center justify-center">
-                                {template.layoutType === 'default' && (
-                                    <div className="flex flex-col items-center gap-2 w-full">
-                                        <div className="w-8 h-8 rounded-full bg-gray-400"></div>
-                                        <div className="w-3/4 h-2 bg-gray-300 rounded"></div>
-                                        <div className="w-1/2 h-2 bg-gray-300 rounded"></div>
-                                    </div>
-                                )}
-                                {template.layoutType === 'split-left' && (
-                                    <div className="flex items-center gap-3 w-full">
-                                        <div className="w-8 h-8 rounded bg-gray-400"></div>
-                                        <div className="flex-1 space-y-1">
-                                            <div className="w-full h-2 bg-gray-300 rounded"></div>
-                                            <div className="w-2/3 h-2 bg-gray-300 rounded"></div>
-                                        </div>
-                                    </div>
-                                )}
-                                {template.layoutType === 'split-right' && (
-                                    <div className="flex items-center gap-3 w-full flex-row-reverse">
-                                        <div className="w-8 h-8 rounded bg-gray-400"></div>
-                                        <div className="flex-1 space-y-1">
-                                            <div className="w-full h-2 bg-gray-300 rounded"></div>
-                                            <div className="w-2/3 h-2 bg-gray-300 rounded"></div>
-                                        </div>
-                                    </div>
-                                )}
-                                {template.layoutType === 'centered' && (
-                                    <div className="flex flex-col items-center gap-3 w-full">
-                                        <div className="w-12 h-12 rounded-lg bg-gray-800"></div>
-                                        <div className="w-3/4 h-3 bg-gray-700 rounded"></div>
-                                    </div>
-                                )}
-                                {template.layoutType === 'banner' && (
-                                    <div className="flex items-center justify-between w-full px-2">
-                                        <div className="w-2/3 h-4 bg-gray-300 rounded"></div>
-                                        <div className="w-6 h-6 rounded-full bg-gray-400"></div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Validated Badge */}
-                        {selectedTemplateId === template.id && (
-                            <div className="absolute top-2 right-2 bg-purple-600 text-white p-1 rounded-full">
+                    <div className="h-24 w-full relative flex items-center justify-center bg-slate-950/40">
+                        <div className="w-16 h-12 border-2 border-dashed border-slate-700 group-hover:border-indigo-500/50 rounded flex items-center justify-center text-slate-500 group-hover:text-indigo-400 transition-colors">
+                            <span className="text-xl font-light">+</span>
+                        </div>
+                        {(selectedTemplateId === 'custom' || !selectedTemplateId) && (
+                            <div className="absolute top-2 right-2 bg-indigo-600 text-white p-1 rounded-full shadow-lg">
                                 <Check className="w-3 h-3" />
                             </div>
                         )}
                     </div>
-
-                    {/* Info Area */}
-                    <div className="p-3 bg-white">
-                        <h4 className="text-sm font-semibold text-gray-900">{template.name}</h4>
-                        <p className="text-[10px] text-gray-500 line-clamp-2 mt-0.5">{template.description}</p>
+                    <div className="p-3 bg-slate-900/60">
+                        <h4 className="text-[11px] font-black text-slate-100 uppercase tracking-tight">Blank Canvas</h4>
+                        <p className="text-[9px] text-slate-400 font-bold mt-0.5">Start from scratch</p>
                     </div>
                 </button>
-            ))}
+
+                {categorizedTemplates.map((template) => (
+                    <button
+                        key={template.id}
+                        onClick={() => onSelect(template.id as TemplateId)}
+                        className={`relative group rounded-xl border-2 transition-all overflow-hidden text-left bg-slate-900/40 backdrop-blur-sm
+                            ${selectedTemplateId === template.id
+                                ? 'border-indigo-500 shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/50'
+                                : 'border-white/5 hover:border-indigo-500/30 hover:bg-slate-800/40'
+                            }`}
+                    >
+                        {/* Preview Area */}
+                        <div className="h-24 w-full relative bg-slate-950/40 flex items-center justify-center p-2">
+                            {template.thumbnail || template.svgPath ? (
+                                <div className="relative w-full h-full p-1 bg-white rounded shadow-inner">
+                                    <img
+                                        src={template.thumbnail || template.svgPath}
+                                        alt={template.name}
+                                        className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="text-[10px] font-black text-slate-700 tracking-tighter">PREVIEW</div>
+                            )}
+
+                            {/* Match Badges */}
+                            {template.matchQuality === 'EXACT' && (
+                                <div className="absolute top-2 left-2 bg-emerald-500/90 backdrop-blur-md text-white text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shadow-lg flex items-center gap-1">
+                                    <Sparkles className="w-2 h-2" /> Perfect
+                                </div>
+                            )}
+                            {template.matchQuality === 'SMART_MATCH' && (
+                                <div className="absolute top-2 left-2 bg-indigo-500/90 backdrop-blur-md text-white text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shadow-lg">
+                                    Smart Fit
+                                </div>
+                            )}
+
+                            {selectedTemplateId === template.id && (
+                                <div className="absolute top-2 right-2 bg-indigo-600 text-white p-1 rounded-full shadow-lg z-10">
+                                    <Check className="w-3 h-3" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-2.5 bg-slate-900/60 border-t border-white/5">
+                            <h4 className="text-[11px] font-black text-slate-100 truncate tracking-tight">{template.name}</h4>
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">{template.category}</span>
+                                {template.matchQuality === 'RATIO_MISMATCH' && (
+                                    <>
+                                        <span className="text-slate-800 text-[8px]">•</span>
+                                        <span className="text-[8px] font-bold text-amber-500/80 uppercase tracking-tighter">Shape Diff</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            {categorizedTemplates.length === 0 && (
+                <div className="text-center py-12 px-4 bg-slate-900/40 rounded-2xl border-2 border-dashed border-white/5">
+                    <p className="text-xs font-bold text-slate-500">No matching templates found for this size.</p>
+                </div>
+            )}
         </div>
     );
 };
-

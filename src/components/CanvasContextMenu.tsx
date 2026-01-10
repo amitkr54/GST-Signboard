@@ -44,17 +44,17 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                 }
             }}
             disabled={disabled}
-            className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gray-100 transition-colors ${danger ? 'text-red-600' : 'text-gray-700'} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+            className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-all ${danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'} ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
         >
             <div className="flex items-center gap-3">
                 <Icon className="w-4 h-4" />
-                <span>{label}</span>
+                <span className="font-bold">{label}</span>
             </div>
-            {shortcut && <span className="text-[10px] text-gray-400 font-medium ml-4 uppercase">{shortcut}</span>}
+            {shortcut && <span className="text-[9px] text-slate-500 font-black ml-4 uppercase tracking-widest">{shortcut}</span>}
         </button>
     );
 
-    const Divider = () => <div className="h-px bg-gray-100 my-1" />;
+    const Divider = () => <div className="h-px bg-white/5 my-1.5 mx-2" />;
 
     // Adjust position to keep menu within viewport
     const menuWidth = 220;
@@ -65,7 +65,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
     return (
         <div
             ref={menuRef}
-            className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[220px] animate-in fade-in zoom-in-95 duration-100"
+            className="fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] py-2 min-w-[240px] animate-in fade-in zoom-in-95 duration-150"
             style={{
                 left: adjustedX,
                 top: adjustedY
@@ -101,8 +101,8 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
 
             <Divider />
 
-            <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Align to Page</div>
-            <div className="grid grid-cols-3 gap-1 px-2 pb-1">
+            <div className="px-4 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Align to Page</div>
+            <div className="grid grid-cols-3 gap-1.5 px-3 pb-2">
                 {[
                     { label: 'Left', action: 'align-left' },
                     { label: 'Center', action: 'align-center' },
@@ -120,7 +120,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                             }
                         }}
                         disabled={!hasSelection || isLocked}
-                        className="px-1 py-1 text-[10px] text-gray-600 hover:bg-gray-100 rounded border border-gray-100 disabled:opacity-40"
+                        className="px-1 py-1.5 text-[9px] font-bold text-slate-300 bg-slate-800/50 hover:bg-indigo-600/20 hover:text-white rounded-lg border border-white/5 transition-all disabled:opacity-30"
                     >
                         {item.label}
                     </button>

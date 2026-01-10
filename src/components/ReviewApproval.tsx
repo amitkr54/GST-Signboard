@@ -44,27 +44,36 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
     const hasEmptyFields = !data.companyName || !data.address;
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="sticky top-0 bg-white/80 backdrop-blur border-b px-6 py-4 flex items-center justify-between z-10">
-                    <h2 className="text-2xl font-bold text-gray-900">Review your design</h2>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 rounded-3xl shadow-[0_0_50px_-12px_rgba(79,70,229,0.3)] max-w-6xl w-full max-h-[90vh] overflow-hidden border border-white/10 flex flex-col">
+                <div className="bg-slate-900/40 backdrop-blur-xl border-b border-white/10 px-8 py-5 flex items-center justify-between shrink-0">
+                    <div>
+                        <h2 className="text-2xl font-black text-white tracking-tight uppercase tracking-[0.2em]">Review Design</h2>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Final Verification Checklist</p>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-all"
                         aria-label="Close"
                     >
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
-                <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-10 overflow-y-auto custom-scrollbar">
                     {/* Left: Preview */}
-                    <div className="space-y-4">
-                        <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
-                            <p className="text-sm text-gray-600 mb-3">
-                                It will be printed like this preview. Make sure you are happy before continuing.
-                            </p>
-                            <div className="bg-white rounded-lg overflow-hidden shadow-inner" style={{ height: '400px' }}>
+                    <div className="space-y-6">
+                        <div className="bg-slate-950/40 rounded-3xl p-6 border border-white/5 shadow-2xl">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 bg-indigo-500/20 rounded-lg">
+                                    <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Print Preview</p>
+                            </div>
+                            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl relative group" style={{ height: '450px' }}>
                                 <FabricPreview
                                     data={data}
                                     design={design}
@@ -79,66 +88,83 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                                         });
                                     }}
                                 />
+                                <div className="absolute inset-0 pointer-events-none border-[12px] border-white/10" />
                             </div>
+                            <p className="text-[10px] text-slate-500 font-bold mt-4 uppercase tracking-[0.1em] text-center">
+                                Actual print may vary slightly due to material texture
+                            </p>
                         </div>
                     </div>
 
                     {/* Right: Checklist and Actions */}
-                    <div className="space-y-4">
-                        <div className="bg-white rounded-xl border border-gray-200 p-4">
-                            <h3 className="font-semibold text-gray-900 mb-3">Verification Checklist</h3>
-                            <ul className="space-y-2">
+                    <div className="space-y-8">
+                        <div className="bg-slate-800/30 backdrop-blur-sm rounded-3xl border border-white/5 p-8 shadow-xl">
+                            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                <span className="w-6 h-px bg-indigo-500" /> Checklist
+                            </h3>
+                            <ul className="space-y-4">
                                 {checklistItems.map((item, index) => (
-                                    <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                                        <span className="text-gray-400 mt-0.5">•</span>
-                                        <span>{item}</span>
+                                    <li key={index} className="flex items-start gap-4 text-sm group">
+                                        <div className="w-5 h-5 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-500/30 transition-colors">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                                        </div>
+                                        <span className="text-slate-300 font-medium leading-relaxed">{item}</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
 
                         {hasEmptyFields && (
-                            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-                                <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
+                            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6 flex items-start gap-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="p-2 bg-rose-500/20 rounded-xl">
+                                    <svg className="w-6 h-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
                                 <div>
-                                    <p className="font-semibold text-red-800 text-sm">Empty items won't be printed</p>
-                                    <p className="text-xs text-red-600 mt-1">Some required fields are missing. Please go back and complete them.</p>
+                                    <p className="font-black text-rose-400 text-sm uppercase tracking-widest">Required Info Missing</p>
+                                    <p className="text-xs text-slate-400 mt-1 font-bold leading-relaxed">Some required fields are missing. These will be left blank on your print.</p>
                                 </div>
                             </div>
                         )}
 
-                        <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                            <label className="flex items-start gap-3 cursor-pointer group">
-                                <input
-                                    type="checkbox"
-                                    checked={isApproved}
-                                    onChange={(e) => setIsApproved(e.target.checked)}
-                                    className="mt-1 w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-2 focus:ring-purple-500 cursor-pointer"
-                                />
-                                <span className="text-sm text-gray-700 leading-relaxed select-none">
-                                    I have authorization to use this design, I have reviewed and approve it.
+                        <div className="bg-slate-800/30 backdrop-blur-sm rounded-3xl border border-white/5 p-8 shadow-xl">
+                            <label className="flex items-start gap-4 cursor-pointer group">
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={isApproved}
+                                        onChange={(e) => setIsApproved(e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="w-6 h-6 border-2 border-slate-700 rounded-lg group-hover:border-indigo-500/50 transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600 flex items-center justify-center shadow-inner">
+                                        <svg className="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                                            <path d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <span className="text-sm text-slate-300 font-bold leading-relaxed select-none group-hover:text-white transition-colors">
+                                    I confirm that I have reviewed the design and have the authorization to print it.
                                 </span>
                             </label>
                         </div>
 
-                        <div className="space-y-3 pt-2">
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                            <button
+                                onClick={onClose}
+                                className="py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                            >
+                                Edit Design
+                            </button>
                             <button
                                 onClick={onApprove}
                                 disabled={!isApproved}
-                                className={`w-full py-3 rounded-xl font-semibold transition-all ${isApproved
-                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                className={`py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-2xl ${isApproved
+                                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-indigo-500/30 hover:shadow-indigo-500/50 transform hover:-translate-y-1'
+                                    : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5'
                                     }`}
                             >
-                                Continue
-                            </button>
-                            <button
-                                onClick={onClose}
-                                className="w-full py-3 rounded-xl font-semibold border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                                Edit my design
+                                Continue Checklist
                             </button>
                         </div>
                     </div>

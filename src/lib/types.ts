@@ -15,7 +15,7 @@ export interface OrderContactDetails {
     shippingAddress: string;
 }
 
-export type TemplateId = 'modern' | 'classic' | 'minimal' | 'bold' | 'corporate' | 'luxury' | 'tech' | 'retail' | 'professional' | 'industrial' | 'modern-split' | 'boxed' | 'foundation' | 'svg-sample';
+export type TemplateId = 'custom' | 'modern' | 'classic' | 'minimal' | 'bold' | 'corporate' | 'luxury' | 'tech' | 'retail' | 'professional' | 'industrial' | 'modern-split' | 'boxed' | 'foundation' | 'svg-sample';
 
 export interface DesignConfig {
     templateId: TemplateId;
