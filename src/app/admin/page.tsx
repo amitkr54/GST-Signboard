@@ -388,7 +388,13 @@ export default function AdminPage() {
             features: (formData.get('features') as string).split('\n').filter(f => f.trim()),
             sizes: JSON.parse(formData.get('sizes') as string),
             materials: (formData.get('materials') as string).split(',').map(m => m.trim()) as any[],
-            popularTemplates: []
+            popularTemplates: [],
+            seo: {
+                metaTitle: formData.get('seoMetaTitle') as string || undefined,
+                metaDescription: formData.get('seoMetaDescription') as string || undefined,
+                keywords: (formData.get('seoKeywords') as string)?.split(',').map(k => k.trim()).filter(k => k) || undefined,
+                slug: formData.get('seoSlug') as string || undefined,
+            }
         };
 
         const res = await saveProductAction(productData, pin);
@@ -643,6 +649,69 @@ export default function AdminPage() {
                                             />
                                         </div>
 
+                                        {/* SEO Section */}
+                                        <div className="border-t-2 border-gray-200 pt-6 mt-6">
+                                            <h4 className="text-sm font-black text-indigo-600 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                                SEO Settings (Optional)
+                                            </h4>
+
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Custom Meta Title</label>
+                                                    <input
+                                                        name="seoMetaTitle"
+                                                        defaultValue={editingProduct?.seo?.metaTitle}
+                                                        placeholder="Leave blank to auto-generate from product name"
+                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
+                                                        maxLength={60}
+                                                    />
+                                                    <p className="text-xs text-gray-500 mt-1">Recommended: 50-60 characters</p>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Custom Meta Description</label>
+                                                    <textarea
+                                                        name="seoMetaDescription"
+                                                        defaultValue={editingProduct?.seo?.metaDescription}
+                                                        placeholder="Leave blank to auto-generate from product description"
+                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
+                                                        rows={3}
+                                                        maxLength={160}
+                                                    />
+                                                    <p className="text-xs text-gray-500 mt-1">Recommended: 150-160 characters</p>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">SEO Keywords</label>
+                                                    <input
+                                                        name="seoKeywords"
+                                                        defaultValue={editingProduct?.seo?.keywords?.join(', ')}
+                                                        placeholder="custom signage, business signs, flex boards (comma separated)"
+                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
+                                                    />
+                                                    <p className="text-xs text-gray-500 mt-1">5-10 relevant keywords, comma separated</p>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Custom URL Slug</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-gray-500">/products/</span>
+                                                        <input
+                                                            name="seoSlug"
+                                                            defaultValue={editingProduct?.seo?.slug || editingProduct?.id}
+                                                            placeholder="custom-signage-boards"
+                                                            className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
+                                                            pattern="[a-z0-9-]+"
+                                                        />
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-1">Use lowercase letters, numbers, and hyphens only</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <input type="hidden" name="sizes" value={JSON.stringify(sizes)} />
                                             <DynamicSizeForm sizes={sizes} onChange={setSizes} />
@@ -721,57 +790,84 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {products.map(product => (
-                                <div key={product.id} className="group bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-2xl hover:border-indigo-100 transition-all duration-500 relative overflow-hidden">
-                                    {/* Background decoration */}
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-bl-full -mr-16 -mt-16 group-hover:w-40 group-hover:h-40 transition-all duration-500" />
-
-                                    <div className="flex justify-between items-start mb-4 relative z-10">
-                                        <div>
-                                            <h3 className="font-black text-xl text-gray-900 leading-tight mb-2 line-clamp-1">{product.name}</h3>
-                                            <span className="text-[10px] px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full font-black uppercase tracking-widest border border-indigo-100">
-                                                {product.category}
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    setEditingProduct(product);
-                                                    setShowProductForm(true);
-                                                    setSizes(product.sizes || []);
-                                                    setExistingImages(product.images || []);
-                                                    setSelectedImages([]);
-                                                }}
-                                                className="p-2.5 bg-gray-50 hover:bg-indigo-600 rounded-xl text-gray-400 hover:text-white transition-all shadow-sm"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteProduct(product.id)}
-                                                className="p-2.5 bg-gray-50 hover:bg-red-600 rounded-xl text-gray-400 hover:text-white transition-all shadow-sm"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-sm text-gray-500 mb-6 line-clamp-2 min-h-[2.5rem] leading-relaxed relative z-10">
-                                        {(product.description || '').replace(/<[^>]*>/g, '')}
-                                    </p>
-
-                                    <div className="flex items-center justify-between mt-auto border-t border-gray-50 pt-4 relative z-10">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-0.5">Starting From</span>
-                                            <span className="text-2xl font-black text-indigo-600">₹{product.priceFrom}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
-                                            <Layout className="w-3.5 h-3.5 text-gray-400" />
-                                            <span className="text-xs font-bold text-gray-600">{(product.sizes || []).length} Sizes</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50/50 border-b border-gray-100">
+                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Product</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Sizes</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Price</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {products.map(product => (
+                                            <tr key={product.id} className="group hover:bg-indigo-50/30 transition-all duration-300">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-xl border border-gray-100 flex-shrink-0 bg-gray-50 overflow-hidden shadow-sm">
+                                                            <img
+                                                                src={product.image || '/products/placeholder.jpg'}
+                                                                alt=""
+                                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-gray-900 leading-none mb-1">{product.name}</p>
+                                                            <p className="text-[10px] text-gray-400 line-clamp-1 max-w-[200px]">
+                                                                {(product.description || '').replace(/<[^>]*>/g, '')}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-[9px] px-2.5 py-1 bg-white text-indigo-600 rounded-full font-black uppercase tracking-widest border border-indigo-100 shadow-sm">
+                                                        {product.category}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-lg border border-gray-100">
+                                                        <Layout className="w-3 h-3 text-gray-400" />
+                                                        <span className="text-[10px] font-bold text-gray-600">{(product.sizes || []).length}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-black text-indigo-600">₹{product.priceFrom}</span>
+                                                        <span className="text-[8px] text-gray-300 font-bold uppercase tracking-tighter">Starting</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingProduct(product);
+                                                                setShowProductForm(true);
+                                                                setSizes(product.sizes || []);
+                                                                setExistingImages(product.images || []);
+                                                                setSelectedImages([]);
+                                                            }}
+                                                            className="p-2.5 bg-gray-50 hover:bg-indigo-600 rounded-xl text-gray-400 hover:text-white transition-all shadow-sm"
+                                                            title="Edit Product"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteProduct(product.id)}
+                                                            className="p-2.5 bg-gray-50 hover:bg-red-600 rounded-xl text-gray-400 hover:text-white transition-all shadow-sm"
+                                                            title="Delete Product"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         {products.length === 0 && (
@@ -855,44 +951,60 @@ export default function AdminPage() {
                         </div>
 
                         <div className="lg:col-span-2">
-                            <div className="grid sm:grid-cols-2 gap-6">
-                                {templates.map((template) => (
-                                    <div key={template.id} className="group bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 hover:shadow-2xl hover:border-indigo-50 duration-500 transition-all relative overflow-hidden flex flex-col">
-                                        <div className="aspect-[4/3] bg-gray-50 rounded-2xl mb-4 border border-gray-100 flex items-center justify-center relative overflow-hidden shadow-inner group-hover:bg-white transition-colors duration-500">
-                                            <span className="text-3xl font-black text-indigo-100 group-hover:text-indigo-500 transition-colors duration-500">SVG</span>
-                                            <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-all duration-500" />
-                                        </div>
-
-                                        <div className="flex justify-between items-start">
-                                            <div className="overflow-hidden">
-                                                <h3 className="font-black text-lg text-gray-900 leading-tight truncate mb-1 pr-4">{template.name}</h3>
-                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{template.id}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => handleDelete(template.id)}
-                                                disabled={isLoading}
-                                                className="p-3 bg-gray-50 hover:bg-red-600 rounded-2xl text-gray-300 hover:text-white transition-all shadow-sm shrink-0"
-                                            >
-                                                <Trash2 size={20} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                                {templates.length === 0 && (
-                                    <div className="col-span-2 text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
-                                        <FileText className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                                        <p className="text-gray-400 font-bold tracking-tight">Cloud Storage Empty</p>
-                                    </div>
-                                )}
+                            <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-50/50 border-b border-gray-100">
+                                                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">ID / Preview</th>
+                                                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Template Title</th>
+                                                <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {templates.map((template) => (
+                                                <tr key={template.id} className="group hover:bg-indigo-50/30 transition-all duration-300">
+                                                    <td className="px-8 py-4 text-xs font-mono text-gray-400">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-indigo-600 group-hover:border-indigo-600 transition-all">
+                                                                <span className="text-[10px] font-black text-indigo-200 group-hover:text-white">SVG</span>
+                                                            </div>
+                                                            <span className="truncate max-w-[120px]">{template.id}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-4">
+                                                        <span className="font-black text-gray-900">{template.name}</span>
+                                                    </td>
+                                                    <td className="px-8 py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleDelete(template.id)}
+                                                            disabled={isLoading}
+                                                            className="p-3 bg-gray-50 hover:bg-red-600 rounded-2xl text-gray-300 hover:text-white transition-all shadow-sm"
+                                                            title="Delete Template"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
+                            {templates.length === 0 && (
+                                <div className="col-span-2 text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
+                                    <FileText className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+                                    <p className="text-gray-400 font-bold tracking-tight">Cloud Storage Empty</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
                 {message && (
                     <div className={`fixed bottom-8 right-8 p-5 rounded-3xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-500 z-[100] border-4 ${message.type === 'success'
-                            ? 'bg-indigo-600 text-white border-white/20'
-                            : 'bg-red-600 text-white border-white/20'
+                        ? 'bg-indigo-600 text-white border-white/20'
+                        : 'bg-red-600 text-white border-white/20'
                         }`}>
                         <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
                             {message.type === 'success' ? <CheckCircle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
