@@ -56,6 +56,7 @@ function DesignContent() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [uploadedDesign, setUploadedDesign] = useState<string | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [canvasSnapshot, setCanvasSnapshot] = useState<string | undefined>(undefined);
 
     // Referral State
     const [referralCode, setReferralCode] = useState('');
@@ -178,22 +179,21 @@ function DesignContent() {
             const isFS = !!document.fullscreenElement;
             setIsFullscreen(isFS);
 
-            if (isFS && isMobile && (screen.orientation as any)?.lock) {
+            if (isFS && isMobile && screen.orientation?.lock) {
                 try {
-                    await (screen.orientation as any).lock('landscape');
+                    // @ts-expect-error - orientation.lock is not standard in all types
+                    await screen.orientation.lock('landscape');
                 } catch (err) {
                     console.error('Orientation lock failed:', err);
                 }
-            } else if (!isFS && (screen.orientation as any)?.unlock) {
-                (screen.orientation as any).unlock();
+            } else if (!isFS && screen.orientation?.unlock) {
+                // @ts-expect-error - orientation.unlock is not standard in all types
+                screen.orientation.unlock();
             }
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, [isMobile]);
-
-    const productId = searchParams.get('product');
-    const aspectRatio = design.width && design.height ? design.width / design.height : undefined;
 
     // Handle Resize for Responsive Layout
     useEffect(() => {
@@ -403,6 +403,18 @@ function DesignContent() {
         }
     };
 
+    const handleOpenReview = () => {
+        const canvas = (window as any).fabricCanvas;
+        if (canvas) {
+            const json = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'id', 'data']));
+            console.log(`[DesignPage] Capturing canvas snapshot for review modal. Length: ${json.length}`);
+            setCanvasSnapshot(json);
+        } else {
+            console.warn('[DesignPage] No fabricCanvas found on window to capture snapshot.');
+        }
+        setShowReviewModal(true);
+    };
+
     const handleCheckout = async () => {
         // Validate Contact Details
         if (!contactDetails.name || !contactDetails.email || !contactDetails.mobile || !contactDetails.shippingAddress) {
@@ -470,17 +482,17 @@ function DesignContent() {
     // Mobile Layout
     if (isMobile) {
         return (
-            <div className="h-[100dvh] font-sans flex flex-col overflow-hidden bg-transparent">
+            <div className="min-h-[100dvh] bg-gray-50 font-sans flex flex-col overflow-hidden">
                 {/* Mobile Header - Sticky Top */}
-                <header className={`shrink-0 bg-slate-900/80 backdrop-blur-md px-4 py-2 flex items-center justify-between border-b border-white/10 shadow-lg z-30 transition-all ${isLandscape ? 'h-0 overflow-hidden py-0 opacity-0' : 'h-auto'}`}>
-                    <button onClick={() => router.back()} className="p-2 -ml-2 text-slate-300 hover:bg-white/10 rounded-full transition-colors">
+                <header className={`shrink-0 bg-white px-4 py-2 flex items-center justify-between shadow-sm z-30 transition-all ${isLandscape ? 'h-0 overflow-hidden py-0 opacity-0' : 'h-auto'}`}>
+                    <button onClick={() => router.back()} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
                         <ChevronLeft className="w-6 h-6" />
                     </button>
                     <div className="flex-1 text-center px-4">
                         <div className="flex items-center justify-center gap-2">
-                            <h1 className="font-bold text-white leading-tight">Design Signage</h1>
+                            <h1 className="font-bold text-gray-900 leading-tight">Design signage</h1>
                         </div>
-                        {!isLandscape && <p className="text-[10px] text-slate-400">Professional Canvas Editor</p>}
+                        {!isLandscape && <p className="text-[10px] text-gray-500">Canvas editor for this playlist</p>}
                     </div>
                     <div className="flex items-center gap-3">
                         {isSaving && (
@@ -503,39 +515,39 @@ function DesignContent() {
                 </header>
 
                 {/* Steps & Tabs - Sticky Below Header */}
-                <div className={`shrink-0 bg-slate-900/90 backdrop-blur-md px-4 transition-all duration-300 z-20 shadow-lg border-b border-white/10 ${isLandscape && mobileTab === 'design' ? 'h-0 overflow-hidden py-0 border-0 opacity-0' : 'pb-3 mt-0.5'}`}>
+                <div className={`shrink-0 bg-white px-4 transition-all duration-300 z-20 shadow-sm border-b border-gray-100 ${isLandscape && mobileTab === 'design' ? 'h-0 overflow-hidden py-0 border-0 opacity-0' : 'pb-3'}`}>
                     {!isLandscape && (
                         <div className="mb-3">
-                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-0.5 mt-2">
+                            <p className="text-[10px] font-semibold text-gray-500 mb-0.5">
                                 Step {mobileTab === 'templates' ? '1' : mobileTab === 'design' ? '2' : mobileTab === 'material' ? '3' : '4'} of 4
                             </p>
-                            <h2 className="text-base font-bold text-white tracking-tight">
+                            <h2 className="text-base font-bold text-gray-900">
                                 {mobileTab === 'templates' ? 'Select Template' : mobileTab === 'design' ? 'Design Your Signage' : mobileTab === 'material' ? 'Choose Material' : 'Finalize Order'}
                             </h2>
                         </div>
                     )}
-                    <div className="flex bg-slate-800/50 p-1 rounded-xl glass-panel gap-1">
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar gap-1">
                         <button
                             onClick={() => setMobileTab('templates')}
-                            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${mobileTab === 'templates' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${mobileTab === 'templates' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             Templates
                         </button>
                         <button
                             onClick={() => setMobileTab('design')}
-                            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${mobileTab === 'design' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${mobileTab === 'design' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             Design
                         </button>
                         <button
                             onClick={() => setMobileTab('material')}
-                            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${mobileTab === 'material' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${mobileTab === 'material' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             Material
                         </button>
                         <button
                             onClick={() => setMobileTab('order')}
-                            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${mobileTab === 'order' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                            className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${mobileTab === 'order' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             Order
                         </button>
@@ -546,41 +558,36 @@ function DesignContent() {
                 <div className="flex-1 min-h-0 relative overflow-hidden flex flex-col">
                     {/* Templates Tab */}
                     {mobileTab === 'templates' && (
-                        <div className={`${isLandscape ? 'fixed right-4 top-4 bottom-4 w-72 h-auto z-40 rounded-2xl shadow-2xl border border-white/10' : 'w-full h-full pb-24'} bg-slate-900/40 backdrop-blur-xl px-4 py-4 overflow-y-auto`}>
+                        <div className={`${isLandscape ? 'fixed right-4 top-4 bottom-4 w-72 h-auto z-40 rounded-2xl shadow-2xl border border-gray-100' : 'w-full h-full pb-24'} bg-white px-4 py-4 overflow-y-auto`}>
                             <div className="max-w-md mx-auto space-y-4">
                                 {/* Close button for side panel in landscape */}
                                 {isLandscape && (
                                     <div className="flex justify-between items-center mb-2">
-                                        <h3 className="font-bold text-white">Templates</h3>
-                                        <button onClick={() => setMobileTab('design')} className="p-2 bg-white/10 rounded-full">
-                                            <X className="w-4 h-4 text-white" />
+                                        <h3 className="font-bold text-gray-900">Templates</h3>
+                                        <button onClick={() => setMobileTab('design')} className="p-2 bg-gray-100 rounded-full">
+                                            <X className="w-4 h-4 text-gray-600" />
                                         </button>
                                     </div>
                                 )}
                                 {/* Contextual Hint */}
-                                <div className="bg-indigo-600/20 border border-indigo-500/30 p-3 rounded-xl text-[10px] text-indigo-100 flex items-start gap-2 shadow-inner">
-                                    <span className="text-base">✨</span>
-                                    <span>Choose a layout template designed for top-tier signage. High resolution and perfect fit guaranteed.</span>
+                                <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg text-xs text-purple-900 flex items-start gap-2">
+                                    <span className="text-base">💡</span>
+                                    <span>Start by selecting a layout template that fits your needs</span>
                                 </div>
 
-                                <div className="bg-slate-900/60 backdrop-blur-sm p-4 rounded-2xl shadow-xl border border-white/5 glass-panel">
-                                    <h3 className="font-bold text-slate-100 text-sm mb-4 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
-                                        Choose a Template
-                                    </h3>
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                    <h3 className="font-semibold text-gray-900 mb-4">Choose a Template</h3>
                                     <TemplateSelector
                                         selectedTemplateId={design.templateId}
                                         onSelect={(id) => {
                                             handleTemplateSelect(id);
                                         }}
-                                        currentProductId={productId || undefined}
-                                        aspectRatio={aspectRatio}
                                     />
                                 </div>
 
                                 <button
                                     onClick={() => setMobileTab('design')}
-                                    className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-6 py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 text-sm font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95"
+                                    className="w-full bg-[#7D2AE8] hover:bg-[#6a23c4] text-white px-6 py-3 rounded-xl shadow-lg shadow-purple-300 flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:shadow-xl"
                                 >
                                     Continue to Design
                                     <ArrowRight className="w-4 h-4" />
@@ -591,12 +598,12 @@ function DesignContent() {
 
                     {/* Design Tab - Canvas View */}
                     {mobileTab === 'design' && (
-                        <div className="flex-1 min-h-0 bg-slate-900/20 flex flex-col relative overflow-hidden backdrop-blur-sm">
+                        <div className="flex-1 min-h-0 bg-[#E5E7EB] flex flex-col relative overflow-hidden">
                             {!isLandscape && (
                                 <div className="p-3">
-                                    <div className="bg-indigo-900/40 backdrop-blur-sm border border-indigo-400/20 p-2 rounded-xl text-[10px] text-indigo-100 flex items-start gap-2">
-                                        <span className="text-base leading-none">🎨</span>
-                                        <span>Add premium elements using the professional toolbar below</span>
+                                    <div className="bg-purple-50 border border-purple-200 p-2 rounded-lg text-xs text-purple-900 flex items-start gap-2">
+                                        <span className="text-base leading-none">💡</span>
+                                        <span>Add text, images, or shapes using the toolbar below</span>
                                     </div>
                                 </div>
                             )}
@@ -605,7 +612,7 @@ function DesignContent() {
                             {isLandscape && (
                                 <button
                                     onClick={toggleFullscreen}
-                                    className="absolute top-4 right-4 z-50 bg-slate-900/60 backdrop-blur-md p-3 rounded-full shadow-2xl border border-white/10 text-white hover:bg-slate-800 transition-all active:scale-90"
+                                    className="absolute top-4 right-4 z-50 bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-200 text-gray-700 hover:bg-white transition-all active:scale-90"
                                     title={isFullscreen ? "Exit Fullscreen" : "Go Fullscreen"}
                                 >
                                     {isFullscreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
@@ -653,30 +660,30 @@ function DesignContent() {
 
                     {/* Mobile Bottom Toolbar - Sticky Bottom */}
                     {(mobileTab === 'design') && (
-                        <div className={`shrink-0 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 flex justify-between items-center transition-all ${isLandscape ? 'px-8 py-1.5 shadow-2xl' : 'px-6 py-2 shadow-[0_-4px_30px_rgba(0,0,0,0.3)]'} z-50`}>
+                        <div className={`shrink-0 bg-white border-t border-gray-100 flex justify-between items-center transition-all ${isLandscape ? 'px-8 py-1.5 shadow-[0_-2px_15px_rgba(0,0,0,0.1)]' : 'px-6 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'} z-50`}>
                             {/* Text */}
-                            <button onClick={() => addTextFn?.('heading')} className={`flex flex-col items-center gap-0.5 text-slate-400 hover:text-indigo-400 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
+                            <button onClick={() => addTextFn?.('heading')} className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
                                 <Type className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                                <span className="text-[9px] font-bold uppercase">Text</span>
+                                <span className="text-[10px] font-medium">Text</span>
                             </button>
 
                             {/* Image */}
-                            <button onClick={() => { setActivePicker(null); document.getElementById('mobile-image-upload')?.click(); }} className={`flex flex-col items-center gap-0.5 text-slate-400 hover:text-indigo-400 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
+                            <button onClick={() => { setActivePicker(null); document.getElementById('mobile-image-upload')?.click(); }} className={`flex flex-col items-center gap-0.5 text-gray-500 hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}>
                                 <ImageIcon className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                                <span className="text-[9px] font-bold uppercase">Image</span>
+                                <span className="text-[10px] font-medium">Image</span>
                             </button>
 
                             {/* Shapes Picker Toggle */}
                             <div className="relative">
                                 <button
                                     onClick={() => setActivePicker(activePicker === 'shapes' ? null : 'shapes')}
-                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'shapes' ? 'text-indigo-400' : 'text-slate-400'} hover:text-indigo-400 transition-colors ${isLandscape ? 'scale-90' : ''}`}
+                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'shapes' ? 'text-purple-600' : 'text-gray-500'} hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}
                                 >
                                     <Square className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                                    <span className="text-[9px] font-bold uppercase">Shapes</span>
+                                    <span className="text-[10px] font-medium">Shapes</span>
                                 </button>
                                 {activePicker === 'shapes' && (
-                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-2 grid grid-cols-4 gap-2 min-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 grid grid-cols-4 gap-2 min-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-200">
                                         {MOBILE_SHAPES.map(shape => (
                                             <button
                                                 key={shape.id}
@@ -685,10 +692,10 @@ function DesignContent() {
                                                     addShapeFn?.(shape.id);
                                                     setActivePicker(null);
                                                 }}
-                                                className="flex flex-col items-center gap-1 p-2 hover:bg-white/10 rounded-xl transition-colors group"
+                                                className="flex flex-col items-center gap-1 p-2 hover:bg-purple-50 rounded-xl transition-colors group"
                                             >
-                                                <shape.icon className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" />
-                                                <span className="text-[9px] text-slate-500 uppercase font-black">{shape.label}</span>
+                                                <shape.icon className="w-5 h-5 text-gray-600 group-hover:text-purple-600" />
+                                                <span className="text-[9px] text-gray-500 uppercase font-bold">{shape.label}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -699,13 +706,13 @@ function DesignContent() {
                             <div className="relative">
                                 <button
                                     onClick={() => setActivePicker(activePicker === 'icons' ? null : 'icons')}
-                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'icons' ? 'text-indigo-400' : 'text-slate-400'} hover:text-indigo-400 transition-colors ${isLandscape ? 'scale-90' : ''}`}
+                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'icons' ? 'text-purple-600' : 'text-gray-500'} hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}
                                 >
                                     <Grid3X3 className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                                    <span className="text-[9px] font-bold uppercase">Icons</span>
+                                    <span className="text-[10px] font-medium">Icons</span>
                                 </button>
                                 {activePicker === 'icons' && (
-                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-3 grid grid-cols-5 gap-2 min-w-[250px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 grid grid-cols-5 gap-2 min-w-[250px] animate-in fade-in slide-in-from-bottom-2 duration-200">
                                         {MOBILE_ICONS.map(icon => (
                                             <button
                                                 key={icon.id}
@@ -713,9 +720,9 @@ function DesignContent() {
                                                     addIconFn?.(icon.id);
                                                     setActivePicker(null);
                                                 }}
-                                                className="flex flex-col items-center gap-1 p-2 hover:bg-white/10 rounded-xl transition-colors group"
+                                                className="flex flex-col items-center gap-1 p-2 hover:bg-purple-50 rounded-xl transition-colors group"
                                             >
-                                                <icon.icon className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" />
+                                                <icon.icon className="w-5 h-5 text-gray-600 group-hover:text-purple-600" />
                                             </button>
                                         ))}
                                     </div>
@@ -726,24 +733,24 @@ function DesignContent() {
                             <div className="relative">
                                 <button
                                     onClick={() => setActivePicker(activePicker === 'background' ? null : 'background')}
-                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'background' ? 'text-indigo-400' : 'text-slate-400'} hover:text-indigo-400 transition-colors ${isLandscape ? 'scale-90' : ''}`}
+                                    className={`flex flex-col items-center gap-0.5 ${activePicker === 'background' ? 'text-purple-600' : 'text-gray-500'} hover:text-purple-600 transition-colors ${isLandscape ? 'scale-90' : ''}`}
                                 >
                                     <Palette className={`${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                                    <span className="text-[9px] font-bold uppercase">Board</span>
+                                    <span className="text-[10px] font-medium">Board</span>
                                 </button>
                                 {activePicker === 'background' && (
-                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-4 min-w-[280px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                    <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 min-w-[280px] animate-in fade-in slide-in-from-bottom-2 duration-200">
                                         <div className="flex items-center justify-between mb-4">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Board Style</p>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Board Style</p>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] text-slate-400">Solid</span>
+                                                <span className="text-[10px] text-gray-400">Solid</span>
                                                 <button
                                                     onClick={() => setDesign({ ...design, backgroundGradientEnabled: !design.backgroundGradientEnabled })}
-                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${design.backgroundGradientEnabled ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${design.backgroundGradientEnabled ? 'bg-purple-600' : 'bg-gray-200'}`}
                                                 >
                                                     <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${design.backgroundGradientEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                                                 </button>
-                                                <span className="text-[10px] text-slate-400">Gradient</span>
+                                                <span className="text-[10px] text-gray-400">Gradient</span>
                                             </div>
                                         </div>
 
@@ -1041,7 +1048,7 @@ function DesignContent() {
                                             </button>
                                         </div>
                                         <button
-                                            onClick={handleCheckout}
+                                            onClick={handleOpenReview}
                                             disabled={isProcessing}
                                             className="w-full py-3 bg-[#7D2AE8] hover:bg-[#6a23c4] text-white font-bold rounded-xl shadow-lg shadow-purple-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                         >
@@ -1069,34 +1076,35 @@ function DesignContent() {
 
     // Standard Desktop Layout
     return (
-        <div className="h-screen bg-transparent font-sans flex flex-col overflow-hidden relative">
-            {/* Desktop Header - Sticky Top */}
-            <header className="h-16 shrink-0 bg-slate-900/80 backdrop-blur-md px-6 flex items-center justify-between border-b border-white/10 z-30 shadow-xl">
+        <div className="h-screen bg-gray-50 font-sans overflow-hidden flex flex-col">
+            {/* Minimal Header */}
+            <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-20">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">S</div>
-                    <span className="font-bold text-white tracking-tight">Signage Studio</span>
+                    <span className="font-bold text-gray-900 tracking-tight">Signage Studio</span>
                 </div>
                 <div className="flex items-center gap-4">
                     {isSaving && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20 animate-pulse">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-                            <span className="text-[10px] font-black text-green-500 uppercase tracking-widest leading-none">Saving to Cloud...</span>
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Saving to Cloud...</span>
                         </div>
                     )}
                     {!isSaving && typeof window !== 'undefined' && localStorage.getItem('signage_draft_design') && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-                            <Check className="w-3 h-3 text-slate-400" />
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">All changes saved</span>
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+                            <Check className="w-3 h-3 text-gray-400" />
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">All changes saved</span>
                         </div>
                     )}
-                    <div className="text-sm font-bold text-slate-300">
-                        {design.width}in × {design.height}in
+                    <div className="text-sm text-gray-500">
+                        {design.width}in x {design.height}in
                     </div>
+                    <Button variant="outline" size="sm" onClick={() => { }}>Saved to Local</Button>
                 </div>
-            </header>
+            </div>
 
             <div className="flex-1 flex overflow-hidden">
-                {/* 1. Editor Sidebar (Left) */}
+                {/* 1. Main Editor Sidebar (Left) */}
                 <div className="shrink-0 h-full relative z-10">
                     <EditorSidebar
                         selectedTemplateId={design.templateId}
@@ -1109,35 +1117,35 @@ function DesignContent() {
                 </div>
 
                 {/* 2. Main Canvas Area (Center) */}
-                <main className="flex-1 h-full bg-slate-950/40 backdrop-blur-sm relative overflow-hidden flex flex-col min-h-0 group">
-                    {/* Interactive Background Glow */}
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(79,70,229,0.1),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-                    <PreviewSection
-                        uploadedDesign={uploadedDesign}
-                        data={data}
-                        design={design}
-                        onDesignChange={setDesign}
-                        material={material}
-                        onAddText={registerAddText}
-                        onAddIcon={registerAddIcon}
-                        onAddShape={registerAddShape}
-                        onAddImage={registerAddImage}
-                    />
-                </main>
+                <div className="flex-1 bg-gray-200/50 relative overflow-hidden flex flex-col min-h-0">
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+                        <PreviewSection
+                            uploadedDesign={uploadedDesign}
+                            data={data}
+                            design={design}
+                            onDesignChange={setDesign}
+                            material={material}
+                            onAddText={registerAddText}
+                            onAddIcon={registerAddIcon}
+                            onAddShape={registerAddShape}
+                            onAddImage={registerAddImage}
+                        />
+                    </div>
+                </div>
 
                 {/* 3. Properties & Checkout Panel (Right) */}
-                <div className="w-[340px] bg-slate-900/60 backdrop-blur-xl border-l border-white/10 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar flex flex-col shadow-2xl">
+                <div className="w-[340px] bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar flex flex-col">
                     <div className="p-0 flex-1">
-                        {/* Panel Header */}
-                        <div className="h-14 px-6 border-b border-white/10 flex items-center justify-between sticky top-0 bg-slate-900/40 backdrop-blur-xl z-20">
-                            <h3 className="font-black text-white text-xs uppercase tracking-[0.2em] flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
+                        {/* Header */}
+                        <div className="h-14 px-6 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
+                            <h3 className="font-bold text-white flex items-center gap-2">
                                 Configuration
                             </h3>
                             <button className="text-xs font-semibold text-indigo-400 hover:text-indigo-300">Need Help?</button>
                         </div>
 
                         <div className="p-6 space-y-8">
+
                             {/* Materials & Installation Card */}
                             <div className="space-y-6">
                                 {/* Size Controls (ReadOnly) */}
@@ -1169,7 +1177,7 @@ function DesignContent() {
                                                 <span className="text-[10px] text-gray-400">Solid</span>
                                                 <button
                                                     onClick={() => setDesign({ ...design, backgroundGradientEnabled: !design.backgroundGradientEnabled })}
-                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${design.backgroundGradientEnabled ? 'bg-indigo-600' : 'bg-gray-700'}`}
+                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${design.backgroundGradientEnabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
                                                 >
                                                     <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${design.backgroundGradientEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                                                 </button>
@@ -1179,16 +1187,16 @@ function DesignContent() {
 
                                         <div className="space-y-4">
                                             <div className="flex flex-wrap gap-2.5">
-                                                {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#4F46E5', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
+                                                {['#ffffff', '#000000', '#f1f1f1', '#e5e7eb', '#7D2AE8', '#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#ec4899'].map(color => (
                                                     <button
                                                         key={color}
                                                         onClick={() => setDesign({ ...design, backgroundColor: color })}
-                                                        className={`w-7 h-7 rounded-full shadow-sm transition-all hover:scale-110 focus:outline-none ${design.backgroundColor === color ? 'ring-2 ring-offset-2 ring-offset-slate-900 ring-indigo-500 scale-110' : 'ring-1 ring-white/10 hover:ring-white/20'}`}
+                                                        className={`w-7 h-7 rounded-full shadow-sm transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${design.backgroundColor === color ? 'ring-2 ring-offset-1 ring-indigo-600 scale-110 z-10' : 'ring-1 ring-black/5 hover:ring-black/10'}`}
                                                         style={{ backgroundColor: color }}
                                                         title={color}
                                                     />
                                                 ))}
-                                                <div className="relative w-7 h-7 rounded-full ring-1 ring-white/10 overflow-hidden shadow-sm hover:ring-white/20 transition-all">
+                                                <div className="relative w-7 h-7 rounded-full ring-1 ring-black/5 overflow-hidden shadow-sm hover:ring-black/20 transition-all">
                                                     <input
                                                         type="color"
                                                         value={design.backgroundColor}
@@ -1204,7 +1212,7 @@ function DesignContent() {
                                                 <div className="p-4 bg-slate-800 rounded-xl border border-slate-700 space-y-4 animate-in slide-in-from-top-2 duration-200">
                                                     <div className="flex items-center justify-between gap-4">
                                                         <div className="flex-1 space-y-1">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase">End Color</label>
+                                                            <label className="text-[10px] font-bold text-gray-300 uppercase">End Color</label>
                                                             <div className="relative h-8 w-full rounded-lg border border-slate-600 overflow-hidden group">
                                                                 <input
                                                                     type="color"
@@ -1220,7 +1228,7 @@ function DesignContent() {
                                                         </div>
                                                         <div className="flex-1 space-y-1">
                                                             <div className="flex justify-between items-center">
-                                                                <label className="text-[10px] font-bold text-slate-400 uppercase">Angle</label>
+                                                                <label className="text-[10px] font-bold text-gray-300 uppercase">Angle</label>
                                                                 <span className="text-[10px] font-bold text-indigo-400">{design.backgroundGradientAngle}°</span>
                                                             </div>
                                                             <input
@@ -1243,7 +1251,7 @@ function DesignContent() {
                                         <Button
                                             onClick={() => handleDownload('svg')}
                                             variant="outline"
-                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-indigo-400 hover:border-indigo-500 transition-all"
+                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-indigo-400 hover:border-indigo-500"
                                         >
                                             <Download className="w-3.5 h-3.5" />
                                             SVG
@@ -1251,7 +1259,7 @@ function DesignContent() {
                                         <Button
                                             onClick={() => handleDownload('pdf')}
                                             variant="outline"
-                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-red-400 hover:border-red-500 transition-all"
+                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-red-400 hover:border-red-500"
                                         >
                                             <Download className="w-3.5 h-3.5" />
                                             PDF
@@ -1269,7 +1277,7 @@ function DesignContent() {
                                 </div>
 
                                 {/* Professional Installation */}
-                                <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-indigo-500/50 transition-colors">
+                                <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                                     <label className="flex items-start gap-3 cursor-pointer group">
                                         <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-all shadow-sm ${includeInstallation ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-slate-700 border-slate-600 group-hover:border-indigo-500'}`}>
                                             {includeInstallation && <Check className="w-3.5 h-3.5 text-white" />}
@@ -1285,7 +1293,7 @@ function DesignContent() {
                                                 <span className="text-sm font-bold text-white">Professional Installation</span>
                                                 <span className="text-xs font-bold text-indigo-300 bg-indigo-900/50 px-2 py-0.5 rounded-full">+₹{INSTALLATION_COST}</span>
                                             </div>
-                                            <p className="text-xs text-slate-400">Our expert team handles the mounting.</p>
+                                            <p className="text-xs text-gray-400">Our expert team handles the mounting.</p>
                                         </div>
                                     </label>
                                 </div>
@@ -1297,31 +1305,31 @@ function DesignContent() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setPaymentScheme('part')}
-                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 hover:border-slate-600 bg-slate-800'}`}
+                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-indigo-500 bg-indigo-900/30 shadow-sm' : 'border-slate-700 hover:border-slate-600 bg-slate-800'}`}
                                     >
                                         <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'part' ? 'border-indigo-500' : 'border-slate-600'}`}>
                                             {paymentScheme === 'part' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
                                         </div>
                                         <p className="font-bold text-sm text-white">Part Pay</p>
-                                        <p className="text-[10px] text-slate-400 leading-tight mt-1">Pay 25% now, rest on delivery</p>
+                                        <p className="text-[10px] text-gray-400 leading-tight mt-1">Pay 25% now, rest on delivery</p>
                                     </button>
 
                                     <button
                                         onClick={() => setPaymentScheme('full')}
-                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 hover:border-slate-600 bg-slate-800'}`}
+                                        className={`relative p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-indigo-500 bg-indigo-900/30 shadow-sm' : 'border-slate-700 hover:border-slate-600 bg-slate-800'}`}
                                     >
                                         <div className={`w-4 h-4 rounded-full border mb-2 flex items-center justify-center ${paymentScheme === 'full' ? 'border-indigo-500' : 'border-slate-600'}`}>
                                             {paymentScheme === 'full' && <div className="w-2 h-2 rounded-full bg-indigo-500" />}
                                         </div>
                                         <p className="font-bold text-sm text-white">Full Pay</p>
-                                        <p className="text-[10px] text-slate-400 leading-tight mt-1">Pay 100% upfront</p>
+                                        <p className="text-[10px] text-gray-400 leading-tight mt-1">Pay 100% upfront</p>
                                     </button>
                                 </div>
 
                                 {paymentScheme === 'part' && (
                                     <div className="mt-3 p-3 bg-slate-800 border border-slate-700 rounded-lg animate-in slide-in-from-top-2">
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-semibold text-slate-300">Advance Amount</label>
+                                            <label className="text-xs font-semibold text-gray-300">Advance Amount</label>
                                             <span className="text-[10px] text-indigo-400 font-medium">Min: ₹{Math.ceil(price * 0.25)}</span>
                                         </div>
                                         <div className="relative">
@@ -1345,12 +1353,12 @@ function DesignContent() {
                     <div className="p-5 border-t border-slate-800 bg-slate-900/80 space-y-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.4)] z-20">
                         {/* Price Rows */}
                         <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-slate-400">
+                            <div className="flex justify-between text-xs text-gray-400">
                                 <span>Subtotal</span>
                                 <span>₹{basePrice}</span>
                             </div>
                             {(deliveryCost > 0 || installationCost > 0) && (
-                                <div className="flex justify-between text-xs text-slate-400">
+                                <div className="flex justify-between text-xs text-gray-400">
                                     <span>Extras (Delivery/Install)</span>
                                     <span>₹{deliveryCost + installationCost}</span>
                                 </div>
@@ -1384,13 +1392,13 @@ function DesignContent() {
                                     }
                                 }}
                                 placeholder="Referral Code (Optional)"
-                                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-500 ring-green-500 bg-green-900/30 text-green-300 placeholder-green-500' : 'border-slate-700 focus:border-indigo-500 bg-slate-800 text-white placeholder-slate-500'}`}
+                                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-500 ring-green-500 bg-green-900/30 text-green-300 placeholder-green-500' : 'border-slate-700 focus:border-indigo-500 bg-slate-800 text-white placeholder-gray-500'}`}
                             />
                             {codeValidated && <div className="absolute right-3 top-2 text-green-400 text-xs font-bold">✓ APPLIED</div>}
                         </div>
 
                         <button
-                            onClick={() => setShowReviewModal(true)}
+                            onClick={handleOpenReview}
                             disabled={isProcessing}
                             className="w-full group bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-base shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100"
                         >
@@ -1411,6 +1419,7 @@ function DesignContent() {
                     setShowReviewModal(false);
                     await handleCheckout();
                 }}
+                canvasJSON={canvasSnapshot}
             />
 
             <WhatsAppButton

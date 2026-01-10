@@ -14,9 +14,10 @@ interface ReviewApprovalProps {
     isOpen: boolean;
     onClose: () => void;
     onApprove: () => void;
+    canvasJSON?: string;
 }
 
-export function ReviewApproval({ data, design, material, isOpen, onClose, onApprove }: ReviewApprovalProps) {
+export function ReviewApproval({ data, design, material, isOpen, onClose, onApprove, canvasJSON }: ReviewApprovalProps) {
     const [isApproved, setIsApproved] = React.useState(false);
     const [isMounted, setIsMounted] = React.useState(false);
     const canvasRef = useRef<fabric.Canvas | null>(null);
@@ -78,15 +79,8 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                                     data={data}
                                     design={design}
                                     material={material}
-                                    onMount={(canvas) => {
-                                        canvasRef.current = canvas;
-                                        // Disable all interactions
-                                        canvas.selection = false;
-                                        canvas.forEachObject((obj) => {
-                                            obj.selectable = false;
-                                            obj.evented = false;
-                                        });
-                                    }}
+                                    isReadOnly={true}
+                                    initialJSON={canvasJSON}
                                 />
                                 <div className="absolute inset-0 pointer-events-none border-[12px] border-white/10" />
                             </div>

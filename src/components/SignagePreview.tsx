@@ -37,8 +37,7 @@ export function SignagePreview({
             material={material}
             onMount={(canvas) => {
                 canvasRef.current = canvas;
-                // @ts-ignore
-                window.fabricCanvas = canvas; // Expose for debug/download
+                (window as any).fabricCanvas = canvas; // Expose for debug/download
             }}
             onDesignChange={onDesignChange}
             onAddText={onAddText}
@@ -49,4 +48,3 @@ export function SignagePreview({
         />
     );
 }
-

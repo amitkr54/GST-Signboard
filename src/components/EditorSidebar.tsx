@@ -119,10 +119,11 @@ export function EditorSidebar({
     return (
         <div className="flex h-full bg-slate-900 border-r border-white/10">
             {/* 1. Slim Vertical Navigation Rail */}
-            <div className="w-[72px] flex flex-col items-center py-6 gap-4 bg-slate-900 text-slate-400 z-10 shrink-0 h-full shadow-xl">
+            <div id="tutorial-sidebar-rail" className="w-[72px] flex flex-col items-center py-6 gap-4 bg-slate-900 text-slate-400 z-10 shrink-0 h-full shadow-xl">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
+                        id={`tutorial-tab-${tab.id}`}
                         onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
                         className={`group relative w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-all duration-300 ${activeTab === tab.id
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'

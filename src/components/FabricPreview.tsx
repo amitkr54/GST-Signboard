@@ -30,6 +30,8 @@ interface FabricPreviewProps {
     onDataChange?: (data: Partial<SignageData>) => void;
     compact?: boolean;
     isLandscape?: boolean;
+    isReadOnly?: boolean;
+    initialJSON?: string;
 }
 
 export function FabricPreview({
@@ -44,7 +46,9 @@ export function FabricPreview({
     onAddImage,
     onDataChange,
     compact = false,
-    isLandscape = false
+    isLandscape = false,
+    isReadOnly = false,
+    initialJSON
 }: FabricPreviewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
@@ -55,7 +59,6 @@ export function FabricPreview({
     const lastScaleRef = useRef<number>(0.1);
     const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
     const [dynamicTemplates, setDynamicTemplates] = useState<typeof TEMPLATES>(TEMPLATES);
-    const [isStabilized, setIsStabilized] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
     const [hasSafetyViolation, setHasSafetyViolation] = useState(false);
 
@@ -67,6 +70,7 @@ export function FabricPreview({
         if (u === 'in') { w *= DPI; h *= DPI; }
         else if (u === 'cm') { w *= (DPI / 2.54); h *= (DPI / 2.54); }
         else if (u === 'mm') { w *= (DPI / 25.4); h *= (DPI / 25.4); }
+        console.log(`[FabricPreview] Dimensions: ${design.width}x${design.height} ${u} -> ${w}x${h} px`);
         return { width: Math.round(w), height: Math.round(h) };
     }, [design.width, design.height, design.unit]);
 
@@ -100,11 +104,6 @@ export function FabricPreview({
     );
 
     useEffect(() => {
-        const timer = setTimeout(() => setIsStabilized(true), 800);
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
         const fetchTemplates = async () => {
             const templates = await getTemplates();
             if (templates && templates.length > 0) setDynamicTemplates(templates as any);
@@ -117,9 +116,12 @@ export function FabricPreview({
     // Canvas Initialization
     useEffect(() => {
         if (!canvasRef.current || fabricCanvasRef.current) return;
+
+        console.log(`[FabricPreview] Initializing Canvas ${baseWidth}x${baseHeight} (isReadOnly: ${isReadOnly})`);
+
         const canvas = new fabric.Canvas(canvasRef.current, {
             width: baseWidth, height: baseHeight, backgroundColor: design.backgroundColor,
-            selection: true, renderOnAddRemove: true, preserveObjectStacking: true
+            selection: !isReadOnly, renderOnAddRemove: true, preserveObjectStacking: true
         });
 
         // Debug listener for alignment state
@@ -140,16 +142,36 @@ export function FabricPreview({
         fabricCanvasRef.current = canvas;
         setCanvasInstance(canvas);
 
-        // Attach to window for global access (e.g. handleDownload)
-        (window as any).fabricCanvas = canvas;
+        // Attach to window for global access - ONLY if not read only
+        if (!isReadOnly) {
+            (window as any).fabricCanvas = canvas;
+        }
 
         // Initialize alignment guidelines
         const disposeGuidelines = initAligningGuidelines(canvas);
 
         if (onMount) onMount(canvas);
 
-        const savedJSON = localStorage.getItem('signage_canvas_json');
+        return () => {
+            console.log('[FabricPreview] Disposing Canvas');
+            if (disposeGuidelines) disposeGuidelines();
+            canvas.dispose();
+            fabricCanvasRef.current = null;
+            setCanvasInstance(null);
+            if (!isReadOnly && (window as any).fabricCanvas === canvas) {
+                delete (window as any).fabricCanvas;
+            }
+        };
+    }, []);
+
+    // JSON Loading Logic (initialJSON or localStorage)
+    useEffect(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const savedJSON = initialJSON || (!isReadOnly ? localStorage.getItem('signage_canvas_json') : null);
         if (savedJSON) {
+            console.log(`[FabricPreview] Loading JSON (isReadOnly: ${isReadOnly})`);
             try {
                 setIsProcessing(true);
                 canvas.loadFromJSON(savedJSON, () => {
@@ -162,22 +184,39 @@ export function FabricPreview({
                             transparentCorners: false,
                             padding: 0,
                             cornerStyle: 'circle',
-                            borderScaleFactor: 2.5
+                            borderScaleFactor: 2.5,
+                            selectable: !isReadOnly,
+                            evented: !isReadOnly
                         });
                     });
+
+                    // CRITICAL: Re-apply scaling and zoom after load
+                    const currentScale = lastScaleRef.current;
+                    canvas.setDimensions({ width: baseWidth * currentScale, height: baseHeight * currentScale });
+                    canvas.setZoom(currentScale);
                     canvas.renderAll();
+
                     setInitialHistory(savedJSON);
                     setIsProcessing(false);
+                    console.log(`[FabricPreview] JSON Load Complete, Scale: ${currentScale}, Object Count: ${canvas.getObjects().length}`);
+                    canvas.getObjects().forEach((obj, i) => {
+                        console.log(`[FabricPreview] Object ${i}: type=${obj.type}, name=${(obj as any).name}, visible=${obj.visible}, opacity=${obj.opacity}, zIndex=${canvas.getObjects().indexOf(obj)}`);
+                    });
                 });
             } catch (err) {
-                console.error('Restore failed', err);
+                console.error('[FabricPreview] Restore failed', err);
                 setIsProcessing(false);
             }
         }
+    }, [canvasInstance, initialJSON, isReadOnly, baseWidth, baseHeight]);
 
-        // Global font loading listener to re-sync all text boxes when new fonts arrive
-        if ((window as any).document?.fonts) {
+    // Font Loading Listener
+    useEffect(() => {
+        if (typeof window !== 'undefined' && (window as any).document?.fonts) {
             const handleFontsReady = () => {
+                const canvas = fabricCanvasRef.current;
+                if (!canvas) return;
+
                 const textObjects = canvas.getObjects().filter(obj =>
                     obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text'
                 );
@@ -206,14 +245,7 @@ export function FabricPreview({
 
             (document as any).fonts.ready.then(handleFontsReady);
         }
-
-        return () => {
-            if (disposeGuidelines) disposeGuidelines();
-            canvas.dispose();
-            fabricCanvasRef.current = null;
-            setCanvasInstance(null);
-        };
-    }, []);
+    }, [baseWidth, baseHeight]);
 
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -226,7 +258,7 @@ export function FabricPreview({
         setContextMenu({ x: e.clientX, y: e.clientY });
     };
 
-    const handleAction = (action: string) => {
+    const handleAction = useCallback((action: string) => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
         const activeObject = canvas.getActiveObject();
@@ -309,15 +341,29 @@ export function FabricPreview({
             case 'align-bottom': activeObject?.set({ top: baseHeight - activeObject.getScaledHeight() / 2 }); break;
         }
         canvas.requestRenderAll();
-    };
+    }, [baseWidth, baseHeight, saveHistory, checkSafetyArea]);
 
     // Scaling Logic
     useEffect(() => {
         const updateScale = () => {
             const container = containerRef.current;
             if (!container) return;
-            const sc = Math.max(0.1, Math.min(1.0, (container.clientWidth * 0.95) / baseWidth, (container.clientHeight * 0.95) / baseHeight));
-            if (Math.abs(sc - lastScaleRef.current) > 0.0001) { lastScaleRef.current = sc; setScale(sc); }
+
+            const targetWidth = container.clientWidth;
+            const targetHeight = container.clientHeight;
+
+            // If dimensions are 0 (hidden or mounting), don't update scale yet
+            if (targetWidth === 0 || targetHeight === 0) {
+                console.log('[FabricPreview] Skipping scale update - container size is 0');
+                return;
+            }
+
+            const sc = Math.max(0.1, Math.min(1.0, (targetWidth * 0.95) / baseWidth, (targetHeight * 0.95) / baseHeight));
+            if (Math.abs(sc - lastScaleRef.current) > 0.0001) {
+                console.log(`[FabricPreview] Updating scale: ${lastScaleRef.current} -> ${sc} (${targetWidth}x${targetHeight})`);
+                lastScaleRef.current = sc;
+                setScale(sc);
+            }
         };
         const ro = new ResizeObserver(() => requestAnimationFrame(updateScale));
         if (containerRef.current) ro.observe(containerRef.current);
@@ -326,6 +372,7 @@ export function FabricPreview({
         return () => { ro.disconnect(); window.removeEventListener('resize', updateScale); };
     }, [baseWidth, baseHeight]);
 
+    // Apply Scaling to Canvas
     useEffect(() => {
         if (canvasInstance) {
             canvasInstance.setDimensions({ width: baseWidth * scale, height: baseHeight * scale });
@@ -336,15 +383,9 @@ export function FabricPreview({
     }, [canvasInstance, scale, baseWidth, baseHeight]);
 
     // Template Loading Flow
-    // Stable refs for callbacks to avoid re-triggering the loading effect
-    const templateCallbacksRef = useRef({ updateTemplateContent, renderSVGTemplate });
-    useEffect(() => {
-        templateCallbacksRef.current = { updateTemplateContent, renderSVGTemplate };
-    }, [updateTemplateContent, renderSVGTemplate]);
-
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
+        if (!canvas || initialJSON) return;
 
         setIsProcessing(true);
         const templateConfig = dynamicTemplates.find(t => t.id === design.templateId);
@@ -369,38 +410,44 @@ export function FabricPreview({
                             canvas.add(newTxt);
                         } else obj.set({ selectable: true, evented: true });
                     });
-                    templateCallbacksRef.current.updateTemplateContent();
+
+                    // Re-apply scaling and zoom after template load
+                    canvas.setDimensions({ width: baseWidth * scale, height: baseHeight * scale });
+                    canvas.setZoom(scale);
+                    canvas.renderAll();
+
+                    updateTemplateContent();
                     finalizeLoad();
                 });
             } else if (templateConfig.svgPath) {
                 fetch(templateConfig.svgPath)
                     .then(r => r.text())
                     .then(svgText => {
-                        templateCallbacksRef.current.renderSVGTemplate(templateConfig.components, svgText);
+                        renderSVGTemplate(templateConfig.components, svgText);
                         finalizeLoad();
                     });
             } else {
-                templateCallbacksRef.current.updateTemplateContent();
+                updateTemplateContent();
                 finalizeLoad();
             }
         } else {
-            templateCallbacksRef.current.updateTemplateContent();
+            updateTemplateContent();
             finalizeLoad();
         }
-    }, [design.templateId, dynamicTemplates, setIsProcessing, saveHistory]);
+    }, [design.templateId, dynamicTemplates, setIsProcessing, saveHistory, initialJSON, baseWidth, baseHeight, scale]);
 
     // Prop sync
     useEffect(() => { updateTemplateContent(); }, [data, design.backgroundColor, design.fontFamily, design.textColor, design.fontSize, design.companyNameSize]);
 
-    // Debounced History Save for Design changes (Sliders/Colors in Sidebar)
+    // Debounced History Save
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
+        if (!canvas || isReadOnly) return;
         const timer = setTimeout(() => {
             saveHistory(canvas);
         }, 500);
         return () => clearTimeout(timer);
-    }, [design, saveHistory]);
+    }, [design, saveHistory, isReadOnly]);
 
     // Prop Registration
     useEffect(() => {
@@ -411,11 +458,11 @@ export function FabricPreview({
     }, [onAddText, onAddIcon, onAddShape, onAddImage, addText, addIcon, addShape, addImage]);
 
     return (
-        <div className="flex-1 w-full relative overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col min-h-0">
             {/* 1. Floating Toolbar */}
             <div className="absolute top-0 left-0 right-0 z-[100] transition-all duration-300 pointer-events-none">
                 <div className="flex justify-center p-2 pointer-events-auto">
-                    {selectedObject && (
+                    {selectedObject && !isReadOnly && (
                         <TextFormatToolbar
                             selectedObject={selectedObject}
                             compact={compact}
@@ -437,7 +484,7 @@ export function FabricPreview({
                 </div>
             </div>
 
-            {/* 2. Main Canvas Container - Absolute Centering Wrapper */}
+            {/* 2. Main Canvas Container */}
             <div className="absolute inset-0 flex items-center justify-center p-4">
                 <div ref={containerRef} className="w-full h-full flex items-center justify-center relative overflow-hidden bg-transparent" onContextMenu={handleContextMenu}>
                     <div className="bg-white rounded-sm shadow-2xl relative flex items-center justify-center shrink-0" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
@@ -454,10 +501,10 @@ export function FabricPreview({
                         )}
                     </div>
 
-                    {contextMenu && (
+                    {contextMenu && !isReadOnly && (
                         <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onAction={handleAction} hasSelection={!!selectedObject} isLocked={!!selectedObject?.lockMovementX} />
                     )}
-                    <CanvasInteractionDebugger selectedObject={selectedObject} alignmentDebug={alignmentDebug} />
+                    {!isReadOnly && <CanvasInteractionDebugger selectedObject={selectedObject} alignmentDebug={alignmentDebug} />}
                 </div>
             </div>
         </div>

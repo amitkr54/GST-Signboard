@@ -13,8 +13,7 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
     };
 
     const handleDownload = async (type: 'svg' | 'pdf') => {
-        // @ts-ignore
-        const canvas = window.fabricCanvas;
+        const canvas = (window as any).fabricCanvas;
         if (!canvas) {
             alert('Preview not ready yet');
             return;
