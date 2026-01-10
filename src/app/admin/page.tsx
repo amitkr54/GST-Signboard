@@ -12,7 +12,6 @@ import { fabric } from 'fabric';
 import { Product, ProductSize } from '@/lib/products';
 import {
     saveProductAction, deleteProductAction, uploadProductImages,
-    saveTemplateAction, deleteTemplateAction, uploadTemplateThumbnail,
     uploadTemplate, getTemplates, deleteTemplate as deleteTemplateActionImport
 } from '../actions';
 
@@ -431,27 +430,27 @@ export default function AdminPage() {
 
     if (!isAuthenticated) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+            <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="max-w-md w-full">
-                    <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-indigo-100 animate-in fade-in zoom-in duration-500">
-                        <div className="bg-indigo-600 p-8 text-center">
-                            <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                                <Package className="w-10 h-10 text-white" />
+                    <div className="bg-slate-900/50 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/10 animate-in fade-in zoom-in duration-500">
+                        <div className="bg-indigo-600/20 p-8 text-center border-b border-white/5">
+                            <div className="w-20 h-20 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                                <Package className="w-10 h-10 text-indigo-400" />
                             </div>
                             <h1 className="text-2xl font-black text-white">Admin Access</h1>
-                            <p className="text-indigo-100 text-sm mt-1">SignagePro Management Portal</p>
+                            <p className="text-indigo-200 text-sm mt-1">SignagePro Management Portal</p>
                         </div>
 
                         <form onSubmit={handleLogin} className="p-8 space-y-6">
                             <div className="space-y-2">
-                                <label className="block text-sm font-bold text-gray-700 ml-1">Administrator PIN</label>
+                                <label className="block text-sm font-bold text-indigo-200 ml-1">Administrator PIN</label>
                                 <div className="relative">
                                     <input
                                         type="password"
                                         value={loginPin}
                                         onChange={(e) => setLoginPin(e.target.value)}
                                         placeholder="••••"
-                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-indigo-500 focus:ring-0 outline-none transition-all text-center text-2xl tracking-widest font-mono"
+                                        className="w-full px-6 py-4 bg-black/20 border-2 border-white/10 rounded-2xl focus:border-indigo-500 focus:ring-0 outline-none transition-all text-center text-2xl tracking-widest font-mono text-white placeholder-white/20"
                                         required
                                         autoFocus
                                     />
@@ -459,7 +458,7 @@ export default function AdminPage() {
                             </div>
 
                             {message?.type === 'error' && (
-                                <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center gap-3 text-sm animate-shake">
+                                <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl flex items-center gap-3 text-sm animate-shake">
                                     <AlertCircle className="w-5 h-5 shrink-0" />
                                     <span className="font-semibold">{message.text}</span>
                                 </div>
@@ -467,7 +466,7 @@ export default function AdminPage() {
 
                             <Button
                                 type="submit"
-                                className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-indigo-200 transition-all active:scale-[0.98]"
+                                className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]"
                             >
                                 Unlock Dashboard
                             </Button>
@@ -501,38 +500,38 @@ export default function AdminPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+        <div className="min-h-screen">
             <div className="max-w-7xl mx-auto p-6">
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-4xl font-black text-gray-900 mb-2">Admin Dashboard</h1>
-                        <p className="text-gray-600">Manage your products and templates</p>
+                        <h1 className="text-4xl font-black text-white mb-2">Admin Dashboard</h1>
+                        <p className="text-indigo-200">Manage your products and templates</p>
                     </div>
                     <Button
                         variant="outline"
                         onClick={() => setIsAuthenticated(false)}
-                        className="rounded-xl border-gray-200 hover:bg-gray-50"
+                        className="rounded-xl border-white/10 hover:bg-white/10 text-white"
                     >
                         Sign Out
                     </Button>
                 </div>
 
-                <div className="flex gap-2 mb-6 border-b border-gray-200">
+                <div className="flex gap-2 mb-6 border-b border-white/10">
                     <button
                         onClick={() => setActiveTab('products')}
-                        className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'products' ? 'text-indigo-600' : 'text-gray-600 hover:text-gray-900'}`}
+                        className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'products' ? 'text-indigo-400' : 'text-slate-400 hover:text-white'}`}
                     >
                         <Package className="w-5 h-5 inline mr-2" />
                         Products
-                        {activeTab === 'products' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
+                        {activeTab === 'products' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
                     </button>
                     <button
                         onClick={() => setActiveTab('templates')}
-                        className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'templates' ? 'text-indigo-600' : 'text-gray-600 hover:text-gray-900'}`}
+                        className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'templates' ? 'text-indigo-400' : 'text-slate-400 hover:text-white'}`}
                     >
                         <FileText className="w-5 h-5 inline mr-2" />
                         Templates
-                        {activeTab === 'templates' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />}
+                        {activeTab === 'templates' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
                     </button>
                 </div>
 
@@ -790,24 +789,24 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/10 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="bg-gray-50/50 border-b border-gray-100">
-                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Product</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Sizes</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Price</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                        <tr className="bg-white/5 border-b border-white/10">
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Product</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Category</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Sizes</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Price</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
+                                    <tbody className="divide-y divide-white/5">
                                         {products.map(product => (
-                                            <tr key={product.id} className="group hover:bg-indigo-50/30 transition-all duration-300">
+                                            <tr key={product.id} className="group hover:bg-white/5 transition-all duration-300">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded-xl border border-gray-100 flex-shrink-0 bg-gray-50 overflow-hidden shadow-sm">
+                                                        <div className="w-12 h-12 rounded-xl border border-white/10 flex-shrink-0 bg-white/5 overflow-hidden shadow-sm">
                                                             <img
                                                                 src={product.image || '/products/placeholder.jpg'}
                                                                 alt=""
@@ -815,28 +814,28 @@ export default function AdminPage() {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <p className="font-black text-gray-900 leading-none mb-1">{product.name}</p>
-                                                            <p className="text-[10px] text-gray-400 line-clamp-1 max-w-[200px]">
+                                                            <p className="font-black text-white leading-none mb-1">{product.name}</p>
+                                                            <p className="text-[10px] text-slate-400 line-clamp-1 max-w-[200px]">
                                                                 {(product.description || '').replace(/<[^>]*>/g, '')}
                                                             </p>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="text-[9px] px-2.5 py-1 bg-white text-indigo-600 rounded-full font-black uppercase tracking-widest border border-indigo-100 shadow-sm">
+                                                    <span className="text-[9px] px-2.5 py-1 bg-indigo-500/10 text-indigo-300 rounded-full font-black uppercase tracking-widest border border-indigo-500/20 shadow-sm">
                                                         {product.category}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-lg border border-gray-100">
-                                                        <Layout className="w-3 h-3 text-gray-400" />
-                                                        <span className="text-[10px] font-bold text-gray-600">{(product.sizes || []).length}</span>
+                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-lg border border-white/10">
+                                                        <Layout className="w-3 h-3 text-slate-400" />
+                                                        <span className="text-[10px] font-bold text-slate-300">{(product.sizes || []).length}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-indigo-600">₹{product.priceFrom}</span>
-                                                        <span className="text-[8px] text-gray-300 font-bold uppercase tracking-tighter">Starting</span>
+                                                        <span className="text-xs font-black text-emerald-400">₹{product.priceFrom}</span>
+                                                        <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Starting</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">

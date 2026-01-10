@@ -46,12 +46,12 @@ export function ProductCatalog() {
     }
 
     return (
-        <section id="products" className="py-20 bg-white relative">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="products" className="py-20 relative">
+            <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-12">
-                    <p className="text-sm font-bold text-indigo-600 mb-2 uppercase tracking-wider">Our Products</p>
-                    <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">Browse Signage Products</h2>
-                    <p className="text-lg text-gray-600 max-w-3xl">Professional signage solutions for every business need</p>
+                    <p className="text-sm font-bold text-indigo-400 mb-2 uppercase tracking-wider">Our Products</p>
+                    <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">Browse Signage Products</h2>
+                    <p className="text-lg text-indigo-100 max-w-3xl">Professional signage solutions for every business need</p>
                 </div>
 
                 {/* Category Filter */}
@@ -61,8 +61,8 @@ export function ProductCatalog() {
                             key={category.id}
                             onClick={() => setActiveCategory(category.id)}
                             className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all duration-300 ${activeCategory === category.id
-                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-105'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-white text-indigo-900 shadow-lg shadow-white/20 scale-105'
+                                : 'bg-white/10 text-indigo-100 hover:bg-white/20'
                                 }`}
                         >
                             {category.name}
@@ -71,45 +71,49 @@ export function ProductCatalog() {
                 </div>
 
                 {/* Product Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
-                    {filteredProducts.slice(0, 6).map((product, index) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+                    {filteredProducts.slice(0, 8).map((product, index) => (
                         <Link
                             href={`/products/${product.id}`}
                             key={product.id}
-                            className="group"
+                            className="group flex flex-col bg-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1"
                         >
-                            <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-gray-100 relative animate-in fade-in slide-in-from-bottom-4 duration-700"
-                                style={{ animationDelay: `${index * 50}ms` }}
-                            >
-                                {/* Price Badge */}
-                                <div className="absolute top-3 left-3 z-10 px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white text-xs font-black rounded-full shadow-lg">
-                                    BUY 1 @ ₹{product.priceFrom}
-                                </div>
+                            {/* Product Title (Above Image) */}
+                            <div className="p-6 pb-4">
+                                <h3 className="font-bold text-2xl leading-tight mb-2 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-indigo-300" style={{ fontFamily: '"Playfair Display", serif' }}>
+                                    {product.name}
+                                </h3>
+                                <p className="text-xs text-indigo-300 font-bold uppercase tracking-widest opacity-80 bg-indigo-500/10 inline-block px-2 py-1 rounded-md font-sans">
+                                    {product.category}
+                                </p>
+                            </div>
 
-                                {/* Product Image */}
-                                <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                            {/* Image Container */}
+                            <div className="px-2">
+                                <div className="aspect-[4/3] rounded-lg overflow-hidden relative bg-black/20">
                                     {product.image && product.image !== '/products/placeholder.jpg' ? (
                                         <img
                                             src={product.image}
                                             alt={product.name}
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-gray-50">
-                                            <div className="w-20 h-20 bg-gradient-to-br from-indigo-200 to-purple-200 rounded-3xl flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-500 shadow-inner">
-                                                <Layout className="w-10 h-10 text-indigo-600" />
-                                            </div>
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
+                                            <Layout className="w-16 h-16 text-indigo-400/50" />
                                         </div>
                                     )}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 </div>
+                            </div>
 
-                                {/* Product Name */}
-                                <div className="p-4 text-center">
-                                    <h3 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors mb-1">{product.name}</h3>
-                                    <div className="flex items-center justify-center gap-1 text-yellow-500 text-xs">
-                                        <span>★</span>
-                                        <span className="text-gray-600 font-semibold">{product.rating}</span>
+                            {/* Action Area: Price & CTA */}
+                            <div className="p-6 mt-auto flex items-center justify-between gap-4">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Starting at</span>
+                                    <span className="text-2xl font-black text-white">₹{product.priceFrom}</span>
+                                </div>
+                                <div className="bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl transition-all duration-300 group-hover:shadow-lg group-hover:shadow-indigo-500/25 group-hover:scale-105">
+                                    <div className="flex items-center gap-2 font-bold text-sm px-2">
+                                        Customize <ChevronRight className="w-4 h-4" />
                                     </div>
                                 </div>
                             </div>
@@ -118,11 +122,11 @@ export function ProductCatalog() {
                 </div>
 
                 {/* View All Button */}
-                {filteredProducts.length > 6 && (
+                {filteredProducts.length > 8 && (
                     <div className="text-center">
                         <Button
                             variant="outline"
-                            className="gap-2 group  border-2 hover:border-indigo-600 hover:text-indigo-600 px-8 py-3"
+                            className="gap-2 group border-2 border-white/10 hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white px-8 py-3 rounded-full text-indigo-200"
                         >
                             View All {activeCategory !== 'all' ? PRODUCT_CATEGORIES.find(c => c.id === activeCategory)?.name : 'Products'}
                             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

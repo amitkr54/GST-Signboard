@@ -106,18 +106,18 @@ function DashboardContent() {
 
     if (!user && !data) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Users className="w-8 h-8 text-blue-600" />
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-8 max-w-md w-full text-center shadow-2xl">
+                    <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Users className="w-8 h-8 text-indigo-400" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Partner Dashboard</h2>
-                    <p className="text-gray-600 mb-8">
+                    <h2 className="text-2xl font-bold text-white mb-4">Partner Dashboard</h2>
+                    <p className="text-indigo-200 mb-8">
                         Sign in to view your earnings, track referrals, and manage your account.
                     </p>
                     <button
                         onClick={signInWithGoogle}
-                        className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                        className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
                     >
                         <LogIn className="w-5 h-5" />
                         Sign in with Google
@@ -129,52 +129,52 @@ function DashboardContent() {
 
     if (user && !data) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-8 max-w-md w-full shadow-2xl">
                     <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <UserPlus className="w-8 h-8 text-green-600" />
+                        <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <UserPlus className="w-8 h-8 text-emerald-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900">Join Referral Program</h2>
-                        <p className="text-gray-600 mt-2">
+                        <h2 className="text-2xl font-bold text-white">Join Referral Program</h2>
+                        <p className="text-indigo-200 mt-2">
                             Generate your unique code and start earning ₹150 per referral!
                         </p>
                     </div>
 
                     <form onSubmit={handleSignup} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                            <label className="block text-sm font-medium text-indigo-200 mb-1">Name</label>
                             <input
                                 type="text"
                                 value={user.user_metadata.full_name || ''}
                                 disabled
-                                className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-500"
+                                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-slate-300"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <label className="block text-sm font-medium text-indigo-200 mb-1">Email</label>
                             <input
                                 type="text"
                                 value={user.email || ''}
                                 disabled
-                                className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-500"
+                                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-slate-300"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                            <label className="block text-sm font-medium text-indigo-200 mb-1">Phone Number</label>
                             <input
                                 type="tel"
                                 required
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value)}
                                 placeholder="Enter your phone number"
-                                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                             />
                         </div>
                         <button
                             type="submit"
                             disabled={isSigningUp}
-                            className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                            className="w-full bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 shadow-lg shadow-emerald-500/20"
                         >
                             {isSigningUp ? (
                                 <>
@@ -196,22 +196,22 @@ function DashboardContent() {
     const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/design?ref=${code}`;
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4">
+        <div className="min-h-screen py-8 px-4">
             <div className="max-w-6xl mx-auto">
-                <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-6 mb-6 shadow-xl">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">Referral Dashboard</h1>
-                            <p className="text-gray-600">Welcome back, {referrer.name}!</p>
+                            <h1 className="text-3xl font-bold text-white mb-2">Referral Dashboard</h1>
+                            <p className="text-indigo-200">Welcome back, {referrer.name}!</p>
                         </div>
-                        <div className="flex items-center gap-3 bg-purple-50 px-4 py-3 rounded-lg border border-purple-200">
+                        <div className="flex items-center gap-3 bg-indigo-900/30 px-4 py-3 rounded-lg border border-white/10">
                             <div>
-                                <p className="text-xs text-purple-700 mb-1">Your Code</p>
-                                <p className="font-bold text-purple-900 text-lg">{code}</p>
+                                <p className="text-xs text-indigo-300 mb-1">Your Code</p>
+                                <p className="font-bold text-white text-lg">{code}</p>
                             </div>
                             <button
                                 onClick={() => copyCode(code)}
-                                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-colors flex items-center gap-2"
+                                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-500 transition-colors flex items-center gap-2"
                             >
                                 <Copy className="w-4 h-4" />
                                 {copied ? 'Copied!' : 'Copy'}
@@ -221,28 +221,28 @@ function DashboardContent() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div className="bg-white rounded-xl shadow-sm p-6">
+                    <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-6 shadow-lg">
                         <div className="flex items-center justify-between mb-4">
-                            <Users className="w-10 h-10 text-blue-600" />
+                            <Users className="w-10 h-10 text-indigo-400" />
                         </div>
-                        <p className="text-gray-600 text-sm mb-1">Total Referrals</p>
-                        <p className="text-3xl font-bold text-gray-900">{stats.totalReferrals}</p>
+                        <p className="text-indigo-200 text-sm mb-1">Total Referrals</p>
+                        <p className="text-3xl font-bold text-white">{stats.totalReferrals}</p>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm p-6">
+                    <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-6 shadow-lg">
                         <div className="flex items-center justify-between mb-4">
-                            <TrendingUp className="w-10 h-10 text-green-600" />
+                            <TrendingUp className="w-10 h-10 text-emerald-400" />
                         </div>
-                        <p className="text-gray-600 text-sm mb-1">Total Earnings</p>
-                        <p className="text-3xl font-bold text-gray-900">₹{stats.totalEarnings}</p>
+                        <p className="text-indigo-200 text-sm mb-1">Total Earnings</p>
+                        <p className="text-3xl font-bold text-white">₹{stats.totalEarnings}</p>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm p-6">
+                    <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-6 shadow-lg">
                         <div className="flex items-center justify-between mb-4">
-                            <DollarSign className="w-10 h-10 text-orange-600" />
+                            <DollarSign className="w-10 h-10 text-amber-400" />
                         </div>
-                        <p className="text-gray-600 text-sm mb-1">Pending Payout</p>
-                        <p className="text-3xl font-bold text-gray-900">₹{stats.pendingEarnings}</p>
+                        <p className="text-indigo-200 text-sm mb-1">Pending Payout</p>
+                        <p className="text-3xl font-bold text-white">₹{stats.pendingEarnings}</p>
                     </div>
                 </div>
 
@@ -267,46 +267,46 @@ function DashboardContent() {
                     </p>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Referrals</h3>
+                <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-6 shadow-xl">
+                    <h3 className="text-xl font-bold text-white mb-4">Recent Referrals</h3>
                     {referrals.length === 0 ? (
                         <div className="text-center py-12">
-                            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <p className="text-gray-500 mb-2">No referrals yet</p>
-                            <p className="text-sm text-gray-400">Start sharing your code to earn commissions!</p>
+                            <Users className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                            <p className="text-indigo-200 mb-2">No referrals yet</p>
+                            <p className="text-sm text-slate-500">Start sharing your code to earn commissions!</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
-                                    <tr className="border-b border-gray-200">
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Company</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Order Amount</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Commission</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                                    <tr className="border-b border-white/10">
+                                        <th className="text-left py-3 px-4 font-semibold text-indigo-300">Date</th>
+                                        <th className="text-left py-3 px-4 font-semibold text-indigo-300">Company</th>
+                                        <th className="text-left py-3 px-4 font-semibold text-indigo-300">Order Amount</th>
+                                        <th className="text-left py-3 px-4 font-semibold text-indigo-300">Commission</th>
+                                        <th className="text-left py-3 px-4 font-semibold text-indigo-300">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {referrals.map((referral: any, index: number) => (
-                                        <tr key={index} className="border-b border-gray-100">
-                                            <td className="py-4 px-4 text-sm text-gray-600">
+                                        <tr key={index} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                            <td className="py-4 px-4 text-sm text-slate-300">
                                                 {new Date(referral.created_at).toLocaleDateString()}
                                             </td>
-                                            <td className="py-4 px-4 text-sm font-medium text-gray-900">
+                                            <td className="py-4 px-4 text-sm font-medium text-white">
                                                 {referral.orders?.company_details?.companyName || 'N/A'}
                                             </td>
-                                            <td className="py-4 px-4 text-sm text-gray-600">
+                                            <td className="py-4 px-4 text-sm text-slate-300">
                                                 ₹{referral.orders?.amount || 0}
                                             </td>
-                                            <td className="py-4 px-4 text-sm font-semibold text-green-600">
+                                            <td className="py-4 px-4 text-sm font-semibold text-emerald-400">
                                                 ₹{referral.commission_amount}
                                             </td>
                                             <td className="py-4 px-4">
                                                 <span
                                                     className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${referral.status === 'paid'
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-yellow-100 text-yellow-700'
+                                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                                        : 'bg-amber-500/20 text-amber-300'
                                                         }`}
                                                 >
                                                     {referral.status === 'paid' ? 'Paid' : 'Pending'}
