@@ -119,20 +119,19 @@ export function EditorSidebar({
     return (
         <div className="flex h-full bg-slate-900 border-r border-white/10">
             {/* 1. Slim Vertical Navigation Rail */}
-            <div id="tutorial-sidebar-rail" className="w-[72px] flex flex-col items-center py-6 gap-4 bg-slate-900 text-slate-400 z-10 shrink-0 h-full shadow-xl">
+            <div id="tutorial-sidebar-rail" className="w-[72px] flex flex-col items-center py-4 gap-2 bg-slate-900 border-r border-white/10 z-30 shrink-0 h-full">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
                         id={`tutorial-tab-${tab.id}`}
                         onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
-                        className={`group relative w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-all duration-300 ${activeTab === tab.id
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                            : 'hover:bg-slate-800 hover:text-white'
+                        className={`group relative w-full h-[68px] flex flex-col items-center justify-center gap-1 transition-all duration-200 ${activeTab === tab.id
+                            ? 'text-white bg-indigo-600 relative after:content-[""] after:absolute after:left-0 after:top-1/2 after:-translate-y-1/2 after:h-8 after:w-1 after:bg-white after:rounded-r-full'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
-                        <tab.icon className={`w-5 h-5 transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`} />
-                        {/* Tooltip-like Label on Hover (if not active) */}
-                        <span className="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                        <tab.icon className={`w-5 h-5 transition-transform duration-200 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`} />
+                        <span className="text-[10px] font-bold tracking-wide">
                             {tab.label}
                         </span>
                     </button>
@@ -141,18 +140,21 @@ export function EditorSidebar({
 
             {/* 2. Side Panel Content Area */}
             {activeTab && (
-                <div className="w-[340px] bg-slate-900/95 backdrop-blur-xl border-r border-white/10 flex flex-col h-full animate-in slide-in-from-left duration-300 shadow-2xl z-20">
+                <div className="w-[280px] bg-slate-900 border-r border-white/10 flex flex-col h-full animate-in slide-in-from-left-4 duration-300 z-20 shadow-[4px_0_24px_-8px_rgba(0,0,0,0.5)] relative">
+
+                    {/* Collapse Button - Outside Panel */}
+                    <button
+                        onClick={() => setActiveTab(null)}
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-800 border-2 border-slate-700 text-slate-400 hover:text-white rounded-full p-1 shadow-lg z-50 flex items-center justify-center w-6 h-6 hover:bg-slate-700 hover:scale-110 transition-all"
+                        title="Collapse Sidebar"
+                    >
+                        <ChevronLeft className="w-3 h-3" />
+                    </button>
                     {/* Panel Header */}
-                    <div className="h-16 px-6 border-b border-white/10 flex items-center justify-between shrink-0 bg-slate-900/40 backdrop-blur-xl sticky top-0 z-10">
-                        <h2 className="font-black text-white text-xl tracking-tight uppercase tracking-[0.15em]">
+                    <div className="h-14 px-5 border-b border-white/10 flex items-center justify-between shrink-0 bg-slate-900 sticky top-0 z-10">
+                        <h2 className="font-bold text-white text-base tracking-tight">
                             {tabs.find(t => t.id === activeTab)?.label}
                         </h2>
-                        <button
-                            onClick={() => setActiveTab(null)}
-                            className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
                     </div>
 
                     {/* Scrollable Content */}
@@ -178,19 +180,16 @@ export function EditorSidebar({
                             </button>
 
                             <div className="space-y-4">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mt-6">Typography Styles</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 mt-6">Typography Styles</p>
                                 <div className="grid gap-3">
-                                    <button onClick={() => onAddText('heading')} className="w-full text-left p-5 bg-slate-800/50 hover:bg-slate-800 rounded-2xl border border-white/5 hover:border-indigo-500/50 transition-all group glass-panel shadow-lg">
-                                        <h1 className="text-3xl font-black text-slate-100 group-hover:text-indigo-400 transition-colors leading-none">Heading</h1>
-                                        <p className="text-[10px] text-slate-500 mt-2 font-black uppercase tracking-widest">Extra Bold • 32pt</p>
+                                    <button onClick={() => onAddText('heading')} className="w-full text-left p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg border border-white/5 hover:border-indigo-500/50 transition-all group glass-panel shadow-lg">
+                                        <h1 className="text-3xl font-bold text-slate-100 group-hover:text-indigo-400 transition-colors leading-none">Heading</h1>
                                     </button>
-                                    <button onClick={() => onAddText('subheading')} className="w-full text-left p-5 bg-slate-800/50 hover:bg-slate-800 rounded-2xl border border-white/5 hover:border-indigo-500/50 transition-all group glass-panel shadow-lg">
+                                    <button onClick={() => onAddText('subheading')} className="w-full text-left p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg border border-white/5 hover:border-indigo-500/50 transition-all group glass-panel shadow-lg">
                                         <h2 className="text-xl font-bold text-slate-200 group-hover:text-indigo-400 transition-colors leading-none">Subheading</h2>
-                                        <p className="text-[10px] text-slate-500 mt-2 font-black uppercase tracking-widest">Bold • 24pt</p>
                                     </button>
-                                    <button onClick={() => onAddText('body')} className="w-full text-left p-5 bg-slate-800/50 hover:bg-slate-800 rounded-2xl border border-white/5 hover:border-indigo-500/50 transition-all group glass-panel shadow-lg">
+                                    <button onClick={() => onAddText('body')} className="w-full text-left p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg border border-white/5 hover:border-indigo-500/50 transition-all group glass-panel shadow-lg">
                                         <p className="text-base text-slate-300 group-hover:text-indigo-400 transition-colors leading-none">Body text paragraph</p>
-                                        <p className="text-[10px] text-slate-500 mt-2 font-black uppercase tracking-widest">Regular • 16pt</p>
                                     </button>
                                 </div>
                             </div>
@@ -218,7 +217,7 @@ export function EditorSidebar({
 
                             {customIcons.length > 0 && (
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Custom Elements</p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Custom Elements</p>
                                     <div className="grid grid-cols-4 gap-3">
                                         {customIcons.map((icon, idx) => (
                                             <button
@@ -235,14 +234,14 @@ export function EditorSidebar({
 
                             <div>
                                 <div className="flex items-center justify-between mb-4">
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Basic Shapes</p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Basic Shapes</p>
                                     <button
                                         onClick={() => iconFileInputRef.current?.click()}
                                         className="py-1 px-3 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-400/20 rounded-full transition-colors flex items-center gap-1.5"
                                         title="Upload custom shape"
                                     >
                                         <Upload className="w-3 h-3" />
-                                        <span className="text-[10px] font-black uppercase tracking-wider">Upload</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Upload</span>
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-4 gap-3">
@@ -273,14 +272,14 @@ export function EditorSidebar({
 
                             <div className="pt-4 border-t border-white/5">
                                 <div className="flex items-center justify-between mb-4">
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Social Media</p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Social Media</p>
                                     <button
                                         onClick={() => iconFileInputRef.current?.click()}
                                         className="py-1 px-3 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-400/20 rounded-full transition-colors flex items-center gap-1.5"
                                         title="Upload custom social icon"
                                     >
                                         <Upload className="w-3 h-3" />
-                                        <span className="text-[10px] font-black uppercase tracking-wider">Upload</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Upload</span>
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-4 gap-3">
@@ -332,14 +331,14 @@ export function EditorSidebar({
 
                             <div className="pt-4 border-t border-white/5">
                                 <div className="flex items-center justify-between mb-4">
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Icons</p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Icons</p>
                                     <button
                                         onClick={() => iconFileInputRef.current?.click()}
                                         className="py-1 px-3 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-400/20 rounded-full transition-colors flex items-center gap-1.5"
                                         title="Upload custom icon"
                                     >
                                         <Upload className="w-3 h-3" />
-                                        <span className="text-[10px] font-black uppercase tracking-wider">Upload</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Upload</span>
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-4 gap-3">
@@ -355,30 +354,6 @@ export function EditorSidebar({
                                     ))}
                                 </div>
                             </div>
-
-                            <div className="pt-6 border-t border-white/5">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <QrCode className="w-4 h-4 text-indigo-400" />
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">QR Code</p>
-                                </div>
-                                <div className="p-5 bg-slate-900/40 backdrop-blur-sm rounded-2xl border border-white/5 space-y-4 shadow-xl">
-                                    <input
-                                        type="text"
-                                        value={qrText}
-                                        onChange={(e) => setQrText(e.target.value)}
-                                        placeholder="https://example.com"
-                                        className="w-full px-4 py-3 bg-slate-800/50 border border-white/5 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-slate-800 outline-none text-sm text-white placeholder-slate-500"
-                                        onKeyDown={(e) => e.key === 'Enter' && handleQRSubmit()}
-                                    />
-                                    <Button
-                                        onClick={handleQRSubmit}
-                                        disabled={!qrText.trim() || isGeneratingQR}
-                                        className="w-full justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white h-12 shadow-lg shadow-indigo-500/20 rounded-xl"
-                                    >
-                                        {isGeneratingQR ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate QR'}
-                                    </Button>
-                                </div>
-                            </div>
                         </div>
                     )}
 
@@ -392,7 +367,7 @@ export function EditorSidebar({
                                     <Upload className="w-6 h-6 text-indigo-400" />
                                 </div>
                                 <div className="text-center">
-                                    <p className="font-black text-sm uppercase tracking-widest text-indigo-100">Upload Media</p>
+                                    <p className="font-bold text-sm uppercase tracking-widest text-indigo-100">Upload Media</p>
                                     <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-tighter">JPG, PNG or SVG</p>
                                 </div>
                             </button>
@@ -405,7 +380,7 @@ export function EditorSidebar({
                             />
 
                             <div className="mt-8">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-4">Your Library</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1 mb-4">Your Library</p>
                                 {uploadedImages.length > 0 ? (
                                     <div className="grid grid-cols-2 gap-3">
                                         {uploadedImages.map((img, idx) => (

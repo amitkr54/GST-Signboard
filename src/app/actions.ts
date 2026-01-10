@@ -39,10 +39,11 @@ export async function createOrder(
         paymentScheme?: 'full' | 'part';
         advanceAmount?: number;
         approvalProof?: string;
+        customBasePrice?: number;
     },
     userId?: string
 ) {
-    let totalAmount = calculatePrice(materialId);
+    let totalAmount = options?.customBasePrice ?? calculatePrice(materialId);
 
     // Add Delivery & Installation costs
     if (options?.deliveryType === 'fast') totalAmount += 200;
@@ -813,6 +814,44 @@ export async function getOrder(orderId: string) {
     }
 
     return { success: true, order: data };
+}
+
+export async function getOrders(pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return { success: true, orders: data };
+    } catch (error: any) {
+        console.error('Error fetching orders:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function updateOrderStatus(orderId: string, status: string, pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({ status })
+            .eq('id', orderId);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error updating order:', error);
+        return { success: false, error: error.message };
+    }
 }
 
 export async function saveProductAction(product: any, pin: string) {

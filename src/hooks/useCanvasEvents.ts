@@ -266,14 +266,10 @@ export function useCanvasEvents({
             canvasInstance.off('selection:created', handleSelection);
             canvasInstance.off('selection:updated', handleSelection);
             canvasInstance.off('selection:cleared', handleCleared);
-            canvasInstance.off('mouse:down', handleMouseDown);
+            // canvasInstance.off('mouse:down', handleMouseDown);
             canvasInstance.off('text:selection:changed', handleSelection);
-            canvasInstance.off('text:changed');
-            canvasInstance.off('object:modified');
-            canvasInstance.off('object:added');
-            canvasInstance.off('object:removed');
-            canvasInstance.off('object:moving');
-            canvasInstance.off('object:scaling');
+            // Note: We avoid global .off() on shared events like object:moving 
+            // to prevent stripping listeners added by other modules (e.g. alignment guidelines)
         };
     }, [canvasInstance, setSelectedObject, setContextMenu, saveHistory, setInitialHistory, checkSafetyArea, baseWidth, baseHeight]);
 

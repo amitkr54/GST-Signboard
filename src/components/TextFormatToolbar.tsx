@@ -19,7 +19,10 @@ import {
     ArrowUpToLine,
     ArrowDownToLine,
     Lock,
-    Unlock
+    Unlock,
+    GripVertical,
+    Minus,
+    Plus
 } from 'lucide-react';
 
 interface TextFormatToolbarProps {
@@ -33,6 +36,7 @@ interface TextFormatToolbarProps {
     onLockToggle?: () => void;
     compact?: boolean;
     isLandscape?: boolean;
+    onDragStart?: (e: React.MouseEvent) => void;
 }
 
 export function TextFormatToolbar({
@@ -45,7 +49,8 @@ export function TextFormatToolbar({
     onDelete,
     onLockToggle,
     compact = false,
-    isLandscape = false
+    isLandscape = false,
+    onDragStart
 }: TextFormatToolbarProps) {
     const [fontFamily, setFontFamily] = useState('Arial');
     const [fontSize, setFontSize] = useState(30);
@@ -541,34 +546,49 @@ export function TextFormatToolbar({
     // --- Desktop Toolbar Render (Existing) ---
     return (
         <div
-            className="z-20 bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 px-6 py-3 flex items-center gap-5 overflow-x-auto mb-6"
+            className="z-20 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-200 px-3 py-1.5 flex items-center gap-4 overflow-x-auto shrink-0 transition-all duration-300"
             style={{
                 maxWidth: 'calc(100% - 2rem)',
                 width: 'fit-content'
             }}
         >
+            {/* Drag Handle */}
+            <div
+                className="cursor-move p-1 -ml-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600 shrink-0"
+                onMouseDown={onDragStart}
+            >
+                <GripVertical className="w-4 h-4" />
+            </div>
+
             {/* Font Family - Text only */}
             {isTextObject && (
-                <div className="relative group">
+                <div className="relative group shrink-0">
                     <select
                         value={fontFamily}
                         onChange={handleFontFamilyChange}
                         disabled={isLocked}
-                        className="appearance-none pl-4 pr-10 py-2 bg-slate-800/50 border border-white/5 rounded-xl text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-slate-800 transition-all cursor-pointer disabled:opacity-50"
+                        className="appearance-none pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-white hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer disabled:opacity-50"
                     >
                         {fontOptions.map(font => (
                             <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
                         ))}
                     </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </div>
                 </div>
             )}
 
             {/* Font Size - Text only */}
             {isTextObject && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 shrink-0">
+                    <button
+                        onClick={() => handleFontSizeChange(Math.max(8, fontSize - 1))}
+                        disabled={isLocked || fontSize <= 8}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-white hover:border-indigo-300 transition-all disabled:opacity-30"
+                    >
+                        <Minus className="w-3 h-3" />
+                    </button>
                     <input
                         type="number"
                         value={fontSize}
@@ -576,22 +596,28 @@ export function TextFormatToolbar({
                         disabled={isLocked}
                         min="8"
                         max="300"
-                        className="w-20 pl-4 py-2 bg-slate-800/50 border border-white/5 rounded-xl text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-slate-800 transition-all disabled:opacity-50"
+                        className="w-12 text-center py-1.5 bg-transparent border-none text-xs font-bold text-slate-700 focus:outline-none"
                     />
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">px</span>
+                    <button
+                        onClick={() => handleFontSizeChange(Math.min(300, fontSize + 1))}
+                        disabled={isLocked || fontSize >= 300}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-white hover:border-indigo-300 transition-all disabled:opacity-30"
+                    >
+                        <Plus className="w-3 h-3" />
+                    </button>
                 </div>
             )}
 
-            {isTextObject && <div className="w-px h-8 bg-white/5" />}
+            {isTextObject && <div className="w-px h-6 bg-slate-200" />}
 
             {/* Formatting Group */}
             {isTextObject && (
-                <div className="flex gap-1.5 p-1 bg-slate-950/40 rounded-xl border border-white/5">
+                <div className="flex gap-1 p-0.5 bg-slate-50 rounded-lg border border-slate-200 shrink-0">
                     <button
                         onClick={toggleBold}
                         disabled={isLocked}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isBold ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'
-                            } font-black disabled:opacity-50`}
+                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${isBold ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                            } font-black text-xs disabled:opacity-50`}
                         title="Bold"
                     >
                         B
@@ -599,101 +625,99 @@ export function TextFormatToolbar({
                     <button
                         onClick={toggleItalic}
                         disabled={isLocked}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isItalic ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'
-                            } italic font-black disabled:opacity-50`}
+                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${isItalic ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                            } italic font-black text-xs disabled:opacity-50`}
                         title="Italic"
                     >
                         I
                     </button>
-                    <div className="w-px h-5 bg-white/5 my-auto mx-1" />
+                    <div className="w-px h-4 bg-slate-200 my-auto mx-0.5" />
                     <button
                         onClick={() => handleAlignChange('left')}
                         disabled={isLocked}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${textAlign === 'left' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'
+                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${textAlign === 'left' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'
                             } disabled:opacity-50`}
                         title="Align Left"
                     >
-                        <AlignLeft className="w-4 h-4" />
+                        <AlignLeft className="w-3.5 h-3.5" />
                     </button>
                     <button
                         onClick={() => handleAlignChange('center')}
                         disabled={isLocked}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${textAlign === 'center' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'
+                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${textAlign === 'center' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'
                             } disabled:opacity-50`}
                         title="Align Center"
                     >
-                        <AlignCenter className="w-4 h-4" />
+                        <AlignCenter className="w-3.5 h-3.5" />
                     </button>
                     <button
                         onClick={() => handleAlignChange('right')}
                         disabled={isLocked}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${textAlign === 'right' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'
+                        className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${textAlign === 'right' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'
                             } disabled:opacity-50`}
                         title="Align Right"
                     >
-                        <AlignRight className="w-4 h-4" />
+                        <AlignRight className="w-3.5 h-3.5" />
                     </button>
                 </div>
             )}
 
-            <div className="w-px h-8 bg-white/5" />
+            <div className="w-px h-6 bg-slate-200" />
 
             {/* Color */}
-            <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Color</span>
+            <div className="flex items-center gap-2 shrink-0">
                 <input
                     type="color"
                     value={textColor}
                     onChange={handleColorChange}
                     disabled={isLocked}
-                    className="w-10 h-10 rounded-xl cursor-pointer bg-slate-800 border-2 border-white/10 p-1 shadow-lg disabled:opacity-50"
+                    className="w-8 h-8 rounded-lg cursor-pointer bg-slate-50 border border-slate-200 p-0.5 shadow-sm hover:border-indigo-300 transition-all disabled:opacity-50"
                     title="Color"
                 />
             </div>
 
-            <div className="w-px h-8 bg-white/5" />
+            <div className="w-px h-6 bg-slate-200" />
 
             {/* Layers */}
-            <div className="flex gap-1.5 p-1 bg-slate-950/40 rounded-xl border border-white/5">
+            <div className="flex gap-1 p-0.5 bg-slate-50 rounded-lg border border-slate-200 shrink-0">
                 <button
                     onClick={() => handleLayerAction('front')}
                     disabled={isLocked}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-indigo-600 transition-all shadow-sm disabled:opacity-50"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
                     title="Bring to Front"
                 >
-                    <ArrowUpToLine className="w-4 h-4" />
+                    <ArrowUpToLine className="w-3.5 h-3.5" />
                 </button>
                 <button
                     onClick={() => handleLayerAction('forward')}
                     disabled={isLocked}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-indigo-600 transition-all shadow-sm disabled:opacity-50"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
                     title="Bring Forward"
                 >
-                    <ArrowUp className="w-4 h-4" />
+                    <ArrowUp className="w-3.5 h-3.5" />
                 </button>
                 <button
                     onClick={() => handleLayerAction('backward')}
                     disabled={isLocked}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-900 transition-all shadow-sm disabled:opacity-50"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
                     title="Send Backward"
                 >
-                    <ArrowDown className="w-4 h-4" />
+                    <ArrowDown className="w-3.5 h-3.5" />
                 </button>
                 <button
                     onClick={() => handleLayerAction('back')}
                     disabled={isLocked}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-900 transition-all shadow-sm disabled:opacity-50"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
                     title="Send to Back"
                 >
-                    <ArrowDownToLine className="w-4 h-4" />
+                    <ArrowDownToLine className="w-3.5 h-3.5" />
                 </button>
             </div>
 
-            <div className="w-px h-8 bg-white/5" />
+            <div className="w-px h-6 bg-slate-200" />
 
             {/* Actions Group */}
-            <div className="flex gap-2">
-                {/* Lock Tag */}
+            <div className="flex items-center gap-2 shrink-0">
                 <button
                     onClick={() => {
                         if (onLockToggle) {
@@ -701,34 +725,34 @@ export function TextFormatToolbar({
                             setIsLocked(!isLocked);
                         }
                     }}
-                    className={`h-10 flex items-center gap-2 px-4 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${isLocked ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-800/50 text-slate-400 hover:bg-white/5'
+                    className={`h-7 flex items-center gap-1.5 px-3 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider ${isLocked ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-white hover:border-slate-300 border border-slate-200'
                         }`}
                     title={isLocked ? "Unlock" : "Lock"}
                 >
                     {isLocked ? (
-                        <Unlock className="w-4 h-4" />
+                        <Unlock className="w-3 h-3" />
                     ) : (
-                        <Lock className="w-4 h-4" />
+                        <Lock className="w-3 h-3" />
                     )}
                     {isLocked ? 'Unlock' : 'Lock'}
                 </button>
 
-                <div className="flex gap-1.5 p-1 bg-slate-950/40 rounded-xl border border-white/5">
+                <div className="flex gap-1 p-0.5 bg-slate-50 rounded-lg border border-slate-200">
                     <button
                         onClick={onDuplicate}
                         disabled={isLocked}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Duplicate"
                     >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
                         onClick={onDelete}
                         disabled={isLocked}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Delete"
                     >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>

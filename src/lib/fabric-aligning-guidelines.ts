@@ -206,17 +206,10 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
     };
 
     const onAfterRender = () => {
-        // Expose debug info
-        (canvas as any).__debug_align = {
-            isDragging: state.isDragging,
-            vLines: state.verticalLines.length,
-            hLines: state.horizontalLines.length
-        };
-
         if (!state.isDragging) return;
         if (state.verticalLines.length === 0 && state.horizontalLines.length === 0) return;
 
-        const ctx = canvas.getContext();
+        const ctx = canvas.getSelectionContext();
         const vpt = canvas.viewportTransform!;
 
         ctx.save();

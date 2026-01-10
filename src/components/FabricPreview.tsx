@@ -61,6 +61,10 @@ export function FabricPreview({
     const [dynamicTemplates, setDynamicTemplates] = useState<typeof TEMPLATES>(TEMPLATES);
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
     const [hasSafetyViolation, setHasSafetyViolation] = useState(false);
+    const [toolbarPos, setToolbarPos] = useState({ x: 200, y: 100 });
+    const [hasMovedToolbar, setHasMovedToolbar] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
     const { width: baseWidth, height: baseHeight } = useMemo(() => {
         const DPI = 75;
@@ -111,7 +115,15 @@ export function FabricPreview({
         fetchTemplates();
     }, []);
 
-    const [alignmentDebug, setAlignmentDebug] = useState<{ isDragging: boolean; vLines: number; hLines: number } | undefined>(undefined);
+    // 4. Default Toolbar Positioning
+    useEffect(() => {
+        if (selectedObject && !hasMovedToolbar && containerRef.current) {
+            const containerWidth = containerRef.current.offsetWidth;
+            // Center the toolbar (assuming ~600px width for the toolbar itself, so offset by 300)
+            // 20px from top is a nice "header-like" default.
+            setToolbarPos({ x: (containerWidth / 2) - 300, y: 20 });
+        }
+    }, [!!selectedObject, hasMovedToolbar]);
 
     // Canvas Initialization
     useEffect(() => {
@@ -124,14 +136,6 @@ export function FabricPreview({
             selection: !isReadOnly, renderOnAddRemove: true, preserveObjectStacking: true
         });
 
-        // Debug listener for alignment state
-        canvas.on('after:render', () => {
-            // @ts-ignore
-            if (canvas.__debug_align) {
-                // @ts-ignore
-                setAlignmentDebug({ ...canvas.__debug_align });
-            }
-        });
 
         fabric.Object.prototype.set({
             borderColor: '#E53935', cornerColor: '#ffffff', cornerStrokeColor: '#E53935',
@@ -176,6 +180,7 @@ export function FabricPreview({
                 setIsProcessing(true);
                 canvas.loadFromJSON(savedJSON, () => {
                     canvas.getObjects().forEach((obj) => {
+                        const isBackground = (obj as any).name === 'background' || (obj as any).isBackground === true;
                         obj.set({
                             borderColor: '#E53935',
                             cornerColor: '#ffffff',
@@ -185,8 +190,10 @@ export function FabricPreview({
                             padding: 0,
                             cornerStyle: 'circle',
                             borderScaleFactor: 2.5,
-                            selectable: !isReadOnly,
-                            evented: !isReadOnly
+                            selectable: isBackground ? false : !isReadOnly,
+                            evented: isBackground ? false : !isReadOnly,
+                            lockMovementX: isBackground ? true : undefined,
+                            lockMovementY: isBackground ? true : undefined,
                         });
                     });
 
@@ -278,10 +285,22 @@ export function FabricPreview({
                 break;
             case 'duplicate':
                 if (activeObject) {
-                    activeObject.clone((cloned: any) => {
-                        cloned.set({ left: (cloned.left || 0) + 20, top: (cloned.top || 0) + 20, evented: true });
-                        canvas.add(cloned);
+                    activeObject.clone((cloned: fabric.Object | fabric.Group) => {
+                        canvas.discardActiveObject();
+                        cloned.set({
+                            left: (cloned.left || 0) + 10,
+                            top: (cloned.top || 0) + 10,
+                            evented: true,
+                        });
+                        if (cloned.type === 'activeSelection' || cloned.type === 'group') {
+                            cloned.canvas = canvas;
+                            (cloned as any).forEachObject((obj: fabric.Object) => canvas.add(obj));
+                            cloned.setCoords();
+                        } else {
+                            canvas.add(cloned);
+                        }
                         canvas.setActiveObject(cloned);
+                        canvas.requestRenderAll();
                         saveHistory(canvas);
                     });
                 }
@@ -303,6 +322,8 @@ export function FabricPreview({
                         lockRotation: isLocked, hasControls: !isLocked,
                         editable: activeObject.type?.includes('text') ? !isLocked : undefined
                     } as any);
+                    canvas.requestRenderAll();
+                    setSelectedObject({ ...activeObject } as any);
                     saveHistory(canvas);
                 }
                 break;
@@ -400,8 +421,20 @@ export function FabricPreview({
             saveHistory(canvas);
         };
 
+        if (design.templateId === 'custom') {
+            // CRITICAL: For "Blank Canvas", explicitly clear EVERYTHING except background
+            canvas.getObjects().forEach(obj => {
+                const isBg = (obj as any).name === 'background' || (obj as any).isBackground;
+                if (!isBg) canvas.remove(obj);
+            });
+            canvas.requestRenderAll();
+            finalizeLoad();
+            return;
+        }
+
         if (templateConfig) {
             if (templateConfig.fabricConfig) {
+                // ... (rest of logic)
                 canvas.loadFromJSON(templateConfig.fabricConfig, () => {
                     canvas.getObjects().forEach((obj: any) => {
                         if (obj.type === 'text' && obj.text) {
@@ -431,10 +464,12 @@ export function FabricPreview({
                 finalizeLoad();
             }
         } else {
+            // No template config found (could be initial load or unknown ID)
+            // Just update content, don't clear everything unless it was explicit 'custom'
             updateTemplateContent();
             finalizeLoad();
         }
-    }, [design.templateId, dynamicTemplates, setIsProcessing, saveHistory, initialJSON, baseWidth, baseHeight, scale]);
+    }, [design.templateId, dynamicTemplates, setIsProcessing, saveHistory, initialJSON, baseWidth, baseHeight]);
 
     // Prop sync
     useEffect(() => { updateTemplateContent(); }, [data, design.backgroundColor, design.fontFamily, design.textColor, design.fontSize, design.companyNameSize]);
@@ -457,34 +492,92 @@ export function FabricPreview({
         onAddImage?.(addImage);
     }, [onAddText, onAddIcon, onAddShape, onAddImage, addText, addIcon, addShape, addImage]);
 
-    return (
-        <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col min-h-0">
-            {/* 1. Floating Toolbar */}
-            <div className="absolute top-0 left-0 right-0 z-[100] transition-all duration-300 pointer-events-none">
-                <div className="flex justify-center p-2 pointer-events-auto">
-                    {selectedObject && !isReadOnly && (
-                        <TextFormatToolbar
-                            selectedObject={selectedObject}
-                            compact={compact}
-                            isLandscape={isLandscape}
-                            onUpdate={() => {
-                                if (fabricCanvasRef.current) {
-                                    fabricCanvasRef.current.requestRenderAll();
-                                    saveHistory(fabricCanvasRef.current);
-                                }
-                            }}
-                            onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
-                            onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
-                            onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
-                            onDuplicate={() => handleAction('duplicate')}
-                            onDelete={() => handleAction('delete')}
-                            onLockToggle={() => handleAction('lock')}
-                        />
-                    )}
-                </div>
-            </div>
 
-            {/* 2. Main Canvas Container */}
+    const handleToolbarDragStart = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        setHasMovedToolbar(true);
+        setDragStartPos({
+            x: e.clientX - toolbarPos.x,
+            y: e.clientY - toolbarPos.y
+        });
+    };
+
+    useEffect(() => {
+        if (!isDragging) return;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            setToolbarPos({
+                x: e.clientX - dragStartPos.x,
+                y: e.clientY - dragStartPos.y
+            });
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, dragStartPos]);
+
+    return (
+        <div className="flex-1 w-full h-full relative overflow-hidden bg-slate-50 flex flex-col min-h-0">
+            {/* Draggable Toolbar */}
+            {selectedObject && !isReadOnly && !compact && (
+                <div
+                    className="fixed z-[1000]"
+                    style={{
+                        left: `${toolbarPos.x}px`,
+                        top: `${toolbarPos.y}px`,
+                        transition: isDragging ? 'none' : 'box-shadow 0.2s'
+                    }}
+                >
+                    <TextFormatToolbar
+                        selectedObject={selectedObject}
+                        compact={false}
+                        onUpdate={() => {
+                            if (fabricCanvasRef.current) {
+                                fabricCanvasRef.current.requestRenderAll();
+                                saveHistory(fabricCanvasRef.current);
+                            }
+                        }}
+                        onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
+                        onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
+                        onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
+                        onDuplicate={() => handleAction('duplicate')}
+                        onDelete={() => handleAction('delete')}
+                        onLockToggle={() => handleAction('lock')}
+                        onDragStart={handleToolbarDragStart}
+                    />
+                </div>
+            )}
+
+            {/* Mobile Toolbar */}
+            {selectedObject && !isReadOnly && compact && (
+                <TextFormatToolbar
+                    selectedObject={selectedObject}
+                    compact={true}
+                    isLandscape={isLandscape}
+                    onUpdate={() => {
+                        if (fabricCanvasRef.current) {
+                            fabricCanvasRef.current.requestRenderAll();
+                            saveHistory(fabricCanvasRef.current);
+                        }
+                    }}
+                    onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
+                    onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
+                    onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
+                    onDuplicate={() => handleAction('duplicate')}
+                    onDelete={() => handleAction('delete')}
+                    onLockToggle={() => handleAction('lock')}
+                />
+            )}
+
+            {/* Main Canvas Container */}
             <div className="absolute inset-0 flex items-center justify-center p-4">
                 <div ref={containerRef} className="w-full h-full flex items-center justify-center relative overflow-hidden bg-transparent" onContextMenu={handleContextMenu}>
                     <div className="bg-white rounded-sm shadow-2xl relative flex items-center justify-center shrink-0" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
@@ -504,7 +597,6 @@ export function FabricPreview({
                     {contextMenu && !isReadOnly && (
                         <CanvasContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onAction={handleAction} hasSelection={!!selectedObject} isLocked={!!selectedObject?.lockMovementX} />
                     )}
-                    {!isReadOnly && <CanvasInteractionDebugger selectedObject={selectedObject} alignmentDebug={alignmentDebug} />}
                 </div>
             </div>
         </div>

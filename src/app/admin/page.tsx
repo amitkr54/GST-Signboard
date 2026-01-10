@@ -12,7 +12,8 @@ import { fabric } from 'fabric';
 import { Product, ProductSize } from '@/lib/products';
 import {
     saveProductAction, deleteProductAction, uploadProductImages,
-    uploadTemplate, getTemplates, deleteTemplate as deleteTemplateActionImport
+    uploadTemplate, getTemplates, deleteTemplate as deleteTemplateActionImport,
+    getOrders as getOrdersAction, updateOrderStatus as updateOrderStatusAction
 } from '../actions';
 
 const PRODUCT_CATEGORIES = [
@@ -188,9 +189,10 @@ export default function AdminPage() {
     const [existingImages, setExistingImages] = useState<string[]>([]);
     const [pin, setPin] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [activeTab, setActiveTab] = useState<'templates' | 'products'>('products');
+    const [activeTab, setActiveTab] = useState<'templates' | 'products' | 'orders'>('orders');
     const [sizes, setSizes] = useState<ProductSize[]>([]);
-
+    const [orders, setOrders] = useState<any[]>([]);
+    const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
     // Template Categorization State
     const [templateType, setTemplateType] = useState<'universal' | 'specific'>('universal');
@@ -226,12 +228,13 @@ export default function AdminPage() {
         }
     };
 
-    useEffect(() => {
-        fetchTemplates();
-        fetchProducts();
-        // Initialize with default size on client side to avoid hydration mismatch
-        setSizes([{ id: 'standard', name: 'Standard', dimensions: { width: 24, height: 16, unit: 'in' }, priceMultiplier: 1 }]);
-    }, []);
+    const fetchOrders = async () => {
+        if (!pin) return;
+        const res = await getOrdersAction(pin);
+        if (res.success) {
+            setOrders(res.orders || []);
+        }
+    };
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -244,75 +247,13 @@ export default function AdminPage() {
         if (file && file.name.endsWith('.svg')) {
             try {
                 const text = await file.text();
-                // We use a Promise to wait for Fabric's callback-based loadSVGFromString
                 await new Promise<void>((resolve) => {
                     fabric.loadSVGFromString(text, (objects, options) => {
                         const tempCanvas = new fabric.Canvas(null, {
                             width: options.width || 1000,
                             height: options.height || 1000
                         });
-
-                        objects.forEach((obj, i) => {
-                            if (!(obj as any).name) (obj as any).name = `object_${i}`;
-                            tempCanvas.add(obj);
-                        });
-
-                        const textObjects = tempCanvas.getObjects().filter(o => o.type === 'text' || o.type === 'i-text');
-                        textObjects.sort((a, b) => (a.top || 0) - (b.top || 0));
-
-                        const mergedGroups: fabric.Object[][] = [];
-                        let currentGroup: fabric.Object[] = [];
-
-                        textObjects.forEach((obj, index) => {
-                            if (currentGroup.length === 0) {
-                                currentGroup.push(obj);
-                                return;
-                            }
-
-                            const prev = currentGroup[currentGroup.length - 1] as any;
-                            const curr = obj as any;
-
-                            const isSameFont = prev.fontFamily === curr.fontFamily;
-                            const isSameSize = Math.abs((prev.fontSize || 0) - (curr.fontSize || 0)) < 2;
-                            const isSameColor = prev.fill === curr.fill;
-                            const isSameWeight = prev.fontWeight === curr.fontWeight;
-                            const isSameStyle = prev.fontStyle === curr.fontStyle;
-
-                            const fontSize = prev.fontSize || 20;
-                            const lineHeight = prev.lineHeight || 1.16;
-                            const expectedLineGap = fontSize * lineHeight;
-                            const actualGap = (curr.top || 0) - (prev.top || 0);
-
-                            const isCloseVertically = actualGap > (expectedLineGap * 0.8) && actualGap < (expectedLineGap * 1.5);
-                            const alignTolerance = 30;
-                            const isAlignedLeft = Math.abs((prev.left || 0) - (curr.left || 0)) < alignTolerance;
-                            const isAlignedCenter = Math.abs(((prev.left || 0) + (prev.width || 0) / 2) - ((curr.left || 0) + (curr.width || 0) / 2)) < alignTolerance;
-                            const isAlignedRight = Math.abs(((prev.left || 0) + (prev.width || 0)) - ((curr.left || 0) + (curr.width || 0))) < alignTolerance;
-
-                            if (isSameFont && isSameSize && isSameColor && isSameWeight && isSameStyle &&
-                                isCloseVertically && (isAlignedLeft || isAlignedCenter || isAlignedRight)) {
-                                currentGroup.push(curr);
-                            } else {
-                                mergedGroups.push([...currentGroup]);
-                                currentGroup = [curr];
-                            }
-                        });
-                        if (currentGroup.length > 0) mergedGroups.push(currentGroup);
-
-
-                        mergedGroups.forEach(group => {
-                            if (group.length > 1) {
-                                const first = group[0];
-                                const combinedText = group.map((o: any) => o.text).join('\n');
-                                const newTextbox = new fabric.Textbox(combinedText, {
-                                    ...first.toObject(['left', 'top', 'fill', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'shadow', 'opacity']),
-                                    width: Math.max(...group.map(o => o.getScaledWidth())),
-                                    splitByGrapheme: false
-                                });
-                                group.forEach(o => tempCanvas.remove(o));
-                                tempCanvas.add(newTextbox);
-                            }
-                        });
+                        objects.forEach((obj, i) => tempCanvas.add(obj));
                         resolve();
                     });
                 });
@@ -332,7 +273,6 @@ export default function AdminPage() {
             setMessage({ type: 'success', text: 'Template uploaded successfully!' });
             (event.target as HTMLFormElement).reset();
             fetchTemplates();
-            router.refresh();
         } else {
             setMessage({ type: 'error', text: res.error || 'Upload failed' });
         }
@@ -341,7 +281,7 @@ export default function AdminPage() {
 
     async function handleDelete(id: string) {
         if (!pin) {
-            setMessage({ type: 'error', text: 'Please enter Admin PIN above to delete' });
+            setMessage({ type: 'error', text: 'Please enter Admin PIN to delete' });
             return;
         }
         if (!confirm('Are you sure you want to delete this template?')) return;
@@ -350,7 +290,6 @@ export default function AdminPage() {
         if (res.success) {
             setMessage({ type: 'success', text: 'Template deleted' });
             fetchTemplates();
-            router.refresh();
         } else {
             setMessage({ type: 'error', text: res.error || 'Delete failed' });
         }
@@ -395,15 +334,9 @@ export default function AdminPage() {
             rating: 4.5,
             reviewCount: 0,
             features: (formData.get('features') as string).split('\n').filter(f => f.trim()),
-            sizes: JSON.parse(formData.get('sizes') as string),
+            sizes: sizes,
             materials: (formData.get('materials') as string).split(',').map(m => m.trim()) as any[],
-            popularTemplates: [],
-            seo: {
-                metaTitle: formData.get('seoMetaTitle') as string || undefined,
-                metaDescription: formData.get('seoMetaDescription') as string || undefined,
-                keywords: (formData.get('seoKeywords') as string)?.split(',').map(k => k.trim()).filter(k => k) || undefined,
-                slug: formData.get('seoSlug') as string || undefined,
-            }
+            popularTemplates: []
         };
 
         const res = await saveProductAction(productData, pin);
@@ -420,6 +353,51 @@ export default function AdminPage() {
         }
         setIsLoading(false);
     }
+
+    useEffect(() => {
+        fetchTemplates();
+        fetchProducts();
+        if (isAuthenticated) {
+            fetchOrders();
+        }
+        // Initialize with default size on client side to avoid hydration mismatch
+        setSizes([{ id: 'standard', name: 'Standard', dimensions: { width: 24, height: 16, unit: 'in' }, priceMultiplier: 1 }]);
+    }, [isAuthenticated, pin]);
+
+    const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+        if (!pin) return;
+        setIsLoading(true);
+        const res = await updateOrderStatusAction(orderId, newStatus, pin);
+        if (res.success) {
+            setMessage({ type: 'success', text: 'Order status updated' });
+            fetchOrders();
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Update failed' });
+        }
+        setIsLoading(false);
+    };
+
+    const handleFormat = (targetId: string, tag: string) => {
+        const textarea = document.getElementById(targetId) as HTMLTextAreaElement;
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        let replacement = '';
+
+        if (tag === 'a') {
+            const url = prompt('Enter URL:', 'https://');
+            if (url) replacement = `<a href="${url}" class="text-indigo-600 hover:underline font-bold" target="_blank">${selectedText || 'Link'}</a>`;
+        } else if (tag === 'li') {
+            replacement = `<li>${selectedText}</li>`;
+        } else {
+            replacement = `<${tag}>${selectedText}</${tag}>`;
+        }
+
+        if (replacement) {
+            textarea.setRangeText(replacement, start, end, 'select');
+        }
+    };
 
     async function handleDeleteProduct(id: string) {
         if (!pin) {
@@ -466,14 +444,12 @@ export default function AdminPage() {
                                     />
                                 </div>
                             </div>
-
                             {message?.type === 'error' && (
                                 <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl flex items-center gap-3 text-sm animate-shake">
                                     <AlertCircle className="w-5 h-5 shrink-0" />
                                     <span className="font-semibold">{message.text}</span>
                                 </div>
                             )}
-
                             <Button
                                 type="submit"
                                 className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]"
@@ -487,31 +463,9 @@ export default function AdminPage() {
         );
     }
 
-    const handleFormat = (targetId: string, tag: string) => {
-        const textarea = document.getElementById(targetId) as HTMLTextAreaElement;
-        if (!textarea) return;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const selectedText = textarea.value.substring(start, end);
-        let replacement = '';
-
-        if (tag === 'a') {
-            const url = prompt('Enter URL:', 'https://');
-            if (url) replacement = `<a href="${url}" class="text-indigo-600 hover:underline font-bold" target="_blank">${selectedText || 'Link'}</a>`;
-        } else if (tag === 'li') {
-            replacement = `<li>${selectedText}</li>`;
-        } else {
-            replacement = `<${tag}>${selectedText}</${tag}>`;
-        }
-
-        if (replacement) {
-            textarea.setRangeText(replacement, start, end, 'select');
-        }
-    };
-
     return (
         <div className="min-h-screen bg-slate-950 font-sans">
-            <div className="max-w-7xl mx-auto p-6">
+            <div className="max-w-7xl mx-auto p-6 text-white">
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-4xl font-black text-white mb-2">Admin Dashboard</h1>
@@ -527,6 +481,14 @@ export default function AdminPage() {
                 </div>
 
                 <div className="flex gap-2 mb-6 border-b border-white/10">
+                    <button
+                        onClick={() => setActiveTab('orders')}
+                        className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'orders' ? 'text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        <AlertCircle className="w-5 h-5 inline mr-2" />
+                        Orders
+                        {activeTab === 'orders' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
+                    </button>
                     <button
                         onClick={() => setActiveTab('products')}
                         className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'products' ? 'text-indigo-400' : 'text-slate-400 hover:text-white'}`}
@@ -545,10 +507,128 @@ export default function AdminPage() {
                     </button>
                 </div>
 
-                {activeTab === 'products' && (
-                    <div>
+                {activeTab === 'orders' && (
+                    <div className="space-y-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">Products ({products.length})</h2>
+                            <h2 className="text-2xl font-bold text-white">Product Orders ({orders.length})</h2>
+                            <Button
+                                onClick={fetchOrders}
+                                variant="outline"
+                                className="border-white/10 text-white hover:bg-white/5"
+                            >
+                                Refresh
+                            </Button>
+                        </div>
+
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/10 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-white/5 border-b border-white/10">
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Order Info</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Customer</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Amount</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Status</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {orders.map(order => (
+                                            <React.Fragment key={order.id}>
+                                                <tr className={`group transition-all duration-300 ${expandedOrder === order.id ? 'bg-indigo-500/10' : 'hover:bg-white/5'}`}>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-mono text-[10px] text-indigo-400 font-bold tracking-tight">#{order.id.split('-')[0].toUpperCase()}</span>
+                                                            <span className="text-xs text-slate-400 mt-1">{new Date(order.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-white text-sm">{order.customer_name}</span>
+                                                            <span className="text-[10px] text-slate-400">{order.customer_phone}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="font-black text-emerald-400">₹{order.amount}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <select
+                                                            value={order.status}
+                                                            onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                                            className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-black/20 border transition-all ${order.status === 'paid' ? 'text-emerald-400 border-emerald-500/30' : 'text-amber-400 border-amber-500/30'}`}
+                                                        >
+                                                            <option value="pending">Pending</option>
+                                                            <option value="paid">Paid</option>
+                                                            <option value="processing">Processing</option>
+                                                            <option value="shipped">Shipped</option>
+                                                            <option value="completed">Completed</option>
+                                                            <option value="cancelled">Cancelled</option>
+                                                        </select>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                                                            className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 transition-all"
+                                                        >
+                                                            {expandedOrder === order.id ? <X size={16} /> : <ChevronRight size={16} className={expandedOrder === order.id ? 'rotate-90' : ''} />}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                {/* Expanded Details */}
+                                                {expandedOrder === order.id && (
+                                                    <tr className="bg-black/20 border-b border-indigo-500/20 animate-in slide-in-from-top-4 duration-300">
+                                                        <td colSpan={5} className="px-8 py-6">
+                                                            <div className="grid md:grid-cols-2 gap-8">
+                                                                <div className="space-y-4">
+                                                                    <div>
+                                                                        <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Shipping Address</h4>
+                                                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200">
+                                                                            {order.customer_address}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Company Details</h4>
+                                                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200">
+                                                                            <p className="font-bold">{order.company_details?.companyName}</p>
+                                                                            <p className="opacity-70">{order.company_details?.address}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Design Proof</h4>
+                                                                    <div className="aspect-[16/10] bg-white rounded-2xl border-4 border-slate-800 overflow-hidden flex items-center justify-center p-2">
+                                                                        {order.visual_proof ? (
+                                                                            <div dangerouslySetInnerHTML={{ __html: order.visual_proof }} className="w-full h-full" />
+                                                                        ) : (
+                                                                            <span className="text-slate-400 font-bold">No visual proof</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {orders.length === 0 && (
+                            <div className="text-center py-20 bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-white/10">
+                                <AlertCircle className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-white">No Orders Found</h3>
+                                <p className="text-slate-400">Wait for your first customer to place an order.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'products' && (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-white">Products ({products.length})</h2>
                             <Button
                                 onClick={() => {
                                     setEditingProduct(null);
@@ -557,7 +637,7 @@ export default function AdminPage() {
                                     setSelectedImages([]);
                                     setExistingImages([]);
                                 }}
-                                className="bg-indigo-600 hover:bg-indigo-700 font-bold"
+                                className="bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl"
                             >
                                 <Plus className="w-5 h-5 mr-2" />
                                 Add Product
@@ -565,14 +645,14 @@ export default function AdminPage() {
                         </div>
 
                         {showProductForm && (
-                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-                                <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-3xl font-black text-gray-900">
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+                                <div className="bg-slate-900 rounded-[2.5rem] p-10 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/10 relative">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <h3 className="text-3xl font-black text-white">
                                             {editingProduct ? 'Edit Product' : 'Add New Product'}
                                         </h3>
-                                        <button onClick={() => setShowProductForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                                            <X className="w-6 h-6" />
+                                        <button onClick={() => setShowProductForm(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
+                                            <X className="w-6 h-6 text-white" />
                                         </button>
                                     </div>
 
@@ -585,203 +665,113 @@ export default function AdminPage() {
                                     >
                                         <input type="hidden" name="id" value={editingProduct?.id || ''} />
 
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Product Name *</label>
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Product Name</label>
                                                 <input
                                                     name="name"
                                                     defaultValue={editingProduct?.name}
-                                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
                                                     required
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Category *</label>
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Category</label>
                                                 <select
                                                     name="category"
                                                     defaultValue={editingProduct?.category || 'business'}
-                                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all cursor-pointer"
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all cursor-pointer text-white font-bold appearance-none"
                                                     required
                                                 >
                                                     {PRODUCT_CATEGORIES.filter(c => c.id !== 'all').map(cat => (
-                                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                        <option key={cat.id} value={cat.id} className="bg-slate-900">{cat.name}</option>
                                                     ))}
                                                 </select>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Description *</label>
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Description</label>
                                             <FormattingToolbar targetId="prod-desc" onFormat={(tag) => handleFormat('prod-desc', tag)} />
                                             <textarea
                                                 id="prod-desc"
                                                 name="description"
                                                 defaultValue={editingProduct?.description}
-                                                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 border-t-0 rounded-b-xl focus:border-indigo-500 outline-none transition-all"
-                                                rows={4}
+                                                className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white min-h-[120px]"
                                                 required
                                             />
                                         </div>
 
-                                        <div>
-                                            <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Starting Price (₹) *</label>
-                                            <input
-                                                name="priceFrom"
-                                                type="number"
-                                                defaultValue={editingProduct?.priceFrom}
-                                                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Features (one per line) *</label>
-                                            <FormattingToolbar targetId="prod-features" onFormat={(tag) => handleFormat('prod-features', tag)} />
-                                            <textarea
-                                                id="prod-features"
-                                                name="features"
-                                                defaultValue={editingProduct?.features?.join('\n')}
-                                                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 border-t-0 rounded-b-xl focus:border-indigo-500 outline-none transition-all font-medium"
-                                                rows={6}
-                                                placeholder="Feature 1&#10;Feature 2&#10;Feature 3"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Materials (comma separated)</label>
-                                            <input
-                                                name="materials"
-                                                defaultValue={editingProduct?.materials?.join(', ')}
-                                                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                                                placeholder="flex, sunboard, acrylic"
-                                            />
-                                        </div>
-
-                                        {/* SEO Section */}
-                                        <div className="border-t-2 border-gray-200 pt-6 mt-6">
-                                            <h4 className="text-sm font-black text-indigo-600 mb-4 uppercase tracking-wider flex items-center gap-2">
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                                </svg>
-                                                SEO Settings (Optional)
-                                            </h4>
-
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Custom Meta Title</label>
-                                                    <input
-                                                        name="seoMetaTitle"
-                                                        defaultValue={editingProduct?.seo?.metaTitle}
-                                                        placeholder="Leave blank to auto-generate from product name"
-                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                                                        maxLength={60}
-                                                    />
-                                                    <p className="text-xs text-gray-500 mt-1">Recommended: 50-60 characters</p>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Custom Meta Description</label>
-                                                    <textarea
-                                                        name="seoMetaDescription"
-                                                        defaultValue={editingProduct?.seo?.metaDescription}
-                                                        placeholder="Leave blank to auto-generate from product description"
-                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                                                        rows={3}
-                                                        maxLength={160}
-                                                    />
-                                                    <p className="text-xs text-gray-500 mt-1">Recommended: 150-160 characters</p>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">SEO Keywords</label>
-                                                    <input
-                                                        name="seoKeywords"
-                                                        defaultValue={editingProduct?.seo?.keywords?.join(', ')}
-                                                        placeholder="custom signage, business signs, flex boards (comma separated)"
-                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                                                    />
-                                                    <p className="text-xs text-gray-500 mt-1">5-10 relevant keywords, comma separated</p>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-black text-gray-700 mb-1 uppercase tracking-wider">Custom URL Slug</label>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm text-gray-500">/products/</span>
-                                                        <input
-                                                            name="seoSlug"
-                                                            defaultValue={editingProduct?.seo?.slug || editingProduct?.id}
-                                                            placeholder="custom-signage-boards"
-                                                            className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                                                            pattern="[a-z0-9-]+"
-                                                        />
-                                                    </div>
-                                                    <p className="text-xs text-gray-500 mt-1">Use lowercase letters, numbers, and hyphens only</p>
-                                                </div>
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Starting Price (₹)</label>
+                                                <input
+                                                    name="priceFrom"
+                                                    type="number"
+                                                    defaultValue={editingProduct?.priceFrom}
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-emerald-400 font-black text-xl"
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Materials (comma separated)</label>
+                                                <input
+                                                    name="materials"
+                                                    defaultValue={editingProduct?.materials?.join(', ')}
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                    placeholder="Neon, Acrylic, Wood"
+                                                />
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <input type="hidden" name="sizes" value={JSON.stringify(sizes)} />
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Features (one per line)</label>
+                                            <textarea
+                                                name="features"
+                                                defaultValue={editingProduct?.features?.join('\n')}
+                                                className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white min-h-[80px]"
+                                                placeholder="Customizable design&#10;Durable material"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Product Dimensions (Sizes)</label>
                                             <DynamicSizeForm sizes={sizes} onChange={setSizes} />
                                         </div>
 
-                                        <div>
-                                            <label className="block text-sm font-black text-gray-700 mb-2 uppercase tracking-wider">Product Images</label>
-                                            <div className="grid grid-cols-4 gap-3 mb-4">
+                                        <div className="space-y-4">
+                                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Visual Gallery</label>
+                                            <div className="grid grid-cols-4 gap-4">
                                                 {existingImages.map((url, idx) => (
-                                                    <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-gray-50 shadow-sm">
-                                                        <img src={url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                                    <div key={idx} className="aspect-square rounded-2xl border-2 border-white/5 relative group p-1">
+                                                        <img src={url} className="w-full h-full object-cover rounded-xl" />
                                                         <button
                                                             type="button"
-                                                            onClick={() => setExistingImages(prev => prev.filter((_, i) => i !== idx))}
-                                                            className="absolute inset-0 bg-red-600/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all backdrop-blur-[2px]"
+                                                            onClick={() => setExistingImages(img => img.filter((_, i) => i !== idx))}
+                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 transition-all"
                                                         >
-                                                            <Trash2 className="w-6 h-6 text-white" />
+                                                            <X size={14} />
                                                         </button>
                                                     </div>
                                                 ))}
-                                                {selectedImages.map((file, idx) => (
-                                                    <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm bg-indigo-50/30">
-                                                        <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSelectedImages(prev => prev.filter((_, i) => i !== idx))}
-                                                            className="absolute inset-0 bg-red-600/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all backdrop-blur-[2px]"
-                                                        >
-                                                            <Trash2 className="w-6 h-6 text-white" />
-                                                        </button>
-                                                        <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-indigo-600 text-white text-[8px] font-black rounded uppercase tracking-tighter">New</div>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            <div className="relative">
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    onChange={(e) => {
-                                                        if (e.target.files) {
-                                                            setSelectedImages(prev => [...prev, ...Array.from(e.target.files!)]);
-                                                        }
-                                                    }}
-                                                    className="hidden"
-                                                    id="product-image-upload"
-                                                />
-                                                <label
-                                                    htmlFor="product-image-upload"
-                                                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50/50 transition-all cursor-pointer group"
-                                                >
-                                                    <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 mb-2 transition-colors" />
-                                                    <span className="text-sm font-bold text-gray-600 group-hover:text-indigo-700">Add Product Images</span>
-                                                    <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB</span>
+                                                <label className="aspect-square rounded-2xl border-2 border-dashed border-white/10 hover:border-indigo-500 hover:bg-white/5 transition-all cursor-pointer flex flex-col items-center justify-center p-4">
+                                                    <Upload size={20} className="text-white/40 mb-2" />
+                                                    <span className="text-[10px] font-black text-white/40 uppercase">Upload</span>
+                                                    <input
+                                                        type="file"
+                                                        multiple
+                                                        className="hidden"
+                                                        onChange={(e) => {
+                                                            const files = Array.from(e.target.files || []);
+                                                            setSelectedImages(prev => [...prev, ...files]);
+                                                        }}
+                                                    />
                                                 </label>
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-4 pt-4">
-                                            <Button type="submit" disabled={isLoading} className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-700 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50">
+                                        <div className="flex gap-4 pt-6">
+                                            <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-xl shadow-xl shadow-indigo-500/20 text-white">
                                                 {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Save className="w-6 h-6 mr-2" />}
                                                 {editingProduct ? 'Update Product' : 'Create Product'}
                                             </Button>
@@ -789,7 +779,7 @@ export default function AdminPage() {
                                                 type="button"
                                                 variant="outline"
                                                 onClick={() => setShowProductForm(false)}
-                                                className="flex-1 py-4 border-2 border-gray-100 rounded-2xl font-black text-lg hover:bg-gray-50 transition-all active:scale-95"
+                                                className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-black text-xl hover:bg-white/10 text-white"
                                             >
                                                 Cancel
                                             </Button>
@@ -799,7 +789,7 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/10 overflow-hidden">
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2.5rem] shadow-xl border border-white/10 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
@@ -816,18 +806,12 @@ export default function AdminPage() {
                                             <tr key={product.id} className="group hover:bg-white/5 transition-all duration-300">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded-xl border border-white/10 flex-shrink-0 bg-white/5 overflow-hidden shadow-sm">
-                                                            <img
-                                                                src={product.image || '/products/placeholder.jpg'}
-                                                                alt=""
-                                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                            />
+                                                        <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 overflow-hidden shrink-0 shadow-lg">
+                                                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                                                         </div>
-                                                        <div>
-                                                            <p className="font-black text-white leading-none mb-1">{product.name}</p>
-                                                            <p className="text-[10px] text-slate-400 line-clamp-1 max-w-[200px]">
-                                                                {(product.description || '').replace(/<[^>]*>/g, '')}
-                                                            </p>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-white text-sm">{product.name}</span>
+                                                            <span className="text-[10px] text-slate-500 font-mono">#{product.id}</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -858,17 +842,15 @@ export default function AdminPage() {
                                                                 setExistingImages(product.images || []);
                                                                 setSelectedImages([]);
                                                             }}
-                                                            className="p-2.5 bg-gray-50 hover:bg-indigo-600 rounded-xl text-gray-400 hover:text-white transition-all shadow-sm"
-                                                            title="Edit Product"
+                                                            className="p-3 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-xl text-indigo-400 transition-all border border-indigo-500/10"
                                                         >
-                                                            <Edit className="w-4 h-4" />
+                                                            <Edit size={16} />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteProduct(product.id)}
-                                                            className="p-2.5 bg-gray-50 hover:bg-red-600 rounded-xl text-gray-400 hover:text-white transition-all shadow-sm"
-                                                            title="Delete Product"
+                                                            className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-red-500 transition-all border border-red-500/10"
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            <Trash2 size={16} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -880,76 +862,53 @@ export default function AdminPage() {
                         </div>
 
                         {products.length === 0 && (
-                            <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
-                                <div className="w-24 h-24 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                    <Package className="w-12 h-12 text-gray-300" />
-                                </div>
-                                <h3 className="text-2xl font-black text-gray-900 mb-2">No Products Ready</h3>
-                                <p className="text-gray-400 max-w-sm mx-auto">Get started by creating your first product listing and delight your customers.</p>
-                                <Button
-                                    onClick={() => setShowProductForm(true)}
-                                    className="mt-8 bg-indigo-600 hover:bg-indigo-700 py-6 px-10 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100"
-                                >
-                                    <Plus className="w-6 h-6 mr-2" />
-                                    Launch First Product
-                                </Button>
+                            <div className="text-center py-20 bg-slate-900/50 rounded-[2.5rem] border-2 border-dashed border-white/10">
+                                <Package className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-white">No Products</h3>
+                                <p className="text-slate-500">Launch your first product to get started.</p>
                             </div>
                         )}
                     </div>
                 )}
 
                 {activeTab === 'templates' && (
-                    <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="grid lg:grid-cols-3 gap-8">
+                        {/* Upload Form */}
                         <div className="lg:col-span-1">
-                            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100 sticky top-6">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
-                                        <Upload className="w-6 h-6 text-white" />
+                            <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/10 sticky top-6">
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-12 h-12 bg-indigo-500/20 rounded-2xl flex items-center justify-center border border-indigo-500/20">
+                                        <Plus className="w-6 h-6 text-indigo-400" />
                                     </div>
-                                    <h2 className="text-2xl font-black text-gray-900">Upload Base</h2>
+                                    <h3 className="text-2xl font-black text-white">Add Template</h3>
                                 </div>
 
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Administrator PIN</label>
-                                        <input
-                                            type="password"
-                                            name="pin"
-                                            value={pin}
-                                            onChange={(e) => setPin(e.target.value)}
-                                            placeholder="Enter Admin PIN"
-                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Template Title</label>
+                                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Template Title</label>
                                         <input
                                             type="text"
                                             name="name"
                                             placeholder="e.g. Premium Business Card"
-                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
+                                            className="w-full px-6 py-4 bg-black/20 border border-white/10 text-white placeholder:text-slate-600 rounded-2xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
                                             required
                                         />
                                     </div>
 
                                     <div>
-                                        <div className="flex items-center justify-between mb-1.5 ml-1">
-                                            <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest">Usage Type</label>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 p-1 bg-gray-50 rounded-xl border-2 border-gray-100">
+                                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Usage Type</label>
+                                        <div className="grid grid-cols-2 gap-3 p-1 bg-black/20 rounded-2xl border border-white/10">
                                             <button
                                                 type="button"
                                                 onClick={() => setTemplateType('universal')}
-                                                className={`py-2.5 px-4 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${templateType === 'universal' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                                className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${templateType === 'universal' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
                                             >
                                                 Universal
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => setTemplateType('specific')}
-                                                className={`py-2.5 px-4 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${templateType === 'specific' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                                className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${templateType === 'specific' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
                                             >
                                                 Specific
                                             </button>
@@ -958,10 +917,10 @@ export default function AdminPage() {
 
                                     {templateType === 'specific' && (
                                         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Select Products</label>
-                                            <div className="max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-xl border-2 border-gray-100 space-y-2">
+                                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Select Products</label>
+                                            <div className="max-h-40 overflow-y-auto p-4 bg-black/20 rounded-2xl border border-white/10 space-y-2">
                                                 {products.map(p => (
-                                                    <label key={p.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-200">
+                                                    <label key={p.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-white/5">
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedProductIds.includes(p.id)}
@@ -969,9 +928,9 @@ export default function AdminPage() {
                                                                 if (e.target.checked) setSelectedProductIds(prev => [...prev, p.id]);
                                                                 else setSelectedProductIds(prev => prev.filter(id => id !== p.id));
                                                             }}
-                                                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                            className="w-4 h-4 rounded border-white/10 bg-black/20 text-indigo-600 focus:ring-indigo-500"
                                                         />
-                                                        <span className="text-xs font-bold text-gray-700">{p.name}</span>
+                                                        <span className="text-xs font-bold text-slate-300">{p.name}</span>
                                                     </label>
                                                 ))}
                                             </div>
@@ -980,12 +939,12 @@ export default function AdminPage() {
                                     )}
 
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Category</label>
+                                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Category</label>
                                         <select
                                             name="category"
                                             value={templateCategory}
                                             onChange={(e) => setTemplateCategory(e.target.value)}
-                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
+                                            className="w-full px-6 py-4 bg-black/20 border border-white/10 text-white rounded-2xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold appearance-none"
                                         >
                                             <option value="Business">Business</option>
                                             <option value="Retail">Retail</option>
@@ -996,83 +955,31 @@ export default function AdminPage() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Description</label>
-                                        <textarea
-                                            name="description"
-                                            placeholder="Template description..."
-                                            rows={2}
-                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold"
+                                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Template File (SVG)</label>
+                                        <input
+                                            type="file"
+                                            name="file"
+                                            accept=".svg"
+                                            className="w-full text-sm text-slate-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-white/5 file:text-indigo-400 hover:file:bg-white/10 transition-all cursor-pointer bg-black/20 rounded-2xl border-2 border-dashed border-white/10 p-2"
+                                            required
                                         />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Template File (SVG)</label>
-                                        <div className="space-y-3">
-                                            <input
-                                                type="file"
-                                                name="file"
-                                                accept=".svg"
-                                                onChange={async (e) => {
-                                                    const file = e.target.files?.[0];
-                                                    if (file && file.name.endsWith('.svg')) {
-                                                        const text = await file.text();
-                                                        fabric.loadSVGFromString(text, (objects, options) => {
-                                                            setFileDimensions({
-                                                                width: options.width || 0,
-                                                                height: options.height || 0
-                                                            });
-                                                        });
-                                                    } else {
-                                                        setFileDimensions(null);
-                                                    }
-                                                }}
-                                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition-all cursor-pointer bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"
-                                                required
-                                            />
-
-                                            {fileDimensions && (
-                                                <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 animate-in zoom-in-95 duration-300">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Shape Preview</span>
-                                                        <span className="text-[10px] font-black text-indigo-600 bg-white px-2 py-0.5 rounded-lg border border-indigo-100 shadow-sm">
-                                                            {fileDimensions.width.toFixed(0)} × {fileDimensions.height.toFixed(0)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-center py-4">
-                                                        <div
-                                                            className="bg-white border-2 border-indigo-200 rounded-lg shadow-inner flex items-center justify-center relative overflow-hidden"
-                                                            style={{
-                                                                width: '100px',
-                                                                height: `${Math.min(140, Math.max(40, (fileDimensions.height / fileDimensions.width) * 100))}px`,
-                                                            }}
-                                                        >
-                                                            <div className="absolute inset-0 bg-indigo-100/20" />
-                                                            <ImageIcon className="w-5 h-5 text-indigo-300 relative z-10" />
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-[9px] text-center text-indigo-400 font-bold uppercase tracking-tighter">
-                                                        {fileDimensions.width > fileDimensions.height ? 'Landscape' : fileDimensions.width < fileDimensions.height ? 'Portrait' : 'Square'} Orientation
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
                                     </div>
 
                                     <Button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="w-full bg-indigo-600 hover:bg-indigo-700 py-6 rounded-2xl font-black text-sm shadow-lg shadow-indigo-100 group relative overflow-hidden"
+                                        className="w-full bg-indigo-600 hover:bg-indigo-500 py-7 rounded-2xl font-black text-sm shadow-xl shadow-indigo-500/20 group relative overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                                         {isLoading ? (
-                                            <div className="flex items-center gap-2">
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span>Processing...</span>
+                                            <div className="flex items-center gap-2 justify-center">
+                                                <Loader2 className="w-5 h-4 animate-spin text-white" />
+                                                <span className="text-white">Processing...</span>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-2">
-                                                <Upload className="w-4 h-4" />
-                                                <span>Upload Template</span>
+                                            <div className="flex items-center gap-2 justify-center">
+                                                <Upload className="w-5 h-5 text-white" />
+                                                <span className="text-white">Upload Template</span>
                                             </div>
                                         )}
                                     </Button>
@@ -1080,74 +987,62 @@ export default function AdminPage() {
                             </div>
                         </div>
 
+                        {/* Template List */}
                         <div className="lg:col-span-2">
-                            <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
+                            <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2.5rem] shadow-xl border border-white/10 overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="bg-gray-50/50 border-b border-gray-100">
-                                                <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest w-1/3">Preview</th>
-                                                <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest">Template Details</th>
-                                                <th className="px-8 py-4 text-[10px] font-black text-gray-600 uppercase tracking-widest text-right">Actions</th>
+                                            <tr className="bg-white/5 border-b border-white/10">
+                                                <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest w-1/3">Preview</th>
+                                                <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Details</th>
+                                                <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-50">
-                                            {templates.map((template) => {
-                                                return (
-                                                    <tr key={template.id} className="group hover:bg-indigo-50/30 transition-all duration-300">
-                                                        <td className="px-8 py-4">
-                                                            <div className="w-72 aspect-[4/3] bg-white border-2 border-black overflow-hidden shadow-sm shrink-0">
-                                                                {template.thumbnail || template.svgPath ? (
-                                                                    <img
-                                                                        src={template.thumbnail || template.svgPath}
-                                                                        alt={template.name}
-                                                                        className="w-full h-full object-contain p-2"
-                                                                    />
-                                                                ) : (
-                                                                    <span className="text-[10px] font-black text-gray-300">SVG</span>
-                                                                )}
+                                        <tbody className="divide-y divide-white/5">
+                                            {templates.map((template) => (
+                                                <tr key={template.id} className="group hover:bg-white/5 transition-all duration-300">
+                                                    <td className="px-8 py-4">
+                                                        <div className="w-full aspect-[4/3] bg-white rounded-xl border-4 border-slate-800 overflow-hidden shadow-lg p-2">
+                                                            <img
+                                                                src={template.thumbnail || template.svgPath}
+                                                                alt={template.name}
+                                                                className="w-full h-full object-contain"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-4 align-top pt-8">
+                                                        <div className="flex flex-col gap-2">
+                                                            <span className="font-black text-xl text-white">{template.name}</span>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <span className="text-[10px] px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full font-black uppercase tracking-wider border border-indigo-500/20">
+                                                                    {template.category}
+                                                                </span>
+                                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border ${template.isUniversal ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/20 text-amber-400 border-amber-500/20'}`}>
+                                                                    {template.isUniversal ? 'Universal' : 'Specific'}
+                                                                </span>
                                                             </div>
-                                                        </td>
-                                                        <td className="px-8 py-4 align-top">
-                                                            <div className="flex flex-col h-full pt-2">
-                                                                <span className="font-black text-xl text-gray-900 mb-2">{template.name}</span>
-                                                                <div className="flex flex-wrap gap-2 mb-2">
-                                                                    <span className="text-[10px] px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-black uppercase tracking-wider">
-                                                                        {template.category}
-                                                                    </span>
-                                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${template.isUniversal ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                                        {template.isUniversal ? 'Universal' : 'Specific'}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="px-2 py-1 bg-gray-100 rounded-md border border-gray-200">
-                                                                        <span className="text-[10px] font-black text-gray-800 uppercase tracking-wider">ID</span>
-                                                                    </div>
-                                                                    <span className="text-xs font-mono text-black font-bold">{template.id}</span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-4 text-right align-middle">
-                                                            <button
-                                                                onClick={() => handleDelete(template.id)}
-                                                                disabled={isLoading}
-                                                                className="p-3 bg-white border-2 border-red-100 hover:bg-red-600 hover:border-red-600 rounded-xl text-red-500 hover:text-white transition-all shadow-sm"
-                                                                title="Delete Template"
-                                                            >
-                                                                <Trash2 size={20} />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                                            <span className="text-[10px] font-mono text-slate-500 mt-2">ID: {template.id}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-4 text-right align-middle">
+                                                        <button
+                                                            onClick={() => handleDelete(template.id)}
+                                                            className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-red-500 transition-all border border-red-500/10"
+                                                        >
+                                                            <Trash2 size={20} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
                             {templates.length === 0 && (
-                                <div className="col-span-2 text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
-                                    <FileText className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                                    <p className="text-gray-400 font-bold tracking-tight">Cloud Storage Empty</p>
+                                <div className="text-center py-24 bg-slate-900/50 rounded-[2.5rem] border-2 border-dashed border-white/10">
+                                    <FileText className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                                    <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">Storage Empty</p>
                                 </div>
                             )}
                         </div>
@@ -1155,15 +1050,15 @@ export default function AdminPage() {
                 )}
 
                 {message && (
-                    <div className={`fixed bottom-8 right-8 p-5 rounded-3xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-500 z-[100] border-4 ${message.type === 'success'
-                        ? 'bg-indigo-600 text-white border-white/20'
+                    <div className={`fixed bottom-8 right-8 p-6 rounded-[2rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-500 z-[100] border-2 ${message.type === 'success'
+                        ? 'bg-emerald-600 text-white border-white/20'
                         : 'bg-red-600 text-white border-white/20'
                         }`}>
-                        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                            {message.type === 'success' ? <CheckCircle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                            {message.type === 'success' ? <CheckCircle className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 leading-none mb-1">System Notification</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 leading-none mb-1">System Status</p>
                             <span className="font-black text-lg leading-none">{message.text}</span>
                         </div>
                         <button onClick={() => setMessage(null)} className="ml-4 hover:scale-110 transition-transform">

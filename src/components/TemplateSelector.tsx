@@ -68,7 +68,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
 
     if (isLoading) {
         return (
-            <div className="grid grid-cols-2 gap-3 p-1">
+            <div className="grid grid-cols-1 gap-3 p-1">
                 {[1, 2, 3, 4].map(i => (
                     <div key={i} className="aspect-square bg-slate-800/50 animate-pulse rounded-xl border border-white/5" />
                 ))}
@@ -78,7 +78,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 p-1">
+            <div className="grid grid-cols-1 gap-3 p-1">
                 {/* Custom Design Option */}
                 <button
                     key="custom-blank"
@@ -112,17 +112,24 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
                         className={`relative group rounded-xl border-2 transition-all overflow-hidden text-left bg-slate-900/40 backdrop-blur-sm
                             ${selectedTemplateId === template.id
                                 ? 'border-indigo-500 shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/50'
-                                : 'border-white/5 hover:border-indigo-500/30 hover:bg-slate-800/40'
+                                : 'border-white/5 hover:border-indigo-500 hover:bg-slate-800/60'
                             }`}
                     >
                         {/* Preview Area */}
-                        <div className="h-24 w-full relative bg-slate-950/40 flex items-center justify-center p-2">
+                        <div
+                            className="w-full relative bg-slate-950/40 flex items-center justify-center p-2 transition-all duration-300"
+                            style={{
+                                aspectRatio: template.dimensions ? `${template.dimensions.width}/${template.dimensions.height}` : '1.5',
+                                // Cap the height if it gets too extreme (e.g. strict vertical banners)
+                                maxHeight: '400px'
+                            }}
+                        >
                             {template.thumbnail || template.svgPath ? (
-                                <div className="relative w-full h-full p-1 bg-white rounded shadow-inner">
+                                <div className="relative w-full h-full p-4 bg-slate-700 rounded-lg shadow-sm">
                                     <img
                                         src={template.thumbnail || template.svgPath}
                                         alt={template.name}
-                                        className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                        className="w-full h-full object-contain transition-transform"
                                     />
                                 </div>
                             ) : (
@@ -148,17 +155,9 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
                             )}
                         </div>
 
-                        <div className="p-2.5 bg-slate-900/60 border-t border-white/5">
-                            <h4 className="text-[11px] font-black text-slate-100 truncate tracking-tight">{template.name}</h4>
-                            <div className="flex items-center gap-1.5 mt-1">
-                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">{template.category}</span>
-                                {template.matchQuality === 'RATIO_MISMATCH' && (
-                                    <>
-                                        <span className="text-slate-800 text-[8px]">•</span>
-                                        <span className="text-[8px] font-bold text-amber-500/80 uppercase tracking-tighter">Shape Diff</span>
-                                    </>
-                                )}
-                            </div>
+                        <div className="p-3 bg-slate-900/60 border-t border-white/5 flex items-center justify-between gap-2">
+                            <h4 className="text-sm font-medium text-slate-200 truncate">{template.name}</h4>
+                            <span className="text-xs text-slate-500 whitespace-nowrap">{template.category}</span>
                         </div>
                     </button>
                 ))}
