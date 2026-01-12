@@ -11,7 +11,7 @@ import { DesignUpload } from '@/components/DesignUpload';
 import { ReviewApproval } from '@/components/ReviewApproval';
 import { SignageData, DesignConfig, DEFAULT_DESIGN, TemplateId } from '@/lib/types';
 import { calculatePrice, MaterialId } from '@/lib/utils';
-import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode } from '@/app/actions';
+import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode, getReferrerByCode } from '@/app/actions';
 import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3, Download } from 'lucide-react';
 import { PreviewSection } from '@/components/PreviewSection';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
@@ -103,7 +103,7 @@ function DesignContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const isProductPath = !!searchParams.get('product');
-    const { user } = useAuth();
+    const { user, signInWithGoogle } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
 
     // Stabilized registration callbacks to prevent infinite loops
@@ -199,16 +199,14 @@ function DesignContent() {
             const isFS = !!document.fullscreenElement;
             setIsFullscreen(isFS);
 
-            if (isFS && isMobile && screen.orientation?.lock) {
+            if (isFS && isMobile && (screen.orientation as any)?.lock) {
                 try {
-                    // @ts-expect-error - orientation.lock is not standard in all types
-                    await screen.orientation.lock('landscape');
+                    await (screen.orientation as any).lock('landscape');
                 } catch (err) {
                     console.error('Orientation lock failed:', err);
                 }
-            } else if (!isFS && screen.orientation?.unlock) {
-                // @ts-expect-error - orientation.unlock is not standard in all types
-                screen.orientation.unlock();
+            } else if (!isFS && (screen.orientation as any)?.unlock) {
+                (screen.orientation as any).unlock();
             }
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -255,7 +253,6 @@ function DesignContent() {
         }
 
         setIsValidatingCode(true);
-        const { getReferrerByCode } = await import('@/app/actions');
         const result = await getReferrerByCode(code);
         setCodeValidated(result.success && result.referrer !== null);
         setIsValidatingCode(false);
@@ -430,6 +427,14 @@ function DesignContent() {
 
     // Handle Google Sign In from Auth Modal
     const handleGoogleSignIn = async () => {
+        // Explicitly save canvas state to localStorage before redirect
+        // @ts-expect-error - fabricCanvas is globally attached to window
+        const canvas = window.fabricCanvas;
+        if (canvas) {
+            const json = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'id', 'data']));
+            localStorage.setItem('signage_canvas_json', json);
+        }
+
         // Save current order state to localStorage before redirecting to Google
         const pendingOrder = {
             data,
@@ -445,8 +450,6 @@ function DesignContent() {
         };
         localStorage.setItem('pending_order', JSON.stringify(pendingOrder));
 
-        // Use signInWithGoogle from AuthProvider hook
-        const { signInWithGoogle } = useAuth();
         // This will redirect to Google OAuth
         await signInWithGoogle();
     };
@@ -1559,40 +1562,6 @@ function DesignContent() {
                                                 </div>
                                             )}
 
-                                            {/* Contact Details (Desktop) */}
-                                            <div className="space-y-4 pt-4 border-t border-slate-700">
-                                                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Contact & Shipping</h4>
-                                                <div className="space-y-3">
-                                                    <input
-                                                        type="text"
-                                                        value={contactDetails.name}
-                                                        onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
-                                                        placeholder="Full Name"
-                                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
-                                                    />
-                                                    <input
-                                                        type="email"
-                                                        value={contactDetails.email}
-                                                        onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
-                                                        placeholder="Email Address"
-                                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
-                                                    />
-                                                    <input
-                                                        type="tel"
-                                                        value={contactDetails.mobile}
-                                                        onChange={(e) => setContactDetails({ ...contactDetails, mobile: e.target.value })}
-                                                        placeholder="Mobile Number"
-                                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
-                                                    />
-                                                    <textarea
-                                                        value={contactDetails.shippingAddress}
-                                                        onChange={(e) => setContactDetails({ ...contactDetails, shippingAddress: e.target.value })}
-                                                        placeholder="Shipping Address"
-                                                        rows={3}
-                                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
                                     )}
                                 </div>

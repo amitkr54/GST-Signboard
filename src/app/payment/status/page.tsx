@@ -7,7 +7,7 @@ import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 export default function PaymentStatusPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen" />}> 
+        <Suspense fallback={<div className="min-h-screen" />}>
             <PaymentStatusContent />
         </Suspense>
     );

@@ -158,7 +158,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                                     : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5'
                                     }`}
                             >
-                                Continue Checklist
+                                Continue to Payment
                             </button>
                         </div>
                     </div>

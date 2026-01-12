@@ -65,6 +65,7 @@ export function FabricPreview({
     const [hasMovedToolbar, setHasMovedToolbar] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+    const hasInitialLoadRef = useRef(false);
 
     const { width: baseWidth, height: baseHeight } = useMemo(() => {
         const DPI = 75;
@@ -409,7 +410,20 @@ export function FabricPreview({
         if (!canvas || initialJSON) return;
 
         setIsProcessing(true);
-        const templateConfig = dynamicTemplates.find(t => t.id === design.templateId);
+        const templateId = design.templateId;
+        const templateConfig = dynamicTemplates.find(t => t.id === templateId);
+
+        // Session Restoration Safeguard:
+        // If this is the initial mount AND we have a saved JSON in localStorage,
+        // we skip the template load to prevent overwriting user customizations.
+        const savedJSON = !isReadOnly ? localStorage.getItem('signage_canvas_json') : null;
+        if (!hasInitialLoadRef.current && savedJSON && !initialJSON) {
+            console.log('[FabricPreview] Skipping initial template load - saved session found');
+            hasInitialLoadRef.current = true;
+            setIsProcessing(false);
+            return;
+        }
+        hasInitialLoadRef.current = true;
 
         // Remove existing template objects
         canvas.getObjects().forEach(obj => {
