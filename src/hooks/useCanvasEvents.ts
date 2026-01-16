@@ -45,7 +45,11 @@ export function useCanvasEvents({
 
         let violation = false;
         objects.forEach(obj => {
-            if (obj.name === 'safety_bleed_rect' || obj.name === 'safetyGuide' || obj.name === 'background' || (obj as any).isBackground || !obj.selectable) return;
+            const name = (obj.name || '').toLowerCase();
+            const id = ((obj as any).id || '').toLowerCase();
+            const isBgTagged = (obj as any).isBackground === true || name.includes('background') || id.includes('background');
+
+            if (obj.name === 'safety_bleed_rect' || obj.name === 'safetyGuide' || isBgTagged || !obj.selectable) return;
 
             // Convert viewport bounds to design units
             const bounds = obj.getBoundingRect();
@@ -235,10 +239,9 @@ export function useCanvasEvents({
             const obj = e.target as fabric.Textbox;
             if (!obj || obj.type !== 'textbox') return;
 
-            const marginScale = 0.05;
-            const margin = Math.min(baseWidth, baseHeight) * marginScale;
-            // Cap at board safety margins
-            const maxWidth = baseWidth - (margin * 2);
+            // Allow text to occupy full board width minus small padding (20px) 
+            // instead of subtracting a large safety margin.
+            const maxWidth = baseWidth - 20;
 
             // Fast measurement using fabric.Text (avoiding Textbox layout engine overhead)
             const measurer = new fabric.Text(obj.text || '', {

@@ -264,6 +264,24 @@ export async function generateReferralCode(userId: string) {
     return { success: true };
 }
 
+// ========== USER DASHBOARD ACTIONS ==========
+
+export async function getUserOrders(email: string) {
+    if (!email) return { success: false, error: 'Email required' };
+
+    const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_email', email)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        return { success: false, error: error.message };
+    }
+
+    return { success: true, orders: orders || [] };
+}
+
 // ========== NEW REFERRAL SYSTEM (₹150 Fixed Commission) ==========
 
 export async function createReferrer(name: string, email: string, phone: string) {
@@ -625,62 +643,61 @@ export async function uploadTemplate(formData: FormData) {
             }
         }
 
-        // --- 4. Content-Based Normalization (Actual Size) ---
-        // This ensures the template data tightly fits the design, ignoring CorelDRAW's massive empty workspace.
+        // --- 4. Advanced Coordinate Normalization (Zero-Centering) ---
+        // This shifts all items to start at (0,0) and ignores ghost objects.
         if (components && (components.text.length > 0 || components.backgroundObjects.length > 0)) {
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const boardWidth = parseFloat(formData.get('width') as string) || 12;
+            const boardHeight = parseFloat(formData.get('height') as string) || 12;
 
-            components.text.forEach((t: any) => {
-                minX = Math.min(minX, t.left);
-                minY = Math.min(minY, t.top);
-                // Estimate width if not available; 0.6*fontSize*charCount is a rough guide for Arial-like fonts
-                const estimatedWidth = (t.text.split('\n')[0].length * t.fontSize * 0.6);
-                maxX = Math.max(maxX, t.left + estimatedWidth);
-                maxY = Math.max(maxY, t.top + (t.fontSize * (t.lineHeight || 1.16) * t.text.split('\n').length));
+            // 1. First pass: Find the "Main Cluster" 
+            // We prioritize the Background/Rectangle as the anchor if it exists.
+            let clusterMinX = Infinity, clusterMinY = Infinity, clusterMaxX = -Infinity, clusterMaxY = -Infinity;
+            const bgRect = components.backgroundObjects.find((o: any) => o.type === 'rect' && parseFloat(o.styles.width) > 500);
+
+            if (bgRect) {
+                clusterMinX = parseFloat(bgRect.styles.x || '0');
+                clusterMinY = parseFloat(bgRect.styles.y || '0');
+                clusterMaxX = clusterMinX + parseFloat(bgRect.styles.width);
+                clusterMaxY = clusterMinY + parseFloat(bgRect.styles.height);
+            } else {
+                // Fallback: Use all elements to find bounds
+                [...components.text, ...components.backgroundObjects].forEach((o: any) => {
+                    const x = o.left ?? parseFloat(o.styles?.x || o.styles?.cx || '0');
+                    const y = o.top ?? parseFloat(o.styles?.y || o.styles?.cy || '0');
+                    if (!isNaN(x) && !isNaN(y)) {
+                        clusterMinX = Math.min(clusterMinX, x);
+                        clusterMinY = Math.min(clusterMinY, y);
+                        clusterMaxX = Math.max(clusterMaxX, x + 10);
+                        clusterMaxY = Math.max(clusterMaxY, y + 10);
+                    }
+                });
+            }
+
+            // 2. Second pass: Normalize and Filter
+            // We shift everything so the cluster starts at (0,0)
+            const offsetX = clusterMinX;
+            const offsetY = clusterMinY;
+
+            components.text = components.text.map((t: any) => ({
+                ...t,
+                left: t.left - offsetX,
+                top: t.top - offsetY
+            })).filter((t: any) => {
+                // Remove text that is way outside the logical board (Ghost protection)
+                const margin = (clusterMaxX - clusterMinX) * 1.5;
+                return t.left > -margin && t.left < (clusterMaxX - clusterMinX) + margin;
             });
 
-            components.backgroundObjects.forEach((o: any) => {
-                // Basic bounds check for rect, circle etc.
-                // Paths are hard to parse via regex, so we'll at least use their starting position if nothing else.
-                const s = o.styles;
-                let x = parseFloat(s.x || s.cx || 0);
-                let y = parseFloat(s.y || s.cy || 0);
-                let w = parseFloat(s.width || s.r || 0);
-                let h = parseFloat(s.height || s.r || 0);
+            components.backgroundObjects = components.backgroundObjects.map((o: any) => ({
+                ...o,
+                left: (o.left ?? parseFloat(o.styles?.x || '0')) - offsetX,
+                top: (o.top ?? parseFloat(o.styles?.y || '0')) - offsetY
+            }));
 
-                if (o.type === 'path' && s.d) {
-                    // Try to extract first M coordinate as a hint
-                    const m = s.d.match(/M\s*(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/i);
-                    if (m) { x = parseFloat(m[1]); y = parseFloat(m[2]); w = 10; h = 10; }
-                }
-
-                // Store calculated position in the object
-                o.left = x;
-                o.top = y;
-                o.width = w;
-                o.height = h;
-
-                if (!isNaN(x)) {
-                    minX = Math.min(minX, x);
-                    maxX = Math.max(maxX, x + w);
-                }
-                if (!isNaN(y)) {
-                    minY = Math.min(minY, y);
-                    maxY = Math.max(maxY, y + h);
-                }
-            });
-
-            // If we found valid bounds, update originalViewBox to "Actual Size"
-            if (minX !== Infinity && maxX > minX && maxY > minY) {
-                const padW = (maxX - minX) * 0.05; // 5% padding
-                const padH = (maxY - minY) * 0.05;
-                components.originalViewBox = [
-                    minX - padW,
-                    minY - padH,
-                    (maxX - minX) + (padW * 2),
-                    (maxY - minY) + (padH * 2)
-                ];
-                console.log('AUTO-CROP (BACKEND):', components.originalViewBox);
+            // 3. Update originalViewBox to the "Cleaned" dimensions
+            if (clusterMinX !== Infinity && clusterMaxX > clusterMinX) {
+                components.originalViewBox = [0, 0, clusterMaxX - clusterMinX, clusterMaxY - clusterMinY];
+                console.log('CLEAN NORMALIZATION (BACKEND):', components.originalViewBox);
             }
         }
 
@@ -699,9 +716,11 @@ export async function uploadTemplate(formData: FormData) {
             category: category || 'Uncategorized',
             is_universal: templateType === 'universal',
             product_ids: templateType === 'specific' ? productIds : [],
-            dimensions: components?.originalViewBox
-                ? { width: components.originalViewBox[2], height: components.originalViewBox[3] }
-                : { width: 1000, height: 1000 }
+            dimensions: {
+                width: parseFloat(formData.get('width') as string) || (components?.originalViewBox ? components.originalViewBox[2] : 1000),
+                height: parseFloat(formData.get('height') as string) || (components?.originalViewBox ? components.originalViewBox[3] : 1000),
+                unit: 'in' // We assume input is in inches as per UI
+            }
         };
 
         const { error: insertError } = await supabase
@@ -720,10 +739,10 @@ export async function uploadTemplate(formData: FormData) {
     }
 }
 
-export async function getTemplates() {
+export async function getTemplates(options?: { category?: string, productId?: string, aspectRatio?: number, search?: string }) {
     const { db } = await import('@/lib/db');
     try {
-        return await db.getTemplates();
+        return await db.getTemplates(options);
     } catch (error) {
         console.error('Error fetching templates:', error);
         return [];
@@ -913,5 +932,67 @@ export async function uploadProductImages(formData: FormData) {
     } catch (error: any) {
         console.error('Image upload error:', error);
         return { success: false, error: `Image upload failed: ${error.message}` };
+    }
+}
+
+// ========== CATEGORY MANAGEMENT ==========
+
+export async function getCategories() {
+    try {
+        const { data, error } = await supabase
+            .from('product_categories')
+            .select('*')
+            .order('display_order', { ascending: true });
+
+        if (error) throw error;
+        return { success: true, categories: data || [] };
+    } catch (error: any) {
+        console.error('Error fetching categories:', error);
+        return { success: false, error: error.message, categories: [] };
+    }
+}
+
+export async function saveCategory(category: any, pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('product_categories')
+            .upsert({
+                id: category.id,
+                name: category.name,
+                description: category.description,
+                icon: category.icon,
+                display_order: category.display_order,
+                is_active: category.is_active ?? true,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error saving category:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteCategory(id: string, pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('product_categories')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting category:', error);
+        return { success: false, error: error.message };
     }
 }

@@ -98,19 +98,19 @@ export const db = {
         }
     },
 
-    async getTemplates(): Promise<any[]> {
-        const { data, error } = await supabase
+    async getTemplates(options: { category?: string, productId?: string, aspectRatio?: number, search?: string } = {}): Promise<any[]> {
+        let query = supabase
             .from('templates')
             .select('*');
 
+        const { data, error } = await query;
+
         if (error) {
             console.error('Supabase templates error:', error);
-            // Fallback to empty array or throw? 
-            // For now throw to make it obvious
             throw new Error(error.message);
         }
 
-        return (data || []).map(row => ({
+        let templates = (data || []).map(row => ({
             id: row.id,
             name: row.name,
             description: row.description,
@@ -125,8 +125,51 @@ export const db = {
             // New Fields
             category: row.category,
             isUniversal: row.is_universal,
-            productIds: row.product_ids,
+            productIds: row.product_ids || [],
             dimensions: row.dimensions
         }));
+
+        // Filter in memory since some logic (aspect ratio) is complex for simplified SQL
+        return templates.filter(t => {
+            // 1. Search Filter
+            if (options.search) {
+                const searchLower = options.search.toLowerCase();
+                if (!t.name.toLowerCase().includes(searchLower) &&
+                    !t.description?.toLowerCase().includes(searchLower) &&
+                    !t.category?.toLowerCase().includes(searchLower)) {
+                    return false;
+                }
+            }
+
+            // 2. Category/Product Eligibility Filter
+            if (options.category || options.productId) {
+                // If it's a "Specific" template, it MUST display if the product ID matches, regardless of category
+                if (!t.isUniversal) {
+                    if (options.productId && t.productIds.includes(options.productId)) {
+                        // Keep it (match specific product)
+                    } else {
+                        return false; // Skip if specific but product doesn't match
+                    }
+                } else {
+                    // It's Universal
+                    // We formerly filtered by category here, but "Universal" should often mean it works for ANY product of that size.
+                    // If we STRICTLY match category, a "Business" card template won't show on a "Signage" product even if sizes match.
+                    // Let's relax this: Only filter if specific category requested via Search, OR if we decide to enforce categories later.
+                    // For now, allow Universal to show on ALL products if size matches.
+                    // if (options.category && t.category !== options.category) { return false; } 
+                }
+            }
+
+            // 3. Aspect Ratio Filter (Tolerance +/- 0.1)
+            if (options.aspectRatio && t.dimensions) {
+                const tRatio = t.dimensions.width / t.dimensions.height;
+                const diff = Math.abs(tRatio - options.aspectRatio);
+                if (diff > 0.15) { // Slightly loose tolerance
+                    return false;
+                }
+            }
+
+            return true;
+        });
     }
 };

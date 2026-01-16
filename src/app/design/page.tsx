@@ -163,6 +163,58 @@ function DesignContent() {
         }
     }, [searchParams]);
 
+    // Separate effect to load template if needed
+    useEffect(() => {
+        const templateId = searchParams.get('template');
+        async function loadTemplate() {
+            if (!templateId) return;
+            try {
+                // Fetch all templates for now to find the one we need. 
+                // Optimization: Add `getTemplateById` server action later.
+                // Assuming getTemplates returns list.
+                const { getTemplates } = await import('@/app/actions');
+                const templates = await getTemplates({ search: '' });
+
+                // CRITICAL: We need the SVG content.
+                // existing `getTemplates` returns `svgPath`, `components` (json), `fabricConfig`.
+
+                const found = templates.find((t: any) => t.id === templateId);
+                if (found) {
+                    console.log("Loading template:", found);
+
+                    // 1. Try Fabric Config (Saved Editor State)
+                    if (found.fabricConfig && Object.keys(found.fabricConfig).length > 0 && (found.fabricConfig.objects || found.fabricConfig.version)) {
+                        console.log("Using fabricConfig");
+                        setDesign(prev => ({ ...prev, initialJSON: JSON.stringify(found.fabricConfig) }));
+                    }
+                    // 2. Try SVG Path (Uploaded File)
+                    else if (found.svgPath) {
+                        console.log("Using svgPath", found.svgPath);
+                        // Fetch SVG content
+                        try {
+                            const res = await fetch(found.svgPath);
+                            const svgText = await res.text();
+                            setDesign(prev => ({ ...prev, initialSVG: svgText }));
+                        } catch (err) {
+                            console.error("Failed to fetch SVG", err);
+                        }
+                    }
+                    // 3. Fallback to Components (Old/Smart Format) - ONLY if it looks like Fabric JSON
+                    else if (found.components && Object.keys(found.components).length > 0 && found.components.objects) {
+                        console.log("Using components (Legacy/Smart)");
+                        setDesign(prev => ({ ...prev, initialJSON: JSON.stringify(found.components) }));
+                    }
+                    else {
+                        console.warn("Template found but no renderable data (fabricConfig, svgPath, or valid components).");
+                    }
+                }
+            } catch (e) {
+                console.error("Error loading template", e);
+            }
+        }
+        loadTemplate();
+    }, [searchParams]);
+
     // 2. Auto-save to localStorage (Debounced)
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -260,6 +312,10 @@ function DesignContent() {
 
     const handleTemplateSelect = (id: TemplateId) => {
         setDesign(prev => ({ ...prev, templateId: id }));
+
+        // CRITICAL: Clear saved canvas state when switching templates to prevent 
+        // stale coordinates from interfering with new layout.
+        localStorage.removeItem('signage_canvas_json');
 
         // Automatically switch to design tab on mobile
         if (isMobile) {
@@ -420,9 +476,19 @@ function DesignContent() {
     };
 
     const handleOpenReview = () => {
-        // Simply show auth modal (no validation yet)
-        // Contact details will be collected AFTER auth choice
-        setShowAuthModal(true);
+        // Step 1: Quality Check (Review Design)
+        // Capture a clean snapshot for the review modal
+        captureCanvasSnapshot();
+        setShowReviewModal(true);
+    };
+
+    const captureCanvasSnapshot = () => {
+        // @ts-expect-error - fabricCanvas is globally attached to window
+        const canvas = window.fabricCanvas;
+        if (canvas) {
+            const json = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'id', 'data']));
+            setCanvasSnapshot(json);
+        }
     };
 
     // Handle Google Sign In from Auth Modal
@@ -493,41 +559,24 @@ function DesignContent() {
                 console.error('Failed to restore pending order:', e);
                 localStorage.removeItem('pending_order');
             }
+            setIsProcessing(false);
         }
     }, [user]);
 
-    // Handle Contact Form Submission
-    const handleContactFormSubmit = () => {
-        // Validate contact details
-        if (!contactDetails.name || !contactDetails.email || !contactDetails.mobile || !contactDetails.shippingAddress) {
-            alert('Please fill in all contact and shipping details.');
-            return;
-        }
-
-        // Close contact form modal
-        setShowContactForm(false);
-
-        // Capture canvas snapshot and show review modal
-        // @ts-expect-error - fabricCanvas is globally attached to window
-        const canvas = window.fabricCanvas;
-        if (canvas) {
-            const json = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'id', 'data']));
-            console.log(`[DesignPage] Capturing canvas snapshot for review modal. Length: ${json.length}`);
-            setCanvasSnapshot(json);
-        } else {
-            console.warn('[DesignPage] No fabricCanvas found on window to capture snapshot.');
-        }
-        setShowReviewModal(true);
+    const handleContactFormSubmit = async () => {
+        // Step 4: Final Step - Initiate Payment
+        // Don't close modal yet, wait for processing
+        await handleCheckout();
     };
 
     const handleCheckout = async () => {
-        // Validate Contact Details
+        console.log('Starting Checkout Process...', contactDetails);
         if (!contactDetails.name || !contactDetails.email || !contactDetails.mobile || !contactDetails.shippingAddress) {
             alert('Please fill in all shipping and contact details before placing the order.');
+            // Modal is already open
             return;
         }
 
-        // Validate Advance Amount
         if (paymentScheme === 'part') {
             const minAdvance = Math.ceil(price * 0.25);
             if (advanceAmount < minAdvance) {
@@ -538,20 +587,53 @@ function DesignContent() {
 
         setIsProcessing(true);
         try {
-            // 0. Capture Approval Proof (SVG)
             // @ts-expect-error - fabricCanvas is globally attached to window
             const canvas = window.fabricCanvas;
-            let approvalProof = undefined;
+            let approvalProof = '';
+
             if (canvas) {
-                approvalProof = canvas.toSVG({
-                    suppressPreamble: false,
-                    width: 1800,
-                    height: 1200,
-                    viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
-                });
+                try {
+                    const { jsPDF } = await import('jspdf');
+                    const svg2pdfModule = await import('svg2pdf.js');
+
+                    // Generate high-res SVG for the PDF
+                    const svg = canvas.toSVG({
+                        suppressPreamble: false,
+                        width: 1800,
+                        height: 1200,
+                        viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
+                    });
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = svg;
+                    const svgElement = tempDiv.querySelector('svg');
+
+                    if (svgElement) {
+                        const pdf = new jsPDF({
+                            orientation: 'landscape',
+                            unit: 'in',
+                            format: [12, 18]
+                        });
+
+                        await svg2pdfModule.svg2pdf(svgElement, pdf, {
+                            x: 0, y: 0, width: 18, height: 12
+                        });
+
+                        // Convert PDF to Data URL (base64)
+                        approvalProof = pdf.output('datauristring');
+                    }
+                } catch (pdfErr) {
+                    console.error('PDF generation failed, falling back to SVG:', pdfErr);
+                    // Fallback to SVG if PDF fails
+                    approvalProof = canvas.toSVG({
+                        suppressPreamble: false,
+                        width: 1800,
+                        height: 1200,
+                        viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
+                    });
+                }
             }
 
-            // 1. Create Order
             const { success, orderId, error, payableAmount } = await createOrder(data, design, material, {
                 deliveryType,
                 includeInstallation,
@@ -569,18 +651,19 @@ function DesignContent() {
                 return;
             }
 
-            // 2. Initiate PhonePe Payment
             const paymentResult = await initiatePhonePePayment(orderId, payableAmount || price, contactDetails.mobile);
+            console.log('Payment Result:', paymentResult);
 
             if (paymentResult.success && paymentResult.url) {
+                console.log('Redirecting to:', paymentResult.url);
                 window.location.href = paymentResult.url;
             } else {
                 alert('Payment initiation failed: ' + paymentResult.error);
                 setIsProcessing(false);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            alert('An unexpected error occurred');
+            alert('An unexpected error occurred: ' + (err.message || err));
             setIsProcessing(false);
         }
     };
@@ -1192,22 +1275,50 @@ function DesignContent() {
                     <span className="font-bold text-gray-900 tracking-tight">Signage Studio</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    {isSaving && (
+                    {isSaving ? (
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Saving to Cloud...</span>
+                            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Saving...</span>
                         </div>
-                    )}
-                    {!isSaving && typeof window !== 'undefined' && localStorage.getItem('signage_draft_design') && (
+                    ) : (
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
                             <Check className="w-3 h-3 text-gray-400" />
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">All changes saved</span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                {user ? 'Saved to Cloud' : 'Saved to Local'}
+                            </span>
                         </div>
                     )}
-                    <div className="text-sm text-gray-500">
-                        {design.width}in x {design.height}in
+
+                    <div className="h-4 w-px bg-gray-200 mx-1"></div>
+
+                    <div className="text-sm text-gray-500 font-medium">
+                        {design.width}" x {design.height}"
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => { }}>Saved to Local</Button>
+
+                    <div className="h-4 w-px bg-gray-200 mx-1"></div>
+
+                    {/* User Verification Indicator */}
+                    {user ? (
+                        <div className="flex items-center gap-2" title={`Logged in as ${user.email}`}>
+                            {user.user_metadata?.avatar_url ? (
+                                <img
+                                    src={user.user_metadata.avatar_url}
+                                    alt="User"
+                                    className="w-8 h-8 rounded-full border border-gray-200 shadow-sm"
+                                />
+                            ) : (
+                                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold border border-indigo-200">
+                                    {user.email?.charAt(0).toUpperCase() || <User className="w-4 h-4" />}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-slate-400" title="Guest Mode">
+                            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                                <User className="w-4 h-4" />
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1530,102 +1641,54 @@ function DesignContent() {
                                     </div>
                                 </div>
 
-                                {/* Final Step Reveal */}
-                                <div className="pt-8 border-t border-slate-800">
-                                    {!showMaterialSection ? (
-                                        <button
-                                            onClick={() => setShowMaterialSection(true)}
-                                            className="w-full group bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all hover:scale-[1.02] flex items-center justify-center gap-3"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            Finalize for Print
-                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                        </button>
-                                    ) : (
+                                {/* Final Step Reveal - Always Visible Now */}
+                                {!isProductPath && (
+                                    <div className="pt-8 border-t border-slate-800">
                                         <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
                                             {/* Material Select - Hidden if Product Path */}
-                                            {!isProductPath && (
-                                                <div className="space-y-3">
-                                                    <label className="text-sm font-bold text-white block">Material selection</label>
-                                                    <MaterialSelector
-                                                        selectedMaterial={material}
-                                                        onSelect={setMaterial}
-                                                    />
-                                                </div>
-                                            )}
-                                            {isProductPath && (
-                                                <div className="p-4 bg-indigo-900/20 rounded-xl border border-indigo-500/30 text-center">
-                                                    <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider">Ready for checkout</p>
-                                                    <p className="text-[10px] text-gray-400 mt-1">Using material selected via product details</p>
-                                                </div>
-                                            )}
-
+                                            <div className="space-y-3">
+                                                <label className="text-sm font-bold text-white block">Material selection</label>
+                                                <MaterialSelector
+                                                    selectedMaterial={material}
+                                                    onSelect={setMaterial}
+                                                />
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Footer / Checkout - Only visible when material section is revealed */}
-                            {showMaterialSection && (
-                                <div className="p-5 border-t border-slate-800 bg-slate-900/80 space-y-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.4)] z-20 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                    {/* Price Rows */}
-                                    <div className="space-y-1">
-                                        <div className="flex justify-between text-xs text-gray-400">
-                                            <span>Subtotal</span>
-                                            <span>₹{basePrice}</span>
-                                        </div>
-                                        {(deliveryCost > 0 || installationCost > 0) && (
-                                            <div className="flex justify-between text-xs text-gray-400">
-                                                <span>Extras (Delivery/Install)</span>
-                                                <span>₹{deliveryCost + installationCost}</span>
-                                            </div>
-                                        )}
-                                        {discount > 0 && (
-                                            <div className="flex justify-between text-xs text-green-400 font-medium">
-                                                <span>Discount</span>
-                                                <span>-₹{discount}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-end pt-2 border-t border-slate-700 mt-2">
-                                            <span className="font-bold text-white text-lg">Total</span>
-                                            <div className="text-right">
-                                                <span className="font-black text-2xl text-indigo-400 leading-none">₹{price}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Referral Code */}
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={referralCode}
-                                            onChange={(e) => {
-                                                const code = e.target.value.toUpperCase();
-                                                setReferralCode(code);
-                                                if (code) {
-                                                    validateReferralCode(code);
-                                                } else {
-                                                    setCodeValidated(false);
-                                                }
-                                            }}
-                                            placeholder="Referral Code (Optional)"
-                                            className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-500 ring-green-500 bg-green-900/30 text-green-300 placeholder-green-500' : 'border-slate-700 focus:border-indigo-500 bg-slate-800 text-white placeholder-gray-500'}`}
-                                        />
-                                        {codeValidated && <div className="absolute right-3 top-2 text-green-400 text-xs font-bold">✓ APPLIED</div>}
-                                    </div>
-
-                                    <button
-                                        onClick={handleOpenReview}
-                                        disabled={isProcessing}
-                                        className="w-full group bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-base shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100"
-                                    >
-                                        {isProcessing ? 'Processing...' : 'Proceed to Checkout'}
-                                        {!isProcessing && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
-                                    </button>
+                            {/* Footer / Checkout - Always visible */}
+                            <div className="p-5 border-t border-slate-800 bg-slate-900/80 space-y-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.4)] z-20">
+                                {/* Referral Code */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={referralCode}
+                                        onChange={(e) => {
+                                            const code = e.target.value.toUpperCase();
+                                            setReferralCode(code);
+                                            if (code) {
+                                                validateReferralCode(code);
+                                            } else {
+                                                setCodeValidated(false);
+                                            }
+                                        }}
+                                        placeholder="Referral Code (Optional)"
+                                        className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-500 ring-green-500 bg-green-900/30 text-green-300 placeholder-green-500' : 'border-slate-700 focus:border-indigo-500 bg-slate-800 text-white placeholder-gray-500'}`}
+                                    />
+                                    {codeValidated && <div className="absolute right-3 top-2 text-green-400 text-xs font-bold">✓ APPLIED</div>}
                                 </div>
-                            )}
+
+                                <button
+                                    onClick={handleOpenReview}
+                                    disabled={isProcessing}
+                                    className="w-full group bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-base shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100"
+                                >
+                                    {isProcessing ? 'Processing...' : 'Proceed to Review'}
+                                    {!isProcessing && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1780,13 +1843,25 @@ function DesignContent() {
                         {/* Action Buttons */}
                         <div className="space-y-3">
                             <button
+                                type="button"
                                 onClick={handleContactFormSubmit}
-                                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-2"
+                                disabled={isProcessing}
+                                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                                Continue to Review
-                                <ArrowRight className="w-5 h-5" />
+                                {isProcessing ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        Confirm & Proceed to Payment
+                                        <ArrowRight className="w-5 h-5" />
+                                    </>
+                                )}
                             </button>
                             <button
+                                type="button"
                                 onClick={() => setShowContactForm(false)}
                                 className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
                             >
@@ -1803,9 +1878,18 @@ function DesignContent() {
                 material={material}
                 isOpen={showReviewModal}
                 onClose={() => setShowReviewModal(false)}
-                onApprove={async () => {
+                onApprove={() => {
                     setShowReviewModal(false);
-                    await handleCheckout();
+                    if (user) {
+                        setAuthChoice('google');
+                        setContactDetails(prev => ({
+                            ...prev,
+                            email: user.email || prev.email
+                        }));
+                        setShowContactForm(true);
+                    } else {
+                        setShowAuthModal(true);
+                    }
                 }}
                 canvasJSON={canvasSnapshot || undefined}
             />

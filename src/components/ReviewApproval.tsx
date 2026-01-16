@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { SignageData, DesignConfig } from '@/lib/types';
 import { MaterialId } from '@/lib/utils';
-import { fabric } from 'fabric';
-import { FabricPreview } from './FabricPreview';
 import { X } from 'lucide-react';
+
+const FabricPreview = dynamic(() => import('./FabricPreview').then(mod => mod.FabricPreview), {
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-slate-800 animate-pulse rounded-2xl flex items-center justify-center text-slate-500 font-bold uppercase tracking-widest">Loading Preview...</div>
+});
 
 interface ReviewApprovalProps {
     data: SignageData;
@@ -20,7 +24,6 @@ interface ReviewApprovalProps {
 export function ReviewApproval({ data, design, material, isOpen, onClose, onApprove, canvasJSON }: ReviewApprovalProps) {
     const [isApproved, setIsApproved] = React.useState(false);
     const [isMounted, setIsMounted] = React.useState(false);
-    const canvasRef = useRef<fabric.Canvas | null>(null);
 
     React.useEffect(() => {
         setIsMounted(true);
@@ -53,6 +56,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Final Verification Checklist</p>
                     </div>
                     <button
+                        type="button"
                         onClick={onClose}
                         className="p-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-full transition-all"
                         aria-label="Close"
@@ -145,12 +149,14 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
 
                         <div className="grid grid-cols-2 gap-4 pt-4">
                             <button
+                                type="button"
                                 onClick={onClose}
                                 className="py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
                             >
                                 Edit Design
                             </button>
                             <button
+                                type="button"
                                 onClick={onApprove}
                                 disabled={!isApproved}
                                 className={`py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-2xl ${isApproved
@@ -158,7 +164,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                                     : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5'
                                     }`}
                             >
-                                Continue to Payment
+                                Approve & Continue
                             </button>
                         </div>
                     </div>

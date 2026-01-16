@@ -3,17 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from './ui/Button';
-import { PRODUCT_CATEGORIES } from '@/lib/products';
 import type { Product } from '@/lib/products';
 import { Layout, ChevronRight } from 'lucide-react';
 
 export function ProductCatalog() {
     const [activeCategory, setActiveCategory] = useState<string>('all');
     const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<any[]>([{ id: 'all', name: 'All Products' }]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         fetchProducts();
+        fetchCategories();
     }, []);
 
     async function fetchProducts() {
@@ -25,6 +26,18 @@ export function ProductCatalog() {
             console.error('Failed to fetch products:', error);
         } finally {
             setIsLoading(false);
+        }
+    }
+
+    async function fetchCategories() {
+        try {
+            const response = await fetch('/api/categories');
+            const data = await response.json();
+            if (data.success && data.categories) {
+                setCategories([{ id: 'all', name: 'All Products' }, ...data.categories]);
+            }
+        } catch (error) {
+            console.error('Failed to fetch categories:', error);
         }
     }
 
@@ -56,7 +69,7 @@ export function ProductCatalog() {
 
                 {/* Category Filter */}
                 <div className="flex flex-wrap gap-3 mb-10">
-                    {PRODUCT_CATEGORIES.map(category => (
+                    {categories.map(category => (
                         <button
                             key={category.id}
                             onClick={() => setActiveCategory(category.id)}
@@ -128,7 +141,7 @@ export function ProductCatalog() {
                             variant="outline"
                             className="gap-2 group border-2 border-white/10 hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white px-8 py-3 rounded-full text-indigo-200"
                         >
-                            View All {activeCategory !== 'all' ? PRODUCT_CATEGORIES.find(c => c.id === activeCategory)?.name : 'Products'}
+                            View All {activeCategory !== 'all' ? categories.find(c => c.id === activeCategory)?.name : 'Products'}
                             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                         </Button>
                     </div>

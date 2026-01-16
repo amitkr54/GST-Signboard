@@ -13,7 +13,8 @@ import { Product, ProductSize } from '@/lib/products';
 import {
     saveProductAction, deleteProductAction, uploadProductImages,
     uploadTemplate, getTemplates, deleteTemplate as deleteTemplateActionImport,
-    getOrders as getOrdersAction, updateOrderStatus as updateOrderStatusAction
+    getOrders as getOrdersAction, updateOrderStatus as updateOrderStatusAction,
+    getCategories, saveCategory, deleteCategory
 } from '../actions';
 
 const PRODUCT_CATEGORIES = [
@@ -189,7 +190,7 @@ export default function AdminPage() {
     const [existingImages, setExistingImages] = useState<string[]>([]);
     const [pin, setPin] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [activeTab, setActiveTab] = useState<'templates' | 'products' | 'orders'>('orders');
+    const [activeTab, setActiveTab] = useState<'templates' | 'products' | 'orders' | 'categories'>('orders');
     const [sizes, setSizes] = useState<ProductSize[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -198,19 +199,45 @@ export default function AdminPage() {
     const [templateType, setTemplateType] = useState<'universal' | 'specific'>('universal');
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [templateCategory, setTemplateCategory] = useState<string>('Business');
+
+    // Multi-select for bulk delete
+    const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+    const [selectedProductsForDelete, setSelectedProductsForDelete] = useState<string[]>([]);
+
+    // Category management state
+    const [categories, setCategories] = useState<any[]>([]);
+    const [editingCategory, setEditingCategory] = useState<any | null>(null);
+    const [showCategoryForm, setShowCategoryForm] = useState(false);
     const [fileDimensions, setFileDimensions] = useState<{ width: number, height: number } | null>(null);
 
     const router = useRouter();
+
+    // Check localStorage for saved PIN on mount
+    useEffect(() => {
+        const savedPin = localStorage.getItem('admin_pin');
+        if (savedPin === '1234') {
+            setIsAuthenticated(true);
+            setPin(savedPin);
+        }
+    }, []);
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         if (loginPin === '1234') {
             setIsAuthenticated(true);
             setPin(loginPin);
+            localStorage.setItem('admin_pin', loginPin);
             setMessage(null);
         } else {
             setMessage({ type: 'error', text: 'Invalid Admin PIN' });
         }
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        setPin('');
+        localStorage.removeItem('admin_pin');
+        setMessage({ type: 'success', text: 'Logged out successfully' });
     };
 
     const fetchTemplates = async () => {
@@ -236,6 +263,61 @@ export default function AdminPage() {
         }
     };
 
+    const fetchCategories = async () => {
+        const res = await getCategories();
+        if (res.success) {
+            setCategories(res.categories || []);
+        }
+    };
+
+    const handleSaveCategory = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!pin) {
+            setMessage({ type: 'error', text: 'Please enter Admin PIN' });
+            return;
+        }
+
+        setIsLoading(true);
+        const formData = new FormData(e.currentTarget);
+        const categoryData = {
+            id: editingCategory?.id || formData.get('id') as string,
+            name: formData.get('name') as string,
+            description: formData.get('description') as string,
+            icon: formData.get('icon') as string,
+            display_order: parseInt(formData.get('display_order') as string) || 0,
+            is_active: true
+        };
+
+        const res = await saveCategory(categoryData, pin);
+        if (res.success) {
+            setMessage({ type: 'success', text: editingCategory ? 'Category updated!' : 'Category created!' });
+            fetchCategories();
+            setShowCategoryForm(false);
+            setEditingCategory(null);
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Failed to save category' });
+        }
+        setIsLoading(false);
+    };
+
+    const handleDeleteCategory = async (id: string) => {
+        if (!pin) {
+            setMessage({ type: 'error', text: 'Please enter Admin PIN' });
+            return;
+        }
+        if (!confirm('Delete this category?')) return;
+
+        setIsLoading(true);
+        const res = await deleteCategory(id, pin);
+        if (res.success) {
+            setMessage({ type: 'success', text: 'Category deleted!' });
+            fetchCategories();
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Failed to delete category' });
+        }
+        setIsLoading(false);
+    };
+
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setIsLoading(true);
@@ -253,7 +335,26 @@ export default function AdminPage() {
                             width: options.width || 1000,
                             height: options.height || 1000
                         });
-                        objects.forEach((obj, i) => tempCanvas.add(obj));
+
+                        // Filter out outliers (ghosts)
+                        const filteredObjects = objects.filter(o => {
+                            const w = o.width || 0;
+                            const h = o.height || 0;
+                            const l = o.left || 0;
+                            const t = o.top || 0;
+                            return w < 10000 && h < 10000 && Math.abs(l) < 10000 && Math.abs(t) < 10000;
+                        });
+
+                        // We want to save the objects as they are
+                        filteredObjects.forEach((obj) => tempCanvas.add(obj));
+
+                        // Generate valid Fabric JSON
+                        const json = tempCanvas.toJSON(['id', 'name', 'selectable', 'evented', 'isBackground']); // Include custom props
+
+                        // Append to FormData
+                        formData.append('fabricConfig', JSON.stringify(json));
+                        console.log('Generated fabricConfig on client', json);
+
                         resolve();
                     });
                 });
@@ -357,6 +458,7 @@ export default function AdminPage() {
     useEffect(() => {
         fetchTemplates();
         fetchProducts();
+        fetchCategories();
         if (isAuthenticated) {
             fetchOrders();
         }
@@ -416,6 +518,84 @@ export default function AdminPage() {
         setIsLoading(false);
     }
 
+    // Bulk delete handlers
+    async function handleBulkDeleteTemplates() {
+        if (!pin) {
+            setMessage({ type: 'error', text: 'Please enter Admin PIN to delete templates' });
+            return;
+        }
+        if (selectedTemplateIds.length === 0) {
+            setMessage({ type: 'error', text: 'No templates selected' });
+            return;
+        }
+        if (!confirm(`Delete ${selectedTemplateIds.length} template(s)?`)) return;
+
+        setIsLoading(true);
+        let successCount = 0;
+        for (const id of selectedTemplateIds) {
+            const res = await deleteTemplateActionImport(id, pin);
+            if (res.success) successCount++;
+        }
+
+        setMessage({ type: 'success', text: `${successCount} template(s) deleted` });
+        setSelectedTemplateIds([]);
+        fetchTemplates();
+        setIsLoading(false);
+    }
+
+    async function handleBulkDeleteProducts() {
+        if (!pin) {
+            setMessage({ type: 'error', text: 'Please enter Admin PIN to delete products' });
+            return;
+        }
+        if (selectedProductsForDelete.length === 0) {
+            setMessage({ type: 'error', text: 'No products selected' });
+            return;
+        }
+        if (!confirm(`Delete ${selectedProductsForDelete.length} product(s)?`)) return;
+
+        setIsLoading(true);
+        let successCount = 0;
+        for (const id of selectedProductsForDelete) {
+            const res = await deleteProductAction(id, pin);
+            if (res.success) successCount++;
+        }
+
+        setMessage({ type: 'success', text: `${successCount} product(s) deleted` });
+        setSelectedProductsForDelete([]);
+        fetchProducts();
+        setIsLoading(false);
+    }
+
+    // Toggle selection handlers
+    const toggleTemplateSelection = (id: string) => {
+        setSelectedTemplateIds(prev =>
+            prev.includes(id) ? prev.filter(tid => tid !== id) : [...prev, id]
+        );
+    };
+
+    const toggleProductSelection = (id: string) => {
+        setSelectedProductsForDelete(prev =>
+            prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+        );
+    };
+
+    const toggleAllTemplates = () => {
+        if (selectedTemplateIds.length === templates.length) {
+            setSelectedTemplateIds([]);
+        } else {
+            setSelectedTemplateIds(templates.map(t => t.id));
+        }
+    };
+
+    const toggleAllProducts = () => {
+        if (selectedProductsForDelete.length === products.length) {
+            setSelectedProductsForDelete([]);
+        } else {
+            setSelectedProductsForDelete(products.map(p => p.id));
+        }
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
@@ -473,7 +653,7 @@ export default function AdminPage() {
                     </div>
                     <Button
                         variant="outline"
-                        onClick={() => setIsAuthenticated(false)}
+                        onClick={handleLogout}
                         className="rounded-xl border-white/10 hover:bg-white/10 text-white"
                     >
                         Sign Out
@@ -504,6 +684,14 @@ export default function AdminPage() {
                         <FileText className="w-5 h-5 inline mr-2" />
                         Templates
                         {activeTab === 'templates' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('categories')}
+                        className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'categories' ? 'text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        <Filter className="w-5 h-5 inline mr-2" />
+                        Categories
+                        {activeTab === 'categories' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
                     </button>
                 </div>
 
@@ -581,9 +769,15 @@ export default function AdminPage() {
                                                             <div className="grid md:grid-cols-2 gap-8">
                                                                 <div className="space-y-4">
                                                                     <div>
-                                                                        <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Shipping Address</h4>
-                                                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200">
-                                                                            {order.customer_address}
+                                                                        <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Customer Info & Shipping</h4>
+                                                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200 space-y-2">
+                                                                            <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Name:</span> {order.customer_name}</p>
+                                                                            <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Email:</span> {order.customer_email}</p>
+                                                                            <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Phone:</span> {order.customer_phone}</p>
+                                                                            <div className="pt-2 border-t border-white/5">
+                                                                                <span className="text-slate-500 font-bold uppercase text-[9px] block mb-1">Address:</span>
+                                                                                {order.customer_address}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                     <div>
@@ -593,12 +787,37 @@ export default function AdminPage() {
                                                                             <p className="opacity-70">{order.company_details?.address}</p>
                                                                         </div>
                                                                     </div>
+                                                                    <div>
+                                                                        <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Service Options</h4>
+                                                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200 space-y-2">
+                                                                            <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Delivery:</span> {order.design_config?.deliveryType === 'fast' ? 'Express (24-48h)' : 'Standard (3-5 days)'}</p>
+                                                                            <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Installation:</span> {order.design_config?.includeInstallation ? 'Required' : 'Not Required'}</p>
+                                                                            <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Payment Scheme:</span> {order.design_config?.paymentScheme === 'part' ? 'Partial (Advance)' : 'Full Payment'}</p>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                                 <div>
                                                                     <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Design Proof</h4>
                                                                     <div className="aspect-[16/10] bg-white rounded-2xl border-4 border-slate-800 overflow-hidden flex items-center justify-center p-2">
                                                                         {order.visual_proof ? (
-                                                                            <div dangerouslySetInnerHTML={{ __html: order.visual_proof }} className="w-full h-full" />
+                                                                            order.visual_proof.startsWith('data:application/pdf') ? (
+                                                                                <div className="w-full h-full relative group/pdf">
+                                                                                    <iframe
+                                                                                        src={order.visual_proof}
+                                                                                        className="w-full h-full"
+                                                                                        title="Design Proof"
+                                                                                    />
+                                                                                    <a
+                                                                                        href={order.visual_proof}
+                                                                                        download={`proof-${order.id}.pdf`}
+                                                                                        className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover/pdf:opacity-100 transition-opacity text-white font-bold"
+                                                                                    >
+                                                                                        Download PDF
+                                                                                    </a>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div dangerouslySetInnerHTML={{ __html: order.visual_proof }} className="w-full h-full" />
+                                                                            )
                                                                         ) : (
                                                                             <span className="text-slate-400 font-bold">No visual proof</span>
                                                                         )}
@@ -628,7 +847,19 @@ export default function AdminPage() {
                 {activeTab === 'products' && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-white">Products ({products.length})</h2>
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-2xl font-bold text-white">Products ({products.length})</h2>
+                                {selectedProductsForDelete.length > 0 && (
+                                    <Button
+                                        onClick={handleBulkDeleteProducts}
+                                        variant="outline"
+                                        className="border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-bold rounded-xl flex items-center gap-2"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Delete {selectedProductsForDelete.length} Selected
+                                    </Button>
+                                )}
+                            </div>
                             <Button
                                 onClick={() => {
                                     setEditingProduct(null);
@@ -683,7 +914,7 @@ export default function AdminPage() {
                                                     className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all cursor-pointer text-white font-bold appearance-none"
                                                     required
                                                 >
-                                                    {PRODUCT_CATEGORIES.filter(c => c.id !== 'all').map(cat => (
+                                                    {categories.filter(c => c.id !== 'all').map(cat => (
                                                         <option key={cat.id} value={cat.id} className="bg-slate-900">{cat.name}</option>
                                                     ))}
                                                 </select>
@@ -794,6 +1025,14 @@ export default function AdminPage() {
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-white/5 border-b border-white/10">
+                                            <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest w-12">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedProductsForDelete.length === products.length && products.length > 0}
+                                                    onChange={toggleAllProducts}
+                                                    className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                            </th>
                                             <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Product</th>
                                             <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Category</th>
                                             <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Sizes</th>
@@ -804,6 +1043,14 @@ export default function AdminPage() {
                                     <tbody className="divide-y divide-white/5">
                                         {products.map(product => (
                                             <tr key={product.id} className="group hover:bg-white/5 transition-all duration-300">
+                                                <td className="px-6 py-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedProductsForDelete.includes(product.id)}
+                                                        onChange={() => toggleProductSelection(product.id)}
+                                                        className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 overflow-hidden shrink-0 shadow-lg">
@@ -883,6 +1130,19 @@ export default function AdminPage() {
                                     <h3 className="text-2xl font-black text-white">Add Template</h3>
                                 </div>
 
+                                {selectedTemplateIds.length > 0 && (
+                                    <div className="mb-6 pb-6 border-b border-white/10">
+                                        <Button
+                                            onClick={handleBulkDeleteTemplates}
+                                            variant="outline"
+                                            className="w-full border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-bold rounded-xl flex items-center justify-center gap-2"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Delete {selectedTemplateIds.length} Selected
+                                        </Button>
+                                    </div>
+                                )}
+
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
                                         <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Template Title</label>
@@ -912,6 +1172,7 @@ export default function AdminPage() {
                                             >
                                                 Specific
                                             </button>
+                                            <input type="hidden" name="templateType" value={templateType} />
                                         </div>
                                     </div>
 
@@ -946,12 +1207,36 @@ export default function AdminPage() {
                                             onChange={(e) => setTemplateCategory(e.target.value)}
                                             className="w-full px-6 py-4 bg-black/20 border border-white/10 text-white rounded-2xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold appearance-none"
                                         >
-                                            <option value="Business">Business</option>
-                                            <option value="Retail">Retail</option>
-                                            <option value="Event">Event</option>
-                                            <option value="Hospitality">Hospitality</option>
-                                            <option value="Personal">Personal</option>
+                                            {categories.filter(c => c.id !== 'all').map(cat => (
+                                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                            ))}
                                         </select>
+                                    </div>
+
+                                    {/* Dimensions Input */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Width (in)</label>
+                                            <input
+                                                type="number"
+                                                name="width"
+                                                placeholder="18"
+                                                step="0.1"
+                                                className="w-full px-6 py-4 bg-black/20 border-2 border-white/10 rounded-2xl focus:border-indigo-500 focus:ring-0 outline-none transition-all text-white font-bold"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Height (in)</label>
+                                            <input
+                                                type="number"
+                                                name="height"
+                                                placeholder="12"
+                                                step="0.1"
+                                                className="w-full px-6 py-4 bg-black/20 border-2 border-white/10 rounded-2xl focus:border-indigo-500 focus:ring-0 outline-none transition-all text-white font-bold"
+                                                required
+                                            />
+                                        </div>
                                     </div>
 
                                     <div>
@@ -994,6 +1279,14 @@ export default function AdminPage() {
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-white/5 border-b border-white/10">
+                                                <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest w-12">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedTemplateIds.length === templates.length && templates.length > 0}
+                                                        onChange={toggleAllTemplates}
+                                                        className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                </th>
                                                 <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest w-1/3">Preview</th>
                                                 <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Details</th>
                                                 <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
@@ -1002,6 +1295,14 @@ export default function AdminPage() {
                                         <tbody className="divide-y divide-white/5">
                                             {templates.map((template) => (
                                                 <tr key={template.id} className="group hover:bg-white/5 transition-all duration-300">
+                                                    <td className="px-8 py-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedTemplateIds.includes(template.id)}
+                                                            onChange={() => toggleTemplateSelection(template.id)}
+                                                            className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-600 focus:ring-indigo-500"
+                                                        />
+                                                    </td>
                                                     <td className="px-8 py-4">
                                                         <div className="w-full aspect-[4/3] bg-white rounded-xl border-4 border-slate-800 overflow-hidden shadow-lg p-2">
                                                             <img
@@ -1047,26 +1348,200 @@ export default function AdminPage() {
                             )}
                         </div>
                     </div>
-                )}
+                )
+                }
 
-                {message && (
-                    <div className={`fixed bottom-8 right-8 p-6 rounded-[2rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-500 z-[100] border-2 ${message.type === 'success'
-                        ? 'bg-emerald-600 text-white border-white/20'
-                        : 'bg-red-600 text-white border-white/20'
-                        }`}>
-                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                            {message.type === 'success' ? <CheckCircle className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
+                {/* Categories Tab */}
+                {
+                    activeTab === 'categories' && (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-white">Product Categories ({categories.length})</h2>
+                                <Button
+                                    onClick={() => {
+                                        setEditingCategory(null);
+                                        setShowCategoryForm(true);
+                                    }}
+                                    className="bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl"
+                                >
+                                    <Plus className="w-5 h-5 mr-2" />
+                                    Add Category
+                                </Button>
+                            </div>
+
+                            {showCategoryForm && (
+                                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+                                    <div className="bg-slate-900 rounded-[2.5rem] p-10 max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/10 relative">
+                                        <div className="flex justify-between items-center mb-8">
+                                            <h3 className="text-3xl font-black text-white">
+                                                {editingCategory ? 'Edit Category' : 'Add New Category'}
+                                            </h3>
+                                            <button onClick={() => setShowCategoryForm(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
+                                                <X className="w-6 h-6 text-white" />
+                                            </button>
+                                        </div>
+
+                                        <form onSubmit={handleSaveCategory} className="space-y-6">
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Category ID</label>
+                                                    <input
+                                                        name="id"
+                                                        defaultValue={editingCategory?.id}
+                                                        placeholder="e.g. retail"
+                                                        className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                        required
+                                                        disabled={!!editingCategory}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Display Order</label>
+                                                    <input
+                                                        name="display_order"
+                                                        type="number"
+                                                        defaultValue={editingCategory?.display_order || 0}
+                                                        className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Category Name</label>
+                                                <input
+                                                    name="name"
+                                                    defaultValue={editingCategory?.name}
+                                                    placeholder="e.g. Retail"
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Description</label>
+                                                <textarea
+                                                    name="description"
+                                                    defaultValue={editingCategory?.description}
+                                                    placeholder="Category description..."
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white min-h-[100px]"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Icon (Optional)</label>
+                                                <input
+                                                    name="icon"
+                                                    defaultValue={editingCategory?.icon}
+                                                    placeholder="e.g. 🏪"
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                />
+                                            </div>
+
+                                            <div className="flex gap-4 pt-6">
+                                                <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-xl shadow-xl shadow-indigo-500/20 text-white">
+                                                    {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Save className="w-6 h-6 mr-2" />}
+                                                    {editingCategory ? 'Update Category' : 'Create Category'}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setShowCategoryForm(false)}
+                                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-black text-xl hover:bg-white/10 text-white"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2.5rem] shadow-xl border border-white/10 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-white/5 border-b border-white/10">
+                                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">ID</th>
+                                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Name</th>
+                                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Description</th>
+                                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Order</th>
+                                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {categories.map(category => (
+                                                <tr key={category.id} className="group hover:bg-white/5 transition-all duration-300">
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-[10px] font-mono text-slate-400">{category.id}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-2">
+                                                            {category.icon && <span className="text-2xl">{category.icon}</span>}
+                                                            <span className="font-bold text-white text-sm">{category.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-xs text-slate-400">{category.description}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className="text-sm font-bold text-slate-300">{category.display_order}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex gap-2 justify-end">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setEditingCategory(category);
+                                                                    setShowCategoryForm(true);
+                                                                }}
+                                                                className="p-3 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-xl text-indigo-400 transition-all border border-indigo-500/10"
+                                                            >
+                                                                <Edit size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteCategory(category.id)}
+                                                                className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-red-500 transition-all border border-red-500/10"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {categories.length === 0 && (
+                                <div className="text-center py-20 bg-slate-900/50 rounded-[2.5rem] border-2 border-dashed border-white/10">
+                                    <Filter className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                                    <h3 className="text-xl font-bold text-white">No Categories</h3>
+                                    <p className="text-slate-500">Create your first product category to get started.</p>
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 leading-none mb-1">System Status</p>
-                            <span className="font-black text-lg leading-none">{message.text}</span>
+                    )
+                }
+
+                {
+                    message && (
+                        <div className={`fixed bottom-8 right-8 p-6 rounded-[2rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-500 z-[100] border-2 ${message.type === 'success'
+                            ? 'bg-emerald-600 text-white border-white/20'
+                            : 'bg-red-600 text-white border-white/20'
+                            }`}>
+                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                                {message.type === 'success' ? <CheckCircle className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 leading-none mb-1">System Status</p>
+                                <span className="font-black text-lg leading-none">{message.text}</span>
+                            </div>
+                            <button onClick={() => setMessage(null)} className="ml-4 hover:scale-110 transition-transform">
+                                <X className="w-5 h-5 opacity-40 hover:opacity-100" />
+                            </button>
                         </div>
-                        <button onClick={() => setMessage(null)} className="ml-4 hover:scale-110 transition-transform">
-                            <X className="w-5 h-5 opacity-40 hover:opacity-100" />
-                        </button>
-                    </div>
-                )}
-            </div>
-        </div>
+                    )
+                }
+            </div >
+        </div >
     );
 }

@@ -96,7 +96,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             alert('Please select a size first');
             return;
         }
-        router.push(`/design?product=${product.id}&size=${selectedSize.id}&width=${selectedSize.dimensions.width}&height=${selectedSize.dimensions.height}&unit=${selectedSize.dimensions.unit}&price=${product.priceFrom}`);
+        // Navigate to the new template selection page instead of direct editor
+        router.push(`/products/${product.id}/templates?size=${selectedSize.id}&width=${selectedSize.dimensions.width}&height=${selectedSize.dimensions.height}&unit=${selectedSize.dimensions.unit}&price=${product.priceFrom}`);
     };
 
     const handleUploadDesign = () => {
