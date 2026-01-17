@@ -24,7 +24,7 @@ interface AligningState {
 }
 
 const SNAP_DISTANCE = 8;     // Pixels to snap from
-const LINE_WIDTH = 3;        // Thickness of the guidelines
+const LINE_WIDTH = 2;        // Thickness of the guidelines
 const LINE_COLOR = '#b3166cff';  // Magenta color for high visibility
 const LABEL_FONT = '10px sans-serif';
 
@@ -56,7 +56,6 @@ export function initAligningGuidelines(canvas: fabric.Canvas) {
         selectable: false,
         evented: false,
         visible: false,
-        strokeDashArray: [4, 4],
         opacity: 0.8,
         name: isVertical ? '__v_guide' : '__h_guide',
         //@ts-ignore

@@ -33,8 +33,34 @@ export function useCanvasTemplates(
         if (!canvas) return;
         const existing = canvas.getObjects();
 
+        // 0. Promote ANY static text components to Textboxes BEFORE sync
+        existing.forEach(obj => {
+            const name = (obj as any).name;
+            // Promote if it's a template text OR if it's a generic text object that should be editable
+            const isTemplateText = name && (name === 'template_company' || name === 'template_svg_text' || name === 'template_details');
+            const isGenericText = obj.type === 'text' && (obj.selectable || (obj as any).editable);
+
+            if (obj.type === 'text' && (isTemplateText || isGenericText) && canvas) {
+                const textObj = obj as fabric.Text;
+                const oldScale = textObj.scaleX || 1;
+                const normalizedFontSize = (textObj.fontSize || 40) * oldScale;
+
+                const textbox = new fabric.Textbox(textObj.text || '', {
+                    ...(textObj.toObject(['name', 'selectable', 'evented', 'editable', 'id', 'fontFamily', 'fontWeight', 'fontStyle', 'fill', 'textAlign', 'angle', 'opacity', 'left', 'top', 'originX', 'originY'])),
+                    fontSize: normalizedFontSize,
+                    width: (textObj.width || 200) * oldScale,
+                    scaleX: 1,
+                    scaleY: 1,
+                    type: 'textbox',
+                    editable: true
+                });
+                canvas.remove(obj);
+                canvas.add(textbox);
+            }
+        });
+
         // 1. Background
-        let bgRect = existing.find(obj => (obj as any).name === 'background') as fabric.Rect;
+        let bgRect = canvas.getObjects().find(obj => (obj as any).name === 'background') as fabric.Rect;
         if (!bgRect) {
             bgRect = new fabric.Rect({
                 width: baseWidth, height: baseHeight, left: baseWidth / 2, top: baseHeight / 2,
@@ -126,7 +152,7 @@ export function useCanvasTemplates(
         }
 
         // 4. Sync Text (Protecting Editing State)
-        const company = existing.find(obj => (obj as any).name === 'template_company') as fabric.Textbox;
+        const company = canvas.getObjects().find(obj => (obj as any).name === 'template_company') as fabric.Textbox | undefined;
         if (company && !(company as any).isEditing) {
             const newText = (data.companyName || '').toUpperCase();
             company.set({
@@ -169,9 +195,9 @@ export function useCanvasTemplates(
             company.setCoords();
         }
 
-        const details = existing.filter(obj => (obj as any).name === 'template_details') as fabric.Textbox[];
+        const details = canvas.getObjects().filter(obj => (obj as any).name === 'template_details') as fabric.Textbox[];
         details.forEach((det, idx) => {
-            if (idx === 0 && !(det as any).isEditing) {
+            if (idx === 0 && det && !(det as any).isEditing) {
                 const newText = data.address || '';
                 det.set({
                     text: newText,

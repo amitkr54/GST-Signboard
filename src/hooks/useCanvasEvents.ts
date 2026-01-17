@@ -185,33 +185,76 @@ export function useCanvasEvents({
     useEffect(() => {
         if (!canvasInstance) return;
 
-        const handleSelection = () => {
+        let selectionTimeout: NodeJS.Timeout | null = null;
+
+        const handleSelection = (e?: any) => {
+            if (selectionTimeout) {
+                clearTimeout(selectionTimeout);
+                selectionTimeout = null;
+            }
             const active = canvasInstance.getActiveObject();
             setSelectedObject(active || null);
-
-            // Focus wrapper for key events, but avoid disrupting active text editing
-            if (active && canvasInstance.getElement() && !(active as any).isEditing) {
-                requestAnimationFrame(() => {
-                    const el = (canvasInstance as any).wrapperEl;
-                    if (el && !(active as any).isEditing) {
-                        el.focus();
-                    }
-                });
-            }
         };
 
-        const handleCleared = () => {
-            setSelectedObject(null);
-            setContextMenu(null);
+        const handleCleared = (e?: any) => {
+            // Debounce the cleared event to avoid transient resets during double-clicks
+            if (selectionTimeout) clearTimeout(selectionTimeout);
+
+            selectionTimeout = setTimeout(() => {
+                const actuallyHasActive = !!canvasInstance.getActiveObject();
+                if (!actuallyHasActive) {
+                    setSelectedObject(null);
+                    setContextMenu(null);
+                }
+                selectionTimeout = null;
+            }, 50); // 50ms buffer for rapid click sequences
         };
 
         const handleMouseDown = () => {
             canvasInstance.calcOffset();
         };
 
+        // Explicitly handle double-click to ensure text editability
+        const handleDblClick = (e: fabric.IEvent) => {
+            let target = e.target;
+            if (!target) return;
+
+            // LAZY PROMOTION: If it's a static Text object, promote it to Textbox
+            if (target.type === 'text' && (target as any).selectable !== false) {
+                const textObj = target as fabric.Text;
+                const oldScale = textObj.scaleX || 1;
+                const normalizedFontSize = (textObj.fontSize || 40) * oldScale;
+
+                const textbox = new fabric.Textbox(textObj.text || '', {
+                    ...(textObj.toObject(['name', 'selectable', 'evented', 'editable', 'id', 'fontFamily', 'fontWeight', 'fontStyle', 'fill', 'textAlign', 'angle', 'opacity', 'left', 'top', 'originX', 'originY'])),
+                    fontSize: normalizedFontSize,
+                    width: (textObj.width || 200) * oldScale,
+                    scaleX: 1,
+                    scaleY: 1,
+                    type: 'textbox',
+                    editable: true
+                });
+                canvasInstance.remove(textObj);
+                canvasInstance.add(textbox);
+                canvasInstance.setActiveObject(textbox);
+                target = textbox;
+            }
+
+            if (target && (target.type === 'i-text' || target.type === 'textbox')) {
+                const t = target as fabric.IText;
+                if (!t.isEditing && t.editable) {
+                    t.enterEditing();
+                    canvasInstance.requestRenderAll();
+                    // Re-trigger selection to ensure toolbar is aware
+                    handleSelection();
+                }
+            }
+        };
+
         canvasInstance.on('selection:created', handleSelection);
         canvasInstance.on('selection:updated', handleSelection);
         canvasInstance.on('selection:cleared', handleCleared);
+        canvasInstance.on('mouse:dblclick', handleDblClick);
         // canvasInstance.on('mouse:down', handleMouseDown);
         canvasInstance.on('text:selection:changed', handleSelection);
 
@@ -237,10 +280,8 @@ export function useCanvasEvents({
 
             const marginScale = 0.05;
             const margin = Math.min(baseWidth, baseHeight) * marginScale;
-            // Cap at board safety margins
             const maxWidth = baseWidth - (margin * 2);
 
-            // Fast measurement using fabric.Text (avoiding Textbox layout engine overhead)
             const measurer = new fabric.Text(obj.text || '', {
                 fontFamily: obj.fontFamily,
                 fontSize: obj.fontSize,
@@ -249,10 +290,8 @@ export function useCanvasEvents({
                 charSpacing: obj.charSpacing
             });
 
-            // Large buffer (+15) prevents premature wrapping across different browsers
             const targetWidth = Math.min((measurer.width || 0) + 15, maxWidth);
 
-            // padding: 4 provides generous room for character glyphs (like 'Y')
             obj.set({ width: targetWidth, padding: 4 });
             obj.setCoords();
             checkSafetyArea(canvasInstance);
@@ -263,13 +302,12 @@ export function useCanvasEvents({
         setInitialHistory(json);
 
         return () => {
+            if (selectionTimeout) clearTimeout(selectionTimeout);
             canvasInstance.off('selection:created', handleSelection);
             canvasInstance.off('selection:updated', handleSelection);
             canvasInstance.off('selection:cleared', handleCleared);
-            // canvasInstance.off('mouse:down', handleMouseDown);
+            canvasInstance.off('mouse:dblclick', handleDblClick);
             canvasInstance.off('text:selection:changed', handleSelection);
-            // Note: We avoid global .off() on shared events like object:moving 
-            // to prevent stripping listeners added by other modules (e.g. alignment guidelines)
         };
     }, [canvasInstance, setSelectedObject, setContextMenu, saveHistory, setInitialHistory, checkSafetyArea, baseWidth, baseHeight]);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Copy,
     Clipboard,
@@ -10,7 +10,20 @@ import {
     ArrowDown,
     ArrowUpToLine,
     ArrowDownToLine,
-    Layout
+    Layout,
+    ChevronRight,
+    AlignLeft,
+    AlignCenter,
+    AlignRight,
+    ArrowUpFromLine,
+    ArrowDownFromLine,
+    Maximize,
+    Minimize,
+    Group as GroupIcon,
+    Ungroup as UngroupIcon,
+    MoreHorizontal,
+    MoreVertical,
+    Paintbrush
 } from 'lucide-react';
 
 interface ContextMenuProps {
@@ -20,10 +33,13 @@ interface ContextMenuProps {
     onAction: (action: string) => void;
     isLocked?: boolean;
     hasSelection: boolean;
+    isGroup?: boolean;
+    isMultiple?: boolean;
 }
 
-export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelection }: ContextMenuProps) {
+export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelection, isGroup, isMultiple }: ContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
+    const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -35,30 +51,73 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [onClose]);
 
-    const MenuItem = ({ icon: Icon, label, action, shortcut, danger, disabled }: any) => (
-        <button
-            onClick={() => {
-                if (!disabled) {
-                    onAction(action);
-                    onClose();
-                }
-            }}
-            disabled={disabled}
-            className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-all ${danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'} ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
-        >
-            <div className="flex items-center gap-3">
-                <Icon className="w-4 h-4" />
-                <span className="font-bold">{label}</span>
+    const MenuItem = ({ icon: Icon, label, action, shortcut, danger, disabled, hasSubMenu, subMenuId }: any) => {
+        const isSubMenuActive = activeSubMenu === subMenuId;
+
+        return (
+            <div
+                className="relative"
+                onMouseEnter={() => hasSubMenu && setActiveSubMenu(subMenuId)}
+                onMouseLeave={() => hasSubMenu && setActiveSubMenu(null)}
+            >
+                <button
+                    onClick={() => {
+                        if (!disabled && !hasSubMenu) {
+                            onAction(action);
+                            onClose();
+                        }
+                    }}
+                    disabled={disabled}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-all ${danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'} ${disabled ? 'opacity-30 cursor-not-allowed' : ''} ${isSubMenuActive ? 'bg-white/5 text-white' : ''}`}
+                >
+                    <div className="flex items-center gap-3">
+                        {Icon && <Icon className="w-4 h-4 opacity-70" />}
+                        <span className="font-bold">{label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {shortcut && <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{shortcut}</span>}
+                        {hasSubMenu && <ChevronRight className="w-4 h-4 text-slate-500" />}
+                    </div>
+                </button>
+
+                {hasSubMenu && isSubMenuActive && (
+                    <div className="absolute top-0 left-full -ml-1 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl py-2 min-w-[200px] animate-in fade-in slide-in-from-left-2 duration-150">
+                        {subMenuId === 'layer' && (
+                            <>
+                                <MenuItem icon={ArrowUpToLine} label="Bring to Front" action="front" />
+                                <MenuItem icon={ArrowUp} label="Bring Forward" action="forward" />
+                                <MenuItem icon={ArrowDown} label="Send Backward" action="backward" />
+                                <MenuItem icon={ArrowDownToLine} label="Send to Back" action="back" />
+                            </>
+                        )}
+                        {subMenuId === 'align' && (
+                            <>
+                                <MenuItem icon={AlignLeft} label="Left" action="align-left" />
+                                <MenuItem icon={AlignCenter} label="Center" action="align-center" />
+                                <MenuItem icon={AlignRight} label="Right" action="align-right" />
+                                <Divider />
+                                <MenuItem icon={ArrowUpToLine} label="Top" action="align-top" />
+                                <MenuItem icon={AlignCenter} label="Middle" action="align-middle" className="rotate-90" />
+                                <MenuItem icon={ArrowDownToLine} label="Bottom" action="align-bottom" />
+                            </>
+                        )}
+                        {subMenuId === 'space' && (
+                            <>
+                                <MenuItem icon={MoreHorizontal} label="Horizontal" action="distribute-h" />
+                                <MenuItem icon={MoreVertical} label="Vertical" action="distribute-v" />
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
-            {shortcut && <span className="text-[9px] text-slate-500 font-black ml-4 uppercase tracking-widest">{shortcut}</span>}
-        </button>
-    );
+        );
+    };
 
     const Divider = () => <div className="h-px bg-white/5 my-1.5 mx-2" />;
 
     // Adjust position to keep menu within viewport
-    const menuWidth = 220;
-    const menuHeight = 400; // estimated
+    const menuWidth = 240;
+    const menuHeight = 500;
     const adjustedX = Math.min(x, window.innerWidth - menuWidth - 20);
     const adjustedY = Math.min(y, window.innerHeight - menuHeight - 20);
 
@@ -71,17 +130,11 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                 top: adjustedY
             }}
         >
-            <MenuItem icon={Layers} label="Duplicate" action="duplicate" shortcut="Ctrl+D" disabled={!hasSelection || isLocked} />
             <MenuItem icon={Copy} label="Copy" action="copy" shortcut="Ctrl+C" disabled={!hasSelection} />
+            <MenuItem icon={Paintbrush} label="Copy style" action="copy-style" shortcut="Ctrl+Alt+C" disabled={!hasSelection} />
             <MenuItem icon={Clipboard} label="Paste" action="paste" shortcut="Ctrl+V" />
+            <MenuItem icon={Layers} label="Duplicate" action="duplicate" shortcut="Ctrl+D" disabled={!hasSelection || isLocked} />
             <MenuItem icon={Trash2} label="Delete" action="delete" shortcut="Delete" danger disabled={!hasSelection || isLocked} />
-
-            <Divider />
-
-            <MenuItem icon={ArrowUpToLine} label="Bring to Front" action="front" disabled={!hasSelection || isLocked} />
-            <MenuItem icon={ArrowUp} label="Bring Forward" action="forward" disabled={!hasSelection || isLocked} />
-            <MenuItem icon={ArrowDown} label="Send Backward" action="backward" disabled={!hasSelection || isLocked} />
-            <MenuItem icon={ArrowDownToLine} label="Send to Back" action="back" disabled={!hasSelection || isLocked} />
 
             <Divider />
 
@@ -92,6 +145,21 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                 shortcut="Alt+Shift+L"
                 disabled={!hasSelection}
             />
+
+            <Divider />
+
+            <MenuItem icon={Layers} label="Layer" hasSubMenu subMenuId="layer" disabled={!hasSelection || isLocked} />
+            <MenuItem icon={AlignCenter} label="Align elements" hasSubMenu subMenuId="align" disabled={!hasSelection || isLocked} />
+            <MenuItem icon={MoreHorizontal} label="Space evenly" hasSubMenu subMenuId="space" disabled={!hasSelection || isLocked || !isMultiple} />
+
+            <Divider />
+
+            {isGroup ? (
+                <MenuItem icon={UngroupIcon} label="Ungroup" action="ungroup" shortcut="Ctrl+Shift+G" disabled={isLocked} />
+            ) : (
+                <MenuItem icon={GroupIcon} label="Group" action="group" shortcut="Ctrl+G" disabled={!hasSelection || isLocked || !isMultiple} />
+            )}
+
             <MenuItem
                 icon={Layout}
                 label="Mark as Background"
@@ -101,31 +169,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
 
             <Divider />
 
-            <div className="px-4 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Align to Page</div>
-            <div className="grid grid-cols-3 gap-1.5 px-3 pb-2">
-                {[
-                    { label: 'Left', action: 'align-left' },
-                    { label: 'Center', action: 'align-center' },
-                    { label: 'Right', action: 'align-right' },
-                    { label: 'Top', action: 'align-top' },
-                    { label: 'Middle', action: 'align-middle' },
-                    { label: 'Bottom', action: 'align-bottom' }
-                ].map(item => (
-                    <button
-                        key={item.label}
-                        onClick={() => {
-                            if (!isLocked && hasSelection) {
-                                onAction(item.action);
-                                onClose();
-                            }
-                        }}
-                        disabled={!hasSelection || isLocked}
-                        className="px-1 py-1.5 text-[9px] font-bold text-slate-300 bg-slate-800/50 hover:bg-indigo-600/20 hover:text-white rounded-lg border border-white/5 transition-all disabled:opacity-30"
-                    >
-                        {item.label}
-                    </button>
-                ))}
-            </div>
+            <MenuItem icon={ArrowUp} label="Download selection" action="download-selection" disabled={!hasSelection} />
         </div>
     );
 }
