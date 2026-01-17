@@ -458,8 +458,6 @@ export async function uploadTemplate(formData: FormData) {
         // Detect extension
         const ext = file.name.endsWith('.pdf') ? 'pdf' : 'svg';
         const filename = `${crypto.randomUUID()}.${ext}`;
-        const fs = require('fs');
-        const path = require('path');
 
         const publicDir = path.join(process.cwd(), 'public', 'templates');
 
