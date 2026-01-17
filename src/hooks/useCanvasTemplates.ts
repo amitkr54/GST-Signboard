@@ -92,7 +92,7 @@ export function useCanvasTemplates(
             });
             safety.setCoords();
         }
-        canvas.bringToFront(safety);
+        canvas.moveTo(safety, 1);
 
         // 3. Bleed Rects (Canva-style red areas)
         const bleedRects = existing.filter(o => (o as any).name === 'safety_bleed_rect');
@@ -112,7 +112,8 @@ export function useCanvasTemplates(
             const right = new fabric.Rect({ ...rectProps, left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
 
             canvas.add(top, bottom, left, right);
-            [top, bottom, left, right, safety].forEach(r => canvas.bringToFront(r));
+            [top, bottom, left, right].forEach(r => canvas.moveTo(r, 1));
+            canvas.moveTo(safety, 5); // Ensure safety guide is above bleed rects
         } else {
             // Update positions on resize
             bleedRects.forEach((r: any, i) => {

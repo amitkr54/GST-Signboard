@@ -171,5 +171,37 @@ export const db = {
 
             return true;
         });
+    },
+
+    async getTemplate(id: string): Promise<any | undefined> {
+        const { data, error } = await supabase
+            .from('templates')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') return undefined;
+            console.error('Supabase getTemplate error:', error);
+            throw new Error(error.message);
+        }
+
+        return {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            thumbnailColor: data.thumbnail_color,
+            thumbnail: data.thumbnail,
+            svgPath: data.svg_path,
+            layoutType: data.layout_type,
+            isCustom: data.is_custom,
+            components: data.components,
+            fabricConfig: data.fabric_config,
+            defaults: data.defaults,
+            category: data.category,
+            isUniversal: data.is_universal,
+            productIds: data.product_ids || [],
+            dimensions: data.dimensions
+        };
     }
 };

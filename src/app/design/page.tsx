@@ -11,8 +11,10 @@ import { DesignUpload } from '@/components/DesignUpload';
 import { ReviewApproval } from '@/components/ReviewApproval';
 import { SignageData, DesignConfig, DEFAULT_DESIGN, TemplateId } from '@/lib/types';
 import { calculatePrice, MaterialId } from '@/lib/utils';
-import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode, getReferrerByCode } from '@/app/actions';
-import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3, Download } from 'lucide-react';
+import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode, getReferrerByCode, updateTemplateConfig, uploadProductImages, getTemplateById } from '@/app/actions';
+import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3, Download, Save } from 'lucide-react';
+
+
 import { PreviewSection } from '@/components/PreviewSection';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { Circle, Triangle, Minus } from 'lucide-react';
@@ -103,8 +105,73 @@ function DesignContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const isProductPath = !!searchParams.get('product');
+    const isAdminMode = searchParams.get('mode') === 'admin';
+    const adminPin = searchParams.get('pin');
     const { user, signInWithGoogle } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
+
+    const handleUpdateMasterTemplate = async () => {
+        if (!isAdminMode || !adminPin) return;
+        const templateId = searchParams.get('template');
+        if (!templateId) {
+            alert('No template loaded to update');
+            return;
+        }
+
+        const confirmUpdate = window.confirm('Are you sure you want to overwrite the MASTER template with this design? (Thumbnail will also be updated)');
+        if (!confirmUpdate) return;
+
+        setIsSaving(true);
+        try {
+            // @ts-expect-error - fabricCanvas is globally attached
+            const canvas = (window as any).fabricCanvas;
+            let thumbnailUrl = undefined;
+
+            if (canvas) {
+                // Generate Thumbnail
+                const dataUrl = canvas.toDataURL({
+                    format: 'png',
+                    multiplier: 0.5, // Smaller size for thumbnail
+                    quality: 0.8
+                });
+
+                // Convert DataURL to File
+                const res = await fetch(dataUrl);
+                const blob = await res.blob();
+                const file = new File([blob], `thumb-${templateId}-${Date.now()}.png`, { type: 'image/png' });
+
+                // Upload Thumbnail
+                const formData = new FormData();
+                formData.append('images', file);
+
+                const uploadRes = await uploadProductImages(formData);
+                if (uploadRes.success && uploadRes.urls && uploadRes.urls.length > 0) {
+                    thumbnailUrl = uploadRes.urls[0];
+                } else {
+                    console.warn('Thumbnail upload failed, proceeding with config update only');
+                }
+            }
+
+            // Get current canvas JSON
+            const canvasJson = JSON.parse(localStorage.getItem('signage_canvas_json') || '{}');
+
+            const result = await updateTemplateConfig(templateId, canvasJson, adminPin, thumbnailUrl, {
+                width: design.width,
+                height: design.height,
+                unit: design.unit
+            });
+
+            if (result.success) {
+                alert('Master Template & Thumbnail Updated Successfully!');
+            } else {
+                alert('Failed to update: ' + result.error);
+            }
+        } catch (e: any) {
+            alert('Error updating template: ' + e.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     // Stabilized registration callbacks to prevent infinite loops
     const registerAddText = useCallback((fn: any) => setAddTextFn(() => fn), []);
@@ -166,50 +233,29 @@ function DesignContent() {
     // Separate effect to load template if needed
     useEffect(() => {
         const templateId = searchParams.get('template');
+        const widthOverride = searchParams.get('width');
+        const heightOverride = searchParams.get('height');
+
         async function loadTemplate() {
             if (!templateId) return;
             try {
-                // Fetch all templates for now to find the one we need. 
-                // Optimization: Add `getTemplateById` server action later.
-                // Assuming getTemplates returns list.
-                const { getTemplates } = await import('@/app/actions');
-                const templates = await getTemplates({ search: '' });
+                const template = await getTemplateById(templateId);
 
-                // CRITICAL: We need the SVG content.
-                // existing `getTemplates` returns `svgPath`, `components` (json), `fabricConfig`.
-
-                const found = templates.find((t: any) => t.id === templateId);
-                if (found) {
-                    console.log("Loading template:", found);
-
-                    // 1. Try Fabric Config (Saved Editor State)
-                    if (found.fabricConfig && Object.keys(found.fabricConfig).length > 0 && (found.fabricConfig.objects || found.fabricConfig.version)) {
-                        console.log("Using fabricConfig");
-                        setDesign(prev => ({ ...prev, initialJSON: JSON.stringify(found.fabricConfig) }));
-                    }
-                    // 2. Try SVG Path (Uploaded File)
-                    else if (found.svgPath) {
-                        console.log("Using svgPath", found.svgPath);
-                        // Fetch SVG content
-                        try {
-                            const res = await fetch(found.svgPath);
-                            const svgText = await res.text();
-                            setDesign(prev => ({ ...prev, initialSVG: svgText }));
-                        } catch (err) {
-                            console.error("Failed to fetch SVG", err);
-                        }
-                    }
-                    // 3. Fallback to Components (Old/Smart Format) - ONLY if it looks like Fabric JSON
-                    else if (found.components && Object.keys(found.components).length > 0 && found.components.objects) {
-                        console.log("Using components (Legacy/Smart)");
-                        setDesign(prev => ({ ...prev, initialJSON: JSON.stringify(found.components) }));
-                    }
-                    else {
-                        console.warn("Template found but no renderable data (fabricConfig, svgPath, or valid components).");
+                if (template && template.dimensions) {
+                    // Only apply template dimensions if there is no manual URL override
+                    if (!widthOverride || !heightOverride) {
+                        setDesign(prev => ({
+                            ...prev,
+                            width: template.dimensions.width,
+                            height: template.dimensions.height,
+                            unit: template.dimensions.unit || 'in',
+                            templateId: templateId
+                        }));
+                        console.log('Applied template dimensions:', template.dimensions);
                     }
                 }
-            } catch (e) {
-                console.error("Error loading template", e);
+            } catch (error) {
+                console.error('Failed to load template dimensions:', error);
             }
         }
         loadTemplate();
@@ -312,10 +358,6 @@ function DesignContent() {
 
     const handleTemplateSelect = (id: TemplateId) => {
         setDesign(prev => ({ ...prev, templateId: id }));
-
-        // CRITICAL: Clear saved canvas state when switching templates to prevent 
-        // stale coordinates from interfering with new layout.
-        localStorage.removeItem('signage_canvas_json');
 
         // Automatically switch to design tab on mobile
         if (isMobile) {
@@ -1275,6 +1317,17 @@ function DesignContent() {
                     <span className="font-bold text-gray-900 tracking-tight">Signage Studio</span>
                 </div>
                 <div className="flex items-center gap-4">
+                    {isAdminMode && (
+                        <button
+                            onClick={handleUpdateMasterTemplate}
+                            disabled={isSaving}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-bold transition-colors shadow-sm animate-pulse"
+                            title="Overwrite global master template with current design"
+                        >
+                            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                            UPDATE MASTER
+                        </button>
+                    )}
                     {isSaving ? (
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>

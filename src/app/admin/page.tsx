@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import {
     Plus, Edit, Trash2, X, Upload, Save, Package, Layout, CheckCircle,
     AlertCircle, Image as ImageIcon, ChevronRight, Search, Filter,
-    Bold, Italic, Link as LinkIcon, List as ListIcon, Loader2, FileText
+    Bold, Italic, Link as LinkIcon, List as ListIcon, Loader2, FileText, Wrench
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { fabric } from 'fabric';
@@ -329,35 +329,20 @@ export default function AdminPage() {
         if (file && file.name.endsWith('.svg')) {
             try {
                 const text = await file.text();
-                await new Promise<void>((resolve) => {
+                const fabricJson = await new Promise<string>((resolve) => {
                     fabric.loadSVGFromString(text, (objects, options) => {
                         const tempCanvas = new fabric.Canvas(null, {
                             width: options.width || 1000,
                             height: options.height || 1000
                         });
-
-                        // Filter out outliers (ghosts)
-                        const filteredObjects = objects.filter(o => {
-                            const w = o.width || 0;
-                            const h = o.height || 0;
-                            const l = o.left || 0;
-                            const t = o.top || 0;
-                            return w < 10000 && h < 10000 && Math.abs(l) < 10000 && Math.abs(t) < 10000;
-                        });
-
-                        // We want to save the objects as they are
-                        filteredObjects.forEach((obj) => tempCanvas.add(obj));
-
-                        // Generate valid Fabric JSON
-                        const json = tempCanvas.toJSON(['id', 'name', 'selectable', 'evented', 'isBackground']); // Include custom props
-
-                        // Append to FormData
-                        formData.append('fabricConfig', JSON.stringify(json));
-                        console.log('Generated fabricConfig on client', json);
-
-                        resolve();
+                        objects.forEach((obj, i) => tempCanvas.add(obj));
+                        resolve(JSON.stringify(tempCanvas.toJSON()));
                     });
                 });
+
+                if (fabricJson) {
+                    formData.append('fabricConfig', fabricJson);
+                }
             } catch (e) {
                 console.error('SVG Parse Error', e);
             }
@@ -1327,12 +1312,22 @@ export default function AdminPage() {
                                                         </div>
                                                     </td>
                                                     <td className="px-8 py-4 text-right align-middle">
-                                                        <button
-                                                            onClick={() => handleDelete(template.id)}
-                                                            className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-red-500 transition-all border border-red-500/10"
-                                                        >
-                                                            <Trash2 size={20} />
-                                                        </button>
+                                                        <div className="flex gap-2 justify-end">
+                                                            <a
+                                                                href={`/design?template=${template.id}&mode=admin&pin=${pin}`}
+                                                                target="_blank"
+                                                                className="p-3 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-xl text-indigo-500 transition-all border border-indigo-500/10"
+                                                                title="Open in Master Editor"
+                                                            >
+                                                                <Wrench size={20} />
+                                                            </a>
+                                                            <button
+                                                                onClick={() => handleDelete(template.id)}
+                                                                className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-red-500 transition-all border border-red-500/10"
+                                                            >
+                                                                <Trash2 size={20} />
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}

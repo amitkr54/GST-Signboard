@@ -551,48 +551,120 @@ export async function uploadTemplate(formData: FormData) {
                 let firstY = NaN;
                 let secondY = NaN;
 
+                // Store lines with their Y positions to determine line breaks vs spaces
+                interface TextSpan {
+                    text: string;
+                    y: number;
+                    x: number;
+                    fontSize: number;
+                }
+                const spans: TextSpan[] = [];
+
                 while ((tspanMatch = tspanRegex.exec(textBody)) !== null) {
                     const spanAttrs = tspanMatch[1];
                     const spanContent = tspanMatch[2].replace(/<[^>]*>?/gm, '').trim();
                     if (spanContent) {
-                        lines.push(spanContent);
                         const spanStyles = getStyles(spanAttrs);
                         const currentY = parseFloat(spanStyles['y']?.toString().replace(/[a-z]/g, '') || 'NaN');
+                        const currentX = parseFloat(spanStyles['x']?.toString().replace(/[a-z]/g, '') || 'NaN');
+                        // Use local font size or inherit from base
+                        const localFontSize = parseFloat(spanStyles['font-size']?.toString().replace(/[a-z]/g, '') || 'NaN');
 
-                        if (lines.length === 1) {
+                        spans.push({
+                            text: spanContent,
+                            y: currentY,
+                            x: currentX,
+                            fontSize: localFontSize
+                        });
+
+                        // Maintain mergedStyles updates for the container properties
+                        if (spans.length === 1) {
                             Object.assign(mergedStyles, baseStyles, spanStyles);
                             firstY = currentY;
                         } else {
-                            if (lines.length === 2) secondY = currentY;
+                            if (spans.length === 2) secondY = currentY;
                             const { x, y, ...otherStyles } = spanStyles;
                             Object.assign(mergedStyles, otherStyles);
                         }
                     }
                 }
 
-                if (lines.length === 0) {
+                if (spans.length === 0) {
                     const directContent = textBody.replace(/<[^>]*>?/gm, '').trim();
                     if (directContent) {
-                        lines.push(directContent);
+                        const styleY = parseFloat(mergedStyles['y']?.toString().replace(/[a-z]/g, '') || 'NaN');
+                        spans.push({
+                            text: directContent,
+                            y: isNaN(styleY) ? parseFloat(baseStyles['y']?.toString() || 'NaN') : styleY,
+                            x: NaN,
+                            fontSize: NaN
+                        });
                         Object.assign(mergedStyles, baseStyles);
-                        firstY = parseFloat(mergedStyles['y']?.toString().replace(/[a-z]/g, '') || 'NaN');
+                        firstY = spans[0].y;
                     }
                 }
 
-                if (lines.length > 0) {
-                    const content = lines.join('\n');
-                    let fontSize = parseFloat(mergedStyles['font-size']?.toString().replace(/[a-z]/g, '') || 'NaN');
+                if (spans.length > 0) {
+                    // Smart Join: Iterate and check Y differences
+                    let content = '';
+                    let lastY = spans[0].y;
+                    let lastFontSize = spans[0].fontSize;
 
-                    if (isNaN(fontSize)) {
-                        fontSize = viewBox[2] > 5000 ? (viewBox[2] / 40) : 40;
+                    // Fallback font size if not found on spans
+                    let containerFontSize = parseFloat(mergedStyles['font-size']?.toString().replace(/[a-z]/g, '') || 'NaN');
+                    if (isNaN(containerFontSize)) {
+                        containerFontSize = viewBox[2] > 5000 ? (viewBox[2] / 40) : 40;
                     }
 
-                    // Calculate lineHeight if multiple lines
+                    spans.forEach((span, index) => {
+                        if (index === 0) {
+                            content += span.text;
+                        } else {
+                            const fs = !isNaN(span.fontSize) ? span.fontSize : (!isNaN(lastFontSize) ? lastFontSize : containerFontSize);
+
+                            // LOGIC FIX:
+                            // 1. If Y is NaN -> Assume Same Line (Space)
+                            // 2. If Y exists but is close to lastY -> Same Line (Space)
+                            // 3. Only if Y exists AND diff is large -> New Line
+
+                            let isNewLine = false;
+                            if (!isNaN(span.y) && !isNaN(lastY)) {
+                                if (Math.abs(span.y - lastY) > (fs * 0.5)) {
+                                    isNewLine = true;
+                                }
+                            }
+
+                            if (isNewLine) {
+                                content += '\n' + span.text;
+                            } else {
+                                // Logic for special characters: avoid space before punctuation
+                                const isPunctuation = /^[.,:;!?]/.test(span.text);
+                                content += (isPunctuation ? '' : ' ') + span.text;
+                            }
+                        }
+
+                        // Update lastY only if valid
+                        if (!isNaN(span.y)) {
+                            lastY = span.y;
+                        }
+                        if (!isNaN(span.fontSize)) {
+                            lastFontSize = span.fontSize;
+                        }
+                    });
+
+                    // Ensure we have a valid fontSize for the final object
+                    let fontSize = containerFontSize;
+
+                    // Calculate lineHeight if multiple lines exist in the final content
                     let lineHeight = 1.16;
-                    if (!isNaN(firstY) && !isNaN(secondY) && fontSize > 0) {
-                        lineHeight = (secondY - firstY) / fontSize;
-                        // Sanity check for lineHeight
-                        if (lineHeight < 0.5 || lineHeight > 3) lineHeight = 1.16;
+                    const lines = content.split('\n');
+
+                    if (lines.length > 1 && !isNaN(firstY) && !isNaN(secondY) && fontSize > 0) {
+                        // Recalculate secondY based on spans that actually triggered a newline
+                        // This is tricky without exact mapping, but the original logic was simple too.
+                        // Let's stick to the original simple calculation if available, or default.
+                        const calculatedLH = (secondY - firstY) / fontSize;
+                        if (calculatedLH > 0.5 && calculatedLH < 3) lineHeight = calculatedLH;
                     }
 
                     // --- BASELINE CORRECTION ---
@@ -643,61 +715,62 @@ export async function uploadTemplate(formData: FormData) {
             }
         }
 
-        // --- 4. Advanced Coordinate Normalization (Zero-Centering) ---
-        // This shifts all items to start at (0,0) and ignores ghost objects.
+        // --- 4. Content-Based Normalization (Actual Size) ---
+        // This ensures the template data tightly fits the design, ignoring CorelDRAW's massive empty workspace.
         if (components && (components.text.length > 0 || components.backgroundObjects.length > 0)) {
-            const boardWidth = parseFloat(formData.get('width') as string) || 12;
-            const boardHeight = parseFloat(formData.get('height') as string) || 12;
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-            // 1. First pass: Find the "Main Cluster" 
-            // We prioritize the Background/Rectangle as the anchor if it exists.
-            let clusterMinX = Infinity, clusterMinY = Infinity, clusterMaxX = -Infinity, clusterMaxY = -Infinity;
-            const bgRect = components.backgroundObjects.find((o: any) => o.type === 'rect' && parseFloat(o.styles.width) > 500);
-
-            if (bgRect) {
-                clusterMinX = parseFloat(bgRect.styles.x || '0');
-                clusterMinY = parseFloat(bgRect.styles.y || '0');
-                clusterMaxX = clusterMinX + parseFloat(bgRect.styles.width);
-                clusterMaxY = clusterMinY + parseFloat(bgRect.styles.height);
-            } else {
-                // Fallback: Use all elements to find bounds
-                [...components.text, ...components.backgroundObjects].forEach((o: any) => {
-                    const x = o.left ?? parseFloat(o.styles?.x || o.styles?.cx || '0');
-                    const y = o.top ?? parseFloat(o.styles?.y || o.styles?.cy || '0');
-                    if (!isNaN(x) && !isNaN(y)) {
-                        clusterMinX = Math.min(clusterMinX, x);
-                        clusterMinY = Math.min(clusterMinY, y);
-                        clusterMaxX = Math.max(clusterMaxX, x + 10);
-                        clusterMaxY = Math.max(clusterMaxY, y + 10);
-                    }
-                });
-            }
-
-            // 2. Second pass: Normalize and Filter
-            // We shift everything so the cluster starts at (0,0)
-            const offsetX = clusterMinX;
-            const offsetY = clusterMinY;
-
-            components.text = components.text.map((t: any) => ({
-                ...t,
-                left: t.left - offsetX,
-                top: t.top - offsetY
-            })).filter((t: any) => {
-                // Remove text that is way outside the logical board (Ghost protection)
-                const margin = (clusterMaxX - clusterMinX) * 1.5;
-                return t.left > -margin && t.left < (clusterMaxX - clusterMinX) + margin;
+            components.text.forEach((t: any) => {
+                minX = Math.min(minX, t.left);
+                minY = Math.min(minY, t.top);
+                // Estimate width if not available; 0.6*fontSize*charCount is a rough guide for Arial-like fonts
+                const estimatedWidth = (t.text.split('\n')[0].length * t.fontSize * 0.6);
+                maxX = Math.max(maxX, t.left + estimatedWidth);
+                maxY = Math.max(maxY, t.top + (t.fontSize * (t.lineHeight || 1.16) * t.text.split('\n').length));
             });
 
-            components.backgroundObjects = components.backgroundObjects.map((o: any) => ({
-                ...o,
-                left: (o.left ?? parseFloat(o.styles?.x || '0')) - offsetX,
-                top: (o.top ?? parseFloat(o.styles?.y || '0')) - offsetY
-            }));
+            components.backgroundObjects.forEach((o: any) => {
+                // Basic bounds check for rect, circle etc.
+                // Paths are hard to parse via regex, so we'll at least use their starting position if nothing else.
+                const s = o.styles;
+                let x = parseFloat(s.x || s.cx || 0);
+                let y = parseFloat(s.y || s.cy || 0);
+                let w = parseFloat(s.width || s.r || 0);
+                let h = parseFloat(s.height || s.r || 0);
 
-            // 3. Update originalViewBox to the "Cleaned" dimensions
-            if (clusterMinX !== Infinity && clusterMaxX > clusterMinX) {
-                components.originalViewBox = [0, 0, clusterMaxX - clusterMinX, clusterMaxY - clusterMinY];
-                console.log('CLEAN NORMALIZATION (BACKEND):', components.originalViewBox);
+                if (o.type === 'path' && s.d) {
+                    // Try to extract first M coordinate as a hint
+                    const m = s.d.match(/M\s*(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/i);
+                    if (m) { x = parseFloat(m[1]); y = parseFloat(m[2]); w = 10; h = 10; }
+                }
+
+                // Store calculated position in the object
+                o.left = x;
+                o.top = y;
+                o.width = w;
+                o.height = h;
+
+                if (!isNaN(x)) {
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x + w);
+                }
+                if (!isNaN(y)) {
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y + h);
+                }
+            });
+
+            // If we found valid bounds, update originalViewBox to "Actual Size"
+            if (minX !== Infinity && maxX > minX && maxY > minY) {
+                const padW = (maxX - minX) * 0.05; // 5% padding
+                const padH = (maxY - minY) * 0.05;
+                components.originalViewBox = [
+                    minX - padW,
+                    minY - padH,
+                    (maxX - minX) + (padW * 2),
+                    (maxY - minY) + (padH * 2)
+                ];
+                console.log('AUTO-CROP (BACKEND):', components.originalViewBox);
             }
         }
 
@@ -739,6 +812,41 @@ export async function uploadTemplate(formData: FormData) {
     }
 }
 
+export async function updateTemplateConfig(templateId: string, fabricConfig: any, pin: string, thumbnailUrl?: string, dimensions?: { width: number, height: number, unit: string }) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const updateData: any = {
+            fabric_config: fabricConfig,
+            is_custom: false // Ensure it stays as a global template
+        };
+
+        if (thumbnailUrl) {
+            updateData.thumbnail = thumbnailUrl;
+        }
+
+        if (dimensions) {
+            updateData.dimensions = dimensions;
+        }
+
+        const { error } = await supabase
+            .from('templates')
+            .update(updateData)
+            .eq('id', templateId);
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Update template error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function getTemplates(options?: { category?: string, productId?: string, aspectRatio?: number, search?: string }) {
     const { db } = await import('@/lib/db');
     try {
@@ -746,6 +854,16 @@ export async function getTemplates(options?: { category?: string, productId?: st
     } catch (error) {
         console.error('Error fetching templates:', error);
         return [];
+    }
+}
+
+export async function getTemplateById(id: string) {
+    const { db } = await import('@/lib/db');
+    try {
+        return await db.getTemplate(id);
+    } catch (error) {
+        console.error('Error fetching template by ID:', error);
+        return null;
     }
 }
 
