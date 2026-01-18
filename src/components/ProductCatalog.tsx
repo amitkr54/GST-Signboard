@@ -87,7 +87,7 @@ export function ProductCatalog() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
                     {filteredProducts.slice(0, 8).map((product, index) => (
                         <Link
-                            href={`/products/${product.id}`}
+                            href={`/products/${product.seo?.slug || product.id}`}
                             key={product.id}
                             className="group flex flex-col bg-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1"
                         >

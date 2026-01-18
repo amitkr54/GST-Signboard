@@ -66,32 +66,31 @@ export function generateSEO({
 /**
  * Generate SEO metadata for product pages
  */
-export function generateProductSEO(product: {
-    name: string;
-    description: string;
-    category: string;
-    priceFrom: number;
-    image?: string;
-    id: string;
-}) {
-    const title = `${product.name} - Custom ${product.category} Signage | SignagePro`;
-    const description = `${product.description.substring(0, 150)}... Starting from ₹${product.priceFrom}. Design and order online.`;
-    const keywords = [
+export function generateProductSEO(product: any) {
+    const seo = product.seo || {};
+
+    const title = seo.metaTitle || `${product.name} - Custom ${product.category} Signage | SignagePro`;
+    const description = seo.metaDescription || `${product.description?.replace(/<[^>]*>/g, '').substring(0, 150)}... Starting from ₹${product.priceFrom}. Design and order online.`;
+
+    // Combine custom keywords with default ones
+    const defaultKeywords = [
         product.name.toLowerCase(),
         `${product.category} signage`,
         'custom signage',
         'business signs',
-        'professional signage',
-        'signage design',
-        `${product.category} signs`,
+        'professional signage'
     ];
+    const keywords = seo.keywords && seo.keywords.length > 0 ? seo.keywords : defaultKeywords;
+
+    // Use slug if available for the URL
+    const urlId = seo.slug || product.id;
 
     return generateSEO({
         title,
         description,
         keywords,
         image: product.image,
-        url: `${siteConfig.url}/products/${product.id}`,
+        url: `${siteConfig.url}/products/${urlId}`,
     });
 }
 

@@ -122,7 +122,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                     value={size.name}
                                     onChange={(e) => updateSize(size.id, { name: e.target.value })}
                                     placeholder="e.g. Small (12x18)"
-                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm"
+                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm text-slate-900 font-bold"
                                     required
                                 />
                             </div>
@@ -132,7 +132,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                     type="number"
                                     value={size.dimensions.width}
                                     onChange={(e) => updateDimensions(size.id, { width: parseFloat(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm"
+                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm text-slate-900 font-bold"
                                     required
                                 />
                             </div>
@@ -142,7 +142,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                     type="number"
                                     value={size.dimensions.height}
                                     onChange={(e) => updateDimensions(size.id, { height: parseFloat(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm"
+                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm text-slate-900 font-bold"
                                     required
                                 />
                             </div>
@@ -153,7 +153,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                     step="0.1"
                                     value={size.priceMultiplier}
                                     onChange={(e) => updateSize(size.id, { priceMultiplier: parseFloat(e.target.value) || 1 })}
-                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm"
+                                    className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm text-slate-900 font-bold"
                                     required
                                 />
                             </div>
@@ -422,7 +422,13 @@ export default function AdminPage() {
             features: (formData.get('features') as string).split('\n').filter(f => f.trim()),
             sizes: sizes,
             materials: (formData.get('materials') as string).split(',').map(m => m.trim()) as any[],
-            popularTemplates: []
+            popularTemplates: [],
+            seo: {
+                metaTitle: formData.get('metaTitle') as string,
+                metaDescription: formData.get('metaDescription') as string,
+                keywords: (formData.get('keywords') as string)?.split(',').map(kw => kw.trim()).filter(Boolean) || [],
+                slug: formData.get('slug') as string
+            }
         };
 
         const res = await saveProductAction(productData, pin);
@@ -948,6 +954,51 @@ export default function AdminPage() {
                                                 className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white min-h-[80px]"
                                                 placeholder="Customizable design&#10;Durable material"
                                             />
+                                        </div>
+
+                                        <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10 space-y-6">
+                                            <h4 className="text-sm font-black text-indigo-400 uppercase tracking-widest border-b border-white/5 pb-2">SEO Configuration</h4>
+
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Meta Title</label>
+                                                    <input
+                                                        name="metaTitle"
+                                                        defaultValue={editingProduct?.seo?.metaTitle}
+                                                        placeholder="Product SEO Title"
+                                                        className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">URL Slug</label>
+                                                    <input
+                                                        name="slug"
+                                                        defaultValue={editingProduct?.seo?.slug}
+                                                        placeholder="product-name-slug"
+                                                        className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Meta Keywords (comma separated)</label>
+                                                <input
+                                                    name="keywords"
+                                                    defaultValue={editingProduct?.seo?.keywords?.join(', ')}
+                                                    placeholder="signage, banner, custom"
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Meta Description</label>
+                                                <textarea
+                                                    name="metaDescription"
+                                                    defaultValue={editingProduct?.seo?.metaDescription}
+                                                    placeholder="Enter descriptive text for search engines..."
+                                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white min-h-[80px]"
+                                                />
+                                            </div>
                                         </div>
 
                                         <div className="space-y-4">

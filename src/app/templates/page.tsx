@@ -1,9 +1,14 @@
 import TemplateGallery from '@/components/TemplateGallery';
-import { getTemplates } from '../actions';
+import { getTemplates, getCategories } from '../actions';
 
 export default async function TemplatesPage() {
-    const templates = await getTemplates();
+    const [templates, categoriesResponse] = await Promise.all([
+        getTemplates(),
+        getCategories()
+    ]);
+
     const allTemplates = Array.isArray(templates) ? templates : [];
+    const categories = categoriesResponse.success ? categoriesResponse.categories : [];
 
     return (
         <section className="py-20 min-h-screen relative">
@@ -17,7 +22,7 @@ export default async function TemplatesPage() {
                     </p>
                 </div>
 
-                <TemplateGallery initialTemplates={allTemplates} />
+                <TemplateGallery initialTemplates={allTemplates} categories={categories} />
             </div>
         </section>
     );

@@ -4,22 +4,19 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Layout, Search } from 'lucide-react';
 
-const CATEGORIES = [
-    { id: 'all', name: 'All Templates' },
-    { id: 'Business', name: 'Business' },
-    { id: 'Retail', name: 'Retail' },
-    { id: 'Event', name: 'Event' },
-    { id: 'Hospitality', name: 'Hospitality' },
-    { id: 'Real Estate', name: 'Real Estate' }
-];
-
 interface TemplateGalleryProps {
     initialTemplates: any[];
+    categories: any[];
 }
 
-export default function TemplateGallery({ initialTemplates }: TemplateGalleryProps) {
+export default function TemplateGallery({ initialTemplates, categories }: TemplateGalleryProps) {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
+
+    const displayCategories = [
+        { id: 'all', name: 'All Templates' },
+        ...categories
+    ];
 
     const filteredTemplates = initialTemplates.filter(template => {
         const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
@@ -32,13 +29,13 @@ export default function TemplateGallery({ initialTemplates }: TemplateGalleryPro
             {/* Filter Bar */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-10 bg-white/5 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
                 <div className="flex overflow-x-auto gap-1 p-1 w-full md:w-auto scrollbar-hide">
-                    {CATEGORIES.map(cat => (
+                    {displayCategories.map(cat => (
                         <button
                             key={cat.id}
                             onClick={() => setSelectedCategory(cat.id)}
                             className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedCategory === cat.id
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                                : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             {cat.name}
