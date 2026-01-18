@@ -498,13 +498,18 @@ function DesignContent() {
                     putOnlyUsedFonts: true
                 });
 
-                // 2. Load and register fonts
+                // 2. Load and register fonts with error handling
                 for (const family of Array.from(fontFamilies)) {
-                    const base64 = await getFontBase64(family);
-                    if (base64) {
-                        pdf.addFileToVFS(`${family}.ttf`, base64);
-                        pdf.addFont(`${family}.ttf`, family, 'normal');
-                        console.log(`Embedded font: ${family}`);
+                    try {
+                        const base64 = await getFontBase64(family);
+                        if (base64) {
+                            pdf.addFileToVFS(`${family}.ttf`, base64);
+                            pdf.addFont(`${family}.ttf`, family, 'normal');
+                            console.log(`✓ Embedded: ${family}`);
+                        }
+                    } catch (fontError) {
+                        // Font embedding failed - jsPDF will use fallback font
+                        console.warn(`✗ Could not embed ${family}, using fallback`);
                     }
                 }
 
@@ -679,12 +684,17 @@ function DesignContent() {
                         putOnlyUsedFonts: true
                     });
 
-                    // Load and register fonts
+                    // Load and register fonts with error handling
                     for (const family of Array.from(fontFamilies)) {
-                        const base64 = await getFontBase64(family);
-                        if (base64) {
-                            pdf.addFileToVFS(`${family}.ttf`, base64);
-                            pdf.addFont(`${family}.ttf`, family, 'normal');
+                        try {
+                            const base64 = await getFontBase64(family);
+                            if (base64) {
+                                pdf.addFileToVFS(`${family}.ttf`, base64);
+                                pdf.addFont(`${family}.ttf`, family, 'normal');
+                            }
+                        } catch (fontError) {
+                            // Silently skip fonts that can't be embedded
+                            console.warn(`Could not embed ${family} in order proof`);
                         }
                     }
 

@@ -1,0 +1,102 @@
+[
+  {
+    "name": "AbrilFatface",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  },
+  {
+    "name": "BebasNeue",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  },
+  {
+    "name": "DancingScript",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Lato",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  },
+  {
+    "name": "Lobster",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  },
+  {
+    "name": "Lora",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Merriweather",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Montserrat",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Nunito",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "OpenSans",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Oswald",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Pacifico",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  },
+  {
+    "name": "PlayfairDisplay",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Poppins",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  },
+  {
+    "name": "PTSans",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  },
+  {
+    "name": "Raleway",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Roboto",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "RobotoSlab",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "SourceSansPro",
+    "valid": false,
+    "error": "Unknown font format"
+  },
+  {
+    "name": "Ubuntu",
+    "valid": false,
+    "error": "font.hasTable is not a function"
+  }
+]
