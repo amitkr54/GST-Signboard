@@ -12,7 +12,17 @@ const SYSTEM_FONTS = new Set([
     'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'
 ]);
 
-// Map font names to local file paths
+// Fonts that jsPDF's internal parser can't handle
+// These fonts load fine but cause errors during PDF generation
+const JSPDF_INCOMPATIBLE_FONTS = new Set([
+    'Dancing Script',
+    'Oswald',
+    'Bebas Neue',
+    'Lobster',
+    'Abril Fatface'
+]);
+
+//Map font names to local file paths
 const LOCAL_FONTS_MAP: Record<string, string> = {
     'Roboto': '/fonts/Roboto.ttf',
     'Open Sans': '/fonts/OpenSans.ttf',
@@ -65,6 +75,12 @@ async function fetchFontAsBase64(url: string): Promise<string | null> {
 export async function getFontBase64(fontFamily: string): Promise<string | null> {
     // Skip system fonts
     if (SYSTEM_FONTS.has(fontFamily)) {
+        return null;
+    }
+
+    // Skip fonts incompatible with jsPDF's parser
+    if (JSPDF_INCOMPATIBLE_FONTS.has(fontFamily)) {
+        console.log(`⊘ Skipping ${fontFamily} (jsPDF incompatible)`);
         return null;
     }
 
