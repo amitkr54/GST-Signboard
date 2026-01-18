@@ -484,12 +484,11 @@ function DesignContent() {
                 const svg2pdfModule = await import('svg2pdf.js');
                 const { getFontBase64 } = await import('@/lib/font-utils');
 
-                // 1. Find and cleanse all font families
+                // 1. Find all font families used in the canvas
                 const objects = canvas.getObjects();
-                const usedFamilies = new Set<string>();
+                const fontFamilies = new Set<string>();
                 objects.forEach((obj: any) => {
-                    const family = obj.fontFamily;
-                    if (family) usedFamilies.add(family.replace(/'|"/g, '').trim());
+                    if (obj.fontFamily) fontFamilies.add(obj.fontFamily);
                 });
 
                 const pdf = new jsPDF({
@@ -500,20 +499,20 @@ function DesignContent() {
                 });
 
                 // 2. Load and register fonts
-                for (const family of Array.from(usedFamilies)) {
+                for (const family of Array.from(fontFamilies)) {
                     const base64 = await getFontBase64(family);
                     if (base64) {
                         pdf.addFileToVFS(`${family}.ttf`, base64);
                         pdf.addFont(`${family}.ttf`, family, 'normal');
+                        console.log(`Embedded font: ${family}`);
                     }
                 }
 
-                // 3. Generate SVG with actual canvas dimensions to keep proportions
                 const svg = canvas.toSVG({
                     suppressPreamble: false,
-                    width: canvas.width,
-                    height: canvas.height,
-                    viewBox: { x: 0, y: 0, width: canvas.width, height: canvas.height }
+                    width: 1800,
+                    height: 1200,
+                    viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
                 });
 
                 const tempDiv = document.createElement('div');
@@ -525,21 +524,14 @@ function DesignContent() {
                     return;
                 }
 
-                // Explicitly set SVG attributes to help svg2pdf resolve scaling
-                svgElement.setAttribute('width', '18in');
-                svgElement.setAttribute('height', '12in');
+                // Explicitly map fonts for svg2pdf
+                const fontMap: Record<string, string> = {};
+                fontFamilies.forEach(f => { fontMap[f] = f; });
 
-                // Robust font callback for mapping SVG styles to PDF fonts
                 await svg2pdfModule.svg2pdf(svgElement, pdf, {
                     x: 0, y: 0, width: 18, height: 12,
                     fontCallback: (family) => {
-                        const cleanFamily = family.replace(/'|"/g, '').trim();
-                        // Try to find exact or fuzzy match in registered fonts
-                        const match = Array.from(usedFamilies).find(f =>
-                            f.toLowerCase() === cleanFamily.toLowerCase() ||
-                            cleanFamily.toLowerCase().includes(f.toLowerCase())
-                        );
-                        return match || cleanFamily;
+                        return fontMap[family] || family;
                     }
                 });
 
@@ -673,12 +665,11 @@ function DesignContent() {
                     const svg2pdfModule = await import('svg2pdf.js');
                     const { getFontBase64 } = await import('@/lib/font-utils');
 
-                    // 1. Find and cleanse all font families
+                    // Find all font families used in the canvas
                     const objects = canvas.getObjects();
-                    const usedFamilies = new Set<string>();
+                    const fontFamilies = new Set<string>();
                     objects.forEach((obj: any) => {
-                        const family = obj.fontFamily;
-                        if (family) usedFamilies.add(family.replace(/'|"/g, '').trim());
+                        if (obj.fontFamily) fontFamilies.add(obj.fontFamily);
                     });
 
                     const pdf = new jsPDF({
@@ -688,8 +679,8 @@ function DesignContent() {
                         putOnlyUsedFonts: true
                     });
 
-                    // 2. Load and register fonts
-                    for (const family of Array.from(usedFamilies)) {
+                    // Load and register fonts
+                    for (const family of Array.from(fontFamilies)) {
                         const base64 = await getFontBase64(family);
                         if (base64) {
                             pdf.addFileToVFS(`${family}.ttf`, base64);
@@ -697,12 +688,12 @@ function DesignContent() {
                         }
                     }
 
-                    // 3. Generate SVG with actual canvas dimensions
+                    // Generate high-res SVG for the PDF
                     const svg = canvas.toSVG({
                         suppressPreamble: false,
-                        width: canvas.width,
-                        height: canvas.height,
-                        viewBox: { x: 0, y: 0, width: canvas.width, height: canvas.height }
+                        width: 1800,
+                        height: 1200,
+                        viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
                     });
 
                     const tempDiv = document.createElement('div');
@@ -710,19 +701,13 @@ function DesignContent() {
                     const svgElement = tempDiv.querySelector('svg');
 
                     if (svgElement) {
-                        // Explicitly set SVG attributes to help svg2pdf resolve scaling
-                        svgElement.setAttribute('width', '18in');
-                        svgElement.setAttribute('height', '12in');
+                        const fontMap: Record<string, string> = {};
+                        fontFamilies.forEach(f => { fontMap[f] = f; });
 
                         await svg2pdfModule.svg2pdf(svgElement, pdf, {
                             x: 0, y: 0, width: 18, height: 12,
                             fontCallback: (family) => {
-                                const cleanFamily = family.replace(/'|"/g, '').trim();
-                                const match = Array.from(usedFamilies).find(f =>
-                                    f.toLowerCase() === cleanFamily.toLowerCase() ||
-                                    cleanFamily.toLowerCase().includes(f.toLowerCase())
-                                );
-                                return match || cleanFamily;
+                                return fontMap[family] || family;
                             }
                         });
 

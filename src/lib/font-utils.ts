@@ -1,52 +1,111 @@
 /**
- * Utility to fetch Google Fonts and convert to base64 for jsPDF embedding
+ * Utility to load local fonts and convert to base64 for jsPDF embedding
+ * Fonts are stored in public/fonts/ and loaded via browser cache
  */
 
-const FONT_MAP: Record<string, string> = {
-    'Arial': 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.ttf', // Fallback to Roboto for Arial in PDF
-    'Roboto': 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.ttf',
-    'Open Sans': 'https://fonts.gstatic.com/s/opensans/v34/memvYaGs126MiZpBA-UvWbX2vVnXBbObj2OVTS-muw.ttf',
-    'Lato': 'https://fonts.gstatic.com/s/lato/v24/S6uyw4BMUTPHjx4wWw.ttf',
-    'Montserrat': 'https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.ttf',
-    'Oswald': 'https://fonts.gstatic.com/s/oswald/v49/TK3iWkUHHAIjg752GT8G.ttf',
-    'Raleway': 'https://fonts.gstatic.com/s/raleway/v28/1Ptxg8zYS_SKggPN4iEgvnHyvveLxVvaorCIPrQ.ttf',
-    'PT Sans': 'https://fonts.gstatic.com/s/ptsans/v17/jvX72_2_K9ChAtAdCb7V.ttf',
-    'Merriweather': 'https://fonts.gstatic.com/s/merriweather/v30/u-440qyLdR-Mqp3V4n3hm86TkdqZ.ttf',
-    'Nunito': 'https://fonts.gstatic.com/s/nunito/v25/6xK3dSByY69p1u3dUdc.ttf',
-    'Playfair Display': 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD7K8E30Bb8mxpbg67X62EeLu.ttf',
-    'Poppins': 'https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.ttf',
-    'Source Sans Pro': 'https://fonts.gstatic.com/s/sourcesanspro/v22/6xK3dSByY69p1u3dUdc.ttf',
-    'Ubuntu': 'https://fonts.gstatic.com/s/ubuntu/v20/4iCs6KVjbNBYlgoKcg.ttf',
-    'Roboto Slab': 'https://fonts.gstatic.com/s/robotoslab/v24/BngbUXZYTXPIvIBgJJSb6s3B98o.ttf',
-    'Lora': 'https://fonts.gstatic.com/s/lora/v32/0UAn46at8_D50626.ttf',
-    'Pacifico': 'https://fonts.gstatic.com/s/pacifico/v22/FwZY7-Qmy1X3869u0dfv.ttf',
-    'Dancing Script': 'https://fonts.gstatic.com/s/dancingscript/v24/If2cXEE9MRq7uzswM9xyJa8_f8vPbT6H.ttf',
-    'Bebas Neue': 'https://fonts.gstatic.com/s/bebasneue/v14/JTUSjIg1_i6t8kCHKm459WRhyzAL.ttf',
-    'Lobster': 'https://fonts.gstatic.com/s/lobster/v30/neILzOf9sclmbFgs.ttf',
-    'Abril Fatface': 'https://fonts.gstatic.com/s/abrilfatface/v23/z9X748NjtK768nSrGeqI-SXuCg.ttf'
+// System fonts that should NOT be fetched (they're already available in PDF viewers)
+const SYSTEM_FONTS = new Set([
+    'Arial',
+    'Helvetica',
+    'Times New Roman',
+    'Times',
+    'Courier New',
+    'Courier',
+    'Verdana',
+    'Georgia',
+    'Palatino',
+    'Garamond',
+    'Bookman',
+    'Comic Sans MS',
+    'Trebuchet MS',
+    'Arial Black',
+    'Impact',
+    'sans-serif',
+    'serif',
+    'monospace',
+    'cursive',
+    'fantasy'
+]);
+
+// Map font names to local file paths
+const LOCAL_FONTS_MAP: Record<string, string> = {
+    'Roboto': '/fonts/Roboto.ttf',
+    'Open Sans': '/fonts/OpenSans.ttf',
+    'Lato': '/fonts/Lato.ttf',
+    'Montserrat': '/fonts/Montserrat.ttf',
+    'Oswald': '/fonts/Oswald.ttf',
+    'Raleway': '/fonts/Raleway.ttf',
+    'PT Sans': '/fonts/PTSans.ttf',
+    'Merriweather': '/fonts/Merriweather.ttf',
+    'Nunito': '/fonts/Nunito.ttf',
+    'Playfair Display': '/fonts/PlayfairDisplay.ttf',
+    'Poppins': '/fonts/Poppins.ttf',
+    'Source Sans Pro': '/fonts/SourceSansPro.ttf',
+    'Ubuntu': '/fonts/Ubuntu.ttf',
+    'Roboto Slab': '/fonts/RobotoSlab.ttf',
+    'Lora': '/fonts/Lora.ttf',
+    'Pacifico': '/fonts/Pacifico.ttf',
+    'Dancing Script': '/fonts/DancingScript.ttf',
+    'Bebas Neue': '/fonts/BebasNeue.ttf',
+    'Lobster': '/fonts/Lobster.ttf',
+    'Abril Fatface': '/fonts/AbrilFatface.ttf'
 };
 
-export async function getFontBase64(fontFamily: string): Promise<string | null> {
-    const url = FONT_MAP[fontFamily];
-    if (!url) return null;
+// Cache for loaded fonts (in-memory, per session)
+const fontCache = new Map<string, string>();
 
+async function fetchFontAsBase64(url: string): Promise<string | null> {
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error('Font fetch failed');
+
         const blob = await response.blob();
 
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64 = reader.result as string;
-                // Remove data:application/x-font-ttf;base64, prefix
-                resolve(base64.split(',')[1]);
+                // Remove the data URL prefix (e.g., "data:font/ttf;base64,")
+                const base64Data = base64.split(',')[1];
+                resolve(base64Data);
             };
             reader.onerror = reject;
             reader.readAsDataURL(blob);
         });
     } catch (error) {
-        console.error(`Error loading font ${fontFamily}:`, error);
+        console.error('Error fetching font:', error);
         return null;
     }
+}
+
+export async function getFontBase64(fontFamily: string): Promise<string | null> {
+    // Skip system fonts - they're already available in PDF viewers
+    if (SYSTEM_FONTS.has(fontFamily)) {
+        return null;
+    }
+
+    // Check cache first
+    if (fontCache.has(fontFamily)) {
+        console.log(`Using cached font: ${fontFamily}`);
+        return fontCache.get(fontFamily)!;
+    }
+
+    const fontPath = LOCAL_FONTS_MAP[fontFamily];
+    if (!fontPath) {
+        console.warn(`Font not available: ${fontFamily}`);
+        return null;
+    }
+
+    console.log(`Loading font: ${fontFamily}`);
+    const base64 = await fetchFontAsBase64(fontPath);
+
+    if (base64) {
+        // Cache the font for future use
+        fontCache.set(fontFamily, base64);
+        console.log(`✓ Loaded font: ${fontFamily}`);
+    } else {
+        console.warn(`✗ Failed to load: ${fontFamily}`);
+    }
+
+    return base64;
 }
