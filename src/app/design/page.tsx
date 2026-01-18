@@ -482,6 +482,31 @@ function DesignContent() {
             try {
                 const { jsPDF } = await import('jspdf');
                 const svg2pdfModule = await import('svg2pdf.js');
+                const { getFontBase64 } = await import('@/lib/font-utils');
+
+                // 1. Find all font families used in the canvas
+                const objects = canvas.getObjects();
+                const fontFamilies = new Set<string>();
+                objects.forEach((obj: any) => {
+                    if (obj.fontFamily) fontFamilies.add(obj.fontFamily);
+                });
+
+                const pdf = new jsPDF({
+                    orientation: 'landscape',
+                    unit: 'in',
+                    format: [12, 18],
+                    putOnlyUsedFonts: true
+                });
+
+                // 2. Load and register fonts
+                for (const family of Array.from(fontFamilies)) {
+                    const base64 = await getFontBase64(family);
+                    if (base64) {
+                        pdf.addFileToVFS(`${family}.ttf`, base64);
+                        pdf.addFont(`${family}.ttf`, family, 'normal');
+                        console.log(`Embedded font: ${family}`);
+                    }
+                }
 
                 const svg = canvas.toSVG({
                     suppressPreamble: false,
@@ -499,14 +524,15 @@ function DesignContent() {
                     return;
                 }
 
-                const pdf = new jsPDF({
-                    orientation: 'landscape',
-                    unit: 'in',
-                    format: [12, 18]
-                });
+                // Explicitly map fonts for svg2pdf
+                const fontMap: Record<string, string> = {};
+                fontFamilies.forEach(f => { fontMap[f] = f; });
 
                 await svg2pdfModule.svg2pdf(svgElement, pdf, {
-                    x: 0, y: 0, width: 18, height: 12
+                    x: 0, y: 0, width: 18, height: 12,
+                    fontCallback: (family) => {
+                        return fontMap[family] || family;
+                    }
                 });
 
                 pdf.save(`signage-${Date.now()}.pdf`);
@@ -637,6 +663,30 @@ function DesignContent() {
                 try {
                     const { jsPDF } = await import('jspdf');
                     const svg2pdfModule = await import('svg2pdf.js');
+                    const { getFontBase64 } = await import('@/lib/font-utils');
+
+                    // Find all font families used in the canvas
+                    const objects = canvas.getObjects();
+                    const fontFamilies = new Set<string>();
+                    objects.forEach((obj: any) => {
+                        if (obj.fontFamily) fontFamilies.add(obj.fontFamily);
+                    });
+
+                    const pdf = new jsPDF({
+                        orientation: 'landscape',
+                        unit: 'in',
+                        format: [12, 18],
+                        putOnlyUsedFonts: true
+                    });
+
+                    // Load and register fonts
+                    for (const family of Array.from(fontFamilies)) {
+                        const base64 = await getFontBase64(family);
+                        if (base64) {
+                            pdf.addFileToVFS(`${family}.ttf`, base64);
+                            pdf.addFont(`${family}.ttf`, family, 'normal');
+                        }
+                    }
 
                     // Generate high-res SVG for the PDF
                     const svg = canvas.toSVG({
@@ -651,14 +701,14 @@ function DesignContent() {
                     const svgElement = tempDiv.querySelector('svg');
 
                     if (svgElement) {
-                        const pdf = new jsPDF({
-                            orientation: 'landscape',
-                            unit: 'in',
-                            format: [12, 18]
-                        });
+                        const fontMap: Record<string, string> = {};
+                        fontFamilies.forEach(f => { fontMap[f] = f; });
 
                         await svg2pdfModule.svg2pdf(svgElement, pdf, {
-                            x: 0, y: 0, width: 18, height: 12
+                            x: 0, y: 0, width: 18, height: 12,
+                            fontCallback: (family) => {
+                                return fontMap[family] || family;
+                            }
                         });
 
                         // Convert PDF to Data URL (base64)
