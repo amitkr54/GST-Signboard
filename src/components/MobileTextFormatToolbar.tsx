@@ -1,6 +1,7 @@
 import { fabric } from 'fabric';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { FontVariantSupport } from '@/lib/font-utils';
 import {
     X,
     Keyboard,
@@ -49,6 +50,7 @@ interface MobileTextFormatToolbarProps {
     onDelete: () => void;
     onAction?: (action: string) => void;
     fontOptions: string[];
+    supportedVariants?: FontVariantSupport;
 }
 
 export function MobileTextFormatToolbar({
@@ -76,7 +78,8 @@ export function MobileTextFormatToolbar({
     onDuplicate,
     onDelete,
     onAction,
-    fontOptions
+    fontOptions,
+    supportedVariants
 }: MobileTextFormatToolbarProps) {
     if (typeof document === 'undefined') return null;
 
@@ -278,13 +281,15 @@ export function MobileTextFormatToolbar({
                                     <>
                                         <button
                                             onClick={toggleBold}
-                                            className={`w-12 h-12 flex items-center justify-center rounded-2xl border-2 transition-all ${isBold ? 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10' : 'bg-slate-800/50 border-white/5 text-slate-400 font-bold'}`}
+                                            disabled={supportedVariants && !supportedVariants.bold}
+                                            className={`w-12 h-12 flex items-center justify-center rounded-2xl border-2 transition-all ${isBold ? 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10' : 'bg-slate-800/50 border-white/5 text-slate-400 font-bold'} ${supportedVariants && !supportedVariants.bold ? 'opacity-30 cursor-not-allowed' : ''}`}
                                         >
                                             <Bold className="w-5 h-5" />
                                         </button>
                                         <button
                                             onClick={toggleItalic}
-                                            className={`w-12 h-12 flex items-center justify-center rounded-2xl border-2 transition-all ${isItalic ? 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10' : 'bg-slate-800/50 border-white/5 text-slate-400'}`}
+                                            disabled={supportedVariants && !supportedVariants.italic}
+                                            className={`w-12 h-12 flex items-center justify-center rounded-2xl border-2 transition-all ${isItalic ? 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10' : 'bg-slate-800/50 border-white/5 text-slate-400'} ${supportedVariants && !supportedVariants.italic ? 'opacity-30 cursor-not-allowed' : ''}`}
                                         >
                                             <Italic className="w-5 h-5" />
                                         </button>

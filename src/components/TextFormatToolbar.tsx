@@ -2,6 +2,7 @@ import { fabric } from 'fabric';
 import React, { useState, useEffect } from 'react';
 import { MobileTextFormatToolbar } from './MobileTextFormatToolbar';
 import { DesktopTextFormatToolbar } from './DesktopTextFormatToolbar';
+import { FONT_VARIANTS_METADATA, FontVariantSupport } from '@/lib/font-utils';
 
 interface TextFormatToolbarProps {
     selectedObject: fabric.Object | null;
@@ -40,6 +41,8 @@ export function TextFormatToolbar({
     const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>('center');
     const [isLocked, setIsLocked] = useState(false);
     const [showPositionMenu, setShowPositionMenu] = useState(false);
+
+    const supportedVariants: FontVariantSupport = FONT_VARIANTS_METADATA[fontFamily] || { bold: true, italic: true, boldItalic: true };
 
     const isMultiple = selectedObject?.type === 'activeSelection';
     const isGroup = selectedObject?.type === 'group';
@@ -276,7 +279,8 @@ export function TextFormatToolbar({
         onDuplicate: onDuplicate || (() => { }),
         onDelete: onDelete || (() => { }),
         onAction,
-        fontOptions
+        fontOptions,
+        supportedVariants
     };
 
     if (compact) {

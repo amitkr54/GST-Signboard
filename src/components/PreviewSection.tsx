@@ -16,6 +16,8 @@ interface PreviewSectionProps {
     onDataChange?: (data: Partial<SignageData>) => void;
     compact?: boolean;
     isLandscape?: boolean;
+    onObjectSelected?: (obj: fabric.Object | null) => void;
+    onToolbarAction?: (actionFn: (action: string) => void) => void;
 }
 
 export function PreviewSection({
@@ -30,7 +32,9 @@ export function PreviewSection({
     onAddImage,
     onDataChange,
     compact = false,
-    isLandscape = false
+    isLandscape = false,
+    onObjectSelected,
+    onToolbarAction
 }: PreviewSectionProps) {
 
     if (uploadedDesign) {
@@ -62,6 +66,8 @@ export function PreviewSection({
                 onDataChange={onDataChange}
                 compact={compact}
                 isLandscape={isLandscape}
+                onObjectSelected={onObjectSelected}
+                onToolbarAction={onToolbarAction}
             />
         </div>
     );

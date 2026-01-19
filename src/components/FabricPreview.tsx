@@ -32,6 +32,8 @@ interface FabricPreviewProps {
     isReadOnly?: boolean;
     initialJSON?: string;
     initialSVG?: string;
+    onObjectSelected?: (obj: fabric.Object | null) => void;
+    onToolbarAction?: (actionFn: (action: string) => void) => void;
 }
 
 export function FabricPreview({
@@ -49,7 +51,9 @@ export function FabricPreview({
     isLandscape = false,
     isReadOnly = false,
     initialJSON,
-    initialSVG
+    initialSVG,
+    onObjectSelected,
+    onToolbarAction
 }: FabricPreviewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
@@ -63,8 +67,7 @@ export function FabricPreview({
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
     const [copiedStyle, setCopiedStyle] = useState<any>(null);
     const [hasSafetyViolation, setHasSafetyViolation] = useState(false);
-    const [toolbarPos, setToolbarPos] = useState({ x: 200, y: 100 });
-    const [hasMovedToolbar, setHasMovedToolbar] = useState(false);
+    const [toolbarPos, setToolbarPos] = useState<{ x: number, y: number } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
     const hasInitialLoadRef = useRef(false);
@@ -98,7 +101,8 @@ export function FabricPreview({
         setInitialHistory,
         baseWidth,
         baseHeight,
-        onSafetyChange: setHasSafetyViolation
+        onSafetyChange: setHasSafetyViolation,
+        onSelectionChange: onObjectSelected
     });
 
     // Template Mapping Hook
@@ -624,17 +628,38 @@ export function FabricPreview({
         onAddIcon?.(addIcon);
         onAddShape?.(addShape);
         onAddImage?.(addImage);
-    }, [onAddText, onAddIcon, onAddShape, onAddImage, addText, addIcon, addShape, addImage]);
+        onToolbarAction?.(handleAction);
+    }, [onAddText, onAddIcon, onAddShape, onAddImage, onToolbarAction, addText, addIcon, addShape, addImage, handleAction]);
 
     const handleToolbarDragStart = (e: React.MouseEvent) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const parent = e.currentTarget.parentElement;
+        if (!parent) return;
+        const parentRect = parent.getBoundingClientRect();
+
+        const currentX = rect.left - parentRect.left;
+        const currentY = rect.top - parentRect.top;
+
+        if (!toolbarPos) {
+            setToolbarPos({ x: currentX, y: currentY });
+        }
+
         setIsDragging(true);
-        setHasMovedToolbar(true);
-        setDragStartPos({ x: e.clientX - toolbarPos.x, y: e.clientY - toolbarPos.y });
+        setDragStartPos({
+            x: e.clientX - currentX,
+            y: e.clientY - currentY
+        });
     };
 
     useEffect(() => {
         if (!isDragging) return;
-        const handleMouseMove = (e: MouseEvent) => setToolbarPos({ x: e.clientX - dragStartPos.x, y: e.clientY - dragStartPos.y });
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return;
+            setToolbarPos({
+                x: e.clientX - dragStartPos.x,
+                y: e.clientY - dragStartPos.y
+            });
+        };
         const handleMouseUp = () => setIsDragging(false);
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
@@ -657,19 +682,7 @@ export function FabricPreview({
 
     return (
         <div className="flex-1 w-full h-full relative overflow-hidden bg-slate-50 flex flex-col min-h-0">
-            {selectedObject && !isReadOnly && !compact && (
-                <div className="fixed z-[1000]" style={{ left: `${toolbarPos.x}px`, top: `${toolbarPos.y}px` }}>
-                    <TextFormatToolbar
-                        selectedObject={selectedObject}
-                        onUpdate={() => { canvasInstance?.requestRenderAll(); saveHistory(canvasInstance!); }}
-                        onAction={handleAction}
-                        onDragStart={handleToolbarDragStart}
-                        onDuplicate={() => handleAction('duplicate')}
-                        onDelete={() => handleAction('delete')}
-                        onLockToggle={() => handleAction('lock')}
-                    />
-                </div>
-            )}
+            {/* Desktop Toolbar removed from here - now in Header */}
 
             {/* Mobile Toolbar */}
             {selectedObject && !isReadOnly && compact && (

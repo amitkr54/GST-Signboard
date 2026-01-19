@@ -13,6 +13,7 @@ interface UseCanvasEventsProps {
     baseWidth: number;
     baseHeight: number;
     onSafetyChange?: (hasViolation: boolean) => void;
+    onSelectionChange?: (obj: fabric.Object | null) => void;
 }
 
 export function useCanvasEvents({
@@ -26,7 +27,8 @@ export function useCanvasEvents({
     setInitialHistory,
     baseWidth,
     baseHeight,
-    onSafetyChange
+    onSafetyChange,
+    onSelectionChange
 }: UseCanvasEventsProps) {
     const checkSafetyArea = useCallback((canvas: fabric.Canvas) => {
         if (!onSafetyChange) return;
@@ -193,7 +195,9 @@ export function useCanvasEvents({
                 selectionTimeout = null;
             }
             const active = canvasInstance.getActiveObject();
-            setSelectedObject(active || null);
+            const result = active || null;
+            setSelectedObject(result);
+            onSelectionChange?.(result);
         };
 
         const handleCleared = (e?: any) => {
@@ -204,6 +208,7 @@ export function useCanvasEvents({
                 const actuallyHasActive = !!canvasInstance.getActiveObject();
                 if (!actuallyHasActive) {
                     setSelectedObject(null);
+                    onSelectionChange?.(null);
                     setContextMenu(null);
                 }
                 selectionTimeout = null;
