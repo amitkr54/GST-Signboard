@@ -605,7 +605,8 @@ function DesignContent() {
 
                 // 2. Load and register fonts with error handling
                 const registeredFonts = new Set<string>();
-                for (const family of Array.from(fontFamilies)) {
+                for (const rawFamily of Array.from(fontFamilies)) {
+                    const family = rawFamily.replace(/['"]/g, '').trim();
                     try {
                         const regularBase64 = await getFontBase64(family);
                         if (regularBase64) {
@@ -858,7 +859,8 @@ function DesignContent() {
 
                     // Load and register fonts with error handling
                     const registeredFonts = new Set<string>();
-                    for (const family of Array.from(fontFamilies)) {
+                    for (const rawFamily of Array.from(fontFamilies)) {
+                        const family = rawFamily.replace(/['"]/g, '').trim();
                         try {
                             const regularBase64 = await getFontBase64(family);
                             if (regularBase64) {
