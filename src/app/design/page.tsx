@@ -97,6 +97,7 @@ function DesignContent() {
         shippingAddress: ''
     });
 
+
     // Payment Scheme State
     const [paymentScheme, setPaymentScheme] = useState<'full' | 'part'>('full');
     const [advanceAmount, setAdvanceAmount] = useState<number>(0);
@@ -114,6 +115,17 @@ function DesignContent() {
     const isAdminMode = searchParams.get('mode') === 'admin';
     const adminPin = searchParams.get('pin');
     const { user, signInWithGoogle } = useAuth();
+
+    // Auto-fill contact details if user is logged in
+    useEffect(() => {
+        if (user) {
+            setContactDetails(prev => ({
+                ...prev,
+                name: user.user_metadata?.full_name || user.email?.split('@')[0] || prev.name,
+                email: user.email || prev.email,
+            }));
+        }
+    }, [user]);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedObject, setSelectedObject] = useState<any>(null);
     const [toolbarActionFn, setToolbarActionFn] = useState<((action: string) => void) | null>(null);
@@ -322,6 +334,32 @@ function DesignContent() {
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, [isMobile]);
+
+    // Implementation of Back Button as Undo for Mobile
+    useEffect(() => {
+        if (!isMobile) return;
+
+        // Push a dummy state to history so we can intercept the back button
+        window.history.pushState({ noBack: true }, "");
+
+        const handlePopState = (e: PopStateEvent) => {
+            // If the user tries to go back, we trigger Undo and push the state again
+            if (mobileTab === 'design') {
+                toolbarActionFn?.('undo');
+                // Re-push state to keep intercepting
+                window.history.pushState({ noBack: true }, "");
+            } else {
+                // If in other tabs like 'material' or 'order', back button should go to 'design' tab
+                setMobileTab('design');
+                window.history.pushState({ noBack: true }, "");
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [isMobile, mobileTab, toolbarActionFn]);
 
     // Handle Resize for Responsive Layout
     useEffect(() => {
@@ -613,18 +651,37 @@ function DesignContent() {
     };
 
     const handleOpenReview = () => {
+        console.log('=== handleOpenReview called ===');
+        console.log('showReviewModal before:', showReviewModal);
         // Step 1: Quality Check (Review Design)
         // Capture a clean snapshot for the review modal
         captureCanvasSnapshot();
+        console.log('Setting showReviewModal to true');
         setShowReviewModal(true);
+        console.log('showReviewModal after setState:', showReviewModal);
     };
 
     const captureCanvasSnapshot = () => {
         // @ts-expect-error - fabricCanvas is globally attached to window
         const canvas = window.fabricCanvas;
+        console.log('Canvas exists:', !!canvas);
+
         if (canvas) {
+            // Canvas is available - capture from live canvas
             const json = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'id', 'data']));
+            console.log('Canvas JSON captured from live canvas, length:', json.length);
             setCanvasSnapshot(json);
+        } else {
+            // Canvas not available (e.g., on mobile Order tab) - try localStorage
+            console.warn('Canvas not found! Trying localStorage fallback...');
+            const storedJson = localStorage.getItem('signage_canvas_json');
+            if (storedJson) {
+                console.log('Canvas JSON loaded from localStorage, length:', storedJson.length);
+                setCanvasSnapshot(storedJson);
+            } else {
+                console.error('No canvas data found in localStorage either. Modal will show empty preview.');
+                setCanvasSnapshot(null);
+            }
         }
     };
 
@@ -1401,42 +1458,11 @@ function DesignContent() {
                                         </label>
                                     </div>
 
-                                    {/* Contact Details */}
-                                    <div className="space-y-3 mb-6">
-                                        <h4 className="font-medium text-gray-900 border-t pt-4">Contact Details</h4>
-                                        <input
-                                            type="text"
-                                            value={contactDetails.name}
-                                            onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
-                                            placeholder="Name"
-                                            className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg"
-                                        />
-                                        <input
-                                            type="email"
-                                            value={contactDetails.email}
-                                            onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
-                                            placeholder="Email"
-                                            className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg"
-                                        />
-                                        <input
-                                            type="tel"
-                                            value={contactDetails.mobile}
-                                            onChange={(e) => setContactDetails({ ...contactDetails, mobile: e.target.value })}
-                                            placeholder="Mobile"
-                                            className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={contactDetails.shippingAddress}
-                                            onChange={(e) => setContactDetails({ ...contactDetails, shippingAddress: e.target.value })}
-                                            placeholder="Shipping Address"
-                                            className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg"
-                                        />
-                                    </div>
+
 
                                     {/* Payment Scheme */}
-                                    <div className="mb-6">
-                                        <h4 className="font-medium text-gray-900 mb-3 border-t pt-4">Payment</h4>
+                                    <div className="mb-6 border-t pt-4">
+                                        <h4 className="font-medium text-gray-900 mb-3">Payment Option</h4>
                                         <div className="flex gap-2 mb-3">
                                             <button
                                                 onClick={() => setPaymentScheme('part')}
@@ -1446,7 +1472,7 @@ function DesignContent() {
                                             </button>
                                             <button
                                                 onClick={() => setPaymentScheme('full')}
-                                                className={`flex-1 py-2 text-xs font-semibold rounded-md border ${paymentScheme === 'full' ? 'bg-purple-50 border-purple-600 text-purple-700' : 'border-gray-200'}`}
+                                                className={`flex-1 py-2 text-xs font-semibold rounded-md border ${paymentScheme === 'full' ? 'bg-purple-600 text-white' : 'border-gray-200'}`}
                                             >
                                                 Pay Full (₹{price})
                                             </button>
@@ -1463,7 +1489,7 @@ function DesignContent() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    Pay ₹{paymentScheme === 'part' ? advanceAmount : price} &amp; Order
+                                                    Proceed to Review
                                                     <ArrowRight className="w-5 h-5" />
                                                 </>
                                             )}
@@ -1474,6 +1500,217 @@ function DesignContent() {
                         </div>
                     )}
                 </div>
+
+                {/* Review Approval Modal - Mobile */}
+                <ReviewApproval
+                    data={data}
+                    design={design}
+                    material={material}
+                    isOpen={showReviewModal}
+                    onClose={() => setShowReviewModal(false)}
+                    onEdit={() => {
+                        setShowReviewModal(false);
+                        setMobileTab('design');
+                    }}
+                    onApprove={() => {
+                        setShowReviewModal(false);
+                        if (user) {
+                            setAuthChoice('google');
+                            setContactDetails(prev => ({
+                                ...prev,
+                                email: user.email || prev.email
+                            }));
+                            setShowContactForm(true);
+                        } else {
+                            setShowAuthModal(true);
+                        }
+                    }}
+                    canvasJSON={canvasSnapshot || undefined}
+                />
+
+                {/* Auth Modal - Mobile */}
+                {showAuthModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full p-8 transform animate-in zoom-in-95 duration-200">
+                            {/* Header */}
+                            <div className="text-center mb-8">
+                                <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <User className="w-8 h-8 text-indigo-400" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-white mb-2">
+                                    Save Your Design?
+                                </h2>
+                                <p className="text-slate-400 text-sm">
+                                    Choose how you'd like to proceed with your order
+                                </p>
+                            </div>
+
+                            {/* Options */}
+                            <div className="space-y-4 mb-6">
+                                {/* Google Sign In */}
+                                <button
+                                    onClick={handleGoogleSignIn}
+                                    className="w-full p-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl text-left transition-all group border border-indigo-500/50 hover:border-indigo-400 shadow-lg hover:shadow-indigo-500/50"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                            <svg className="w-6 h-6" viewBox="0 0 24 24">
+                                                <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                                <path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                                <path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                                <path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-white text-base mb-1">
+                                                Sign In with Google
+                                            </h3>
+                                            <p className="text-indigo-200 text-xs leading-relaxed">
+                                                Save design to your account for future edits and easy reorders
+                                            </p>
+                                        </div>
+                                        <ArrowRight className="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
+                                    </div>
+                                </button>
+
+                                {/* Guest Checkout */}
+                                <button
+                                    onClick={handleGuestCheckout}
+                                    className="w-full p-5 bg-slate-800 hover:bg-slate-700 rounded-xl text-left transition-all group border border-slate-600 hover:border-slate-500"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-slate-700 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                            <User className="w-6 h-6 text-slate-300" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-white text-base mb-1">
+                                                Continue as Guest
+                                            </h3>
+                                            <p className="text-slate-400 text-xs leading-relaxed">
+                                                Complete your order without creating an account
+                                            </p>
+                                        </div>
+                                        <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-slate-300 group-hover:translate-x-1 transition-all shrink-0" />
+                                    </div>
+                                </button>
+                            </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowAuthModal(false)}
+                                className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
+                            >
+                                Maybe Later
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Contact Form Modal - Mobile */}
+                {showContactForm && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full p-8 transform animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                            {/* Header */}
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MapPin className="w-8 h-8  text-indigo-400" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-white mb-2">
+                                    Contact & Shipping
+                                </h2>
+                                <p className="text-slate-400 text-sm">
+                                    {authChoice === 'google' ? 'Almost there! Just confirm your details' : 'Please provide your delivery information'}
+                                </p>
+                            </div>
+
+                            {/* Form Fields */}
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                                    <input
+                                        type="text"
+                                        value={contactDetails.name}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
+                                        placeholder="John Doe"
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                                    <input
+                                        type="email"
+                                        value={contactDetails.email}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
+                                        placeholder="john@example.com"
+                                        disabled={authChoice === 'google' && !!user?.email}
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                    />
+                                    {authChoice === 'google' && !!user?.email && (
+                                        <p className="text-xs text-slate-500 mt-1">✓ Pre-filled from your Google account</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Mobile Number</label>
+                                    <input
+                                        type="tel"
+                                        value={contactDetails.mobile}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, mobile: e.target.value })}
+                                        placeholder="+91 98765 43210"
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Shipping Address</label>
+                                    <textarea
+                                        value={contactDetails.shippingAddress}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, shippingAddress: e.target.value })}
+                                        placeholder="123 Main Street, Apt 4B, City, State, ZIP"
+                                        rows={3}
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="space-y-3">
+                                <button
+                                    type="button"
+                                    onClick={handleContactFormSubmit}
+                                    disabled={isProcessing}
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {isProcessing ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Confirm & Proceed to Payment
+                                            <ArrowRight className="w-5 h-5" />
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowContactForm(false)}
+                                    className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
+                                >
+                                    Go Back
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* WhatsApp Button - Mobile */}
+                <WhatsAppButton
+                    variant="floating"
+                    message="Hi! I'm on the design page and need help with my signage. Can you assist?"
+                />
             </div>
         );
     }
@@ -2151,6 +2388,7 @@ function DesignContent() {
                 material={material}
                 isOpen={showReviewModal}
                 onClose={() => setShowReviewModal(false)}
+                onEdit={() => setShowReviewModal(false)}
                 onApprove={() => {
                     setShowReviewModal(false);
                     if (user) {

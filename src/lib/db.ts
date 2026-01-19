@@ -124,7 +124,8 @@ export const db = {
     async getTemplates(options: { category?: string, productId?: string, aspectRatio?: number, search?: string } = {}): Promise<any[]> {
         let query = supabase
             .from('templates')
-            .select('*');
+            .select('*')
+            .order('created_at', { ascending: false });
 
         const { data, error } = await query;
 
