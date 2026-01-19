@@ -18,15 +18,17 @@ interface ReviewApprovalProps {
     isOpen: boolean;
     onClose: () => void;
     onApprove: () => void;
+    onEdit?: () => void;
     canvasJSON?: string;
 }
 
-export function ReviewApproval({ data, design, material, isOpen, onClose, onApprove, canvasJSON }: ReviewApprovalProps) {
+export function ReviewApproval({ data, design, material, isOpen, onClose, onApprove, onEdit, canvasJSON }: ReviewApprovalProps) {
     const [isApproved, setIsApproved] = React.useState(false);
     const [isMounted, setIsMounted] = React.useState(false);
 
     React.useEffect(() => {
         setIsMounted(true);
+        console.log('ReviewApproval mounted');
     }, []);
 
     // Reset approval state when modal closes
@@ -48,7 +50,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
     const hasEmptyFields = !data.companyName || !data.address;
 
     return (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
             <div className="bg-slate-900 rounded-3xl shadow-[0_0_50px_-12px_rgba(79,70,229,0.3)] max-w-6xl w-full max-h-[90vh] overflow-hidden border border-white/10 flex flex-col">
                 <div className="bg-slate-900/40 backdrop-blur-xl border-b border-white/10 px-8 py-5 flex items-center justify-between shrink-0">
                     <div>
@@ -150,7 +152,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                         <div className="grid grid-cols-2 gap-4 pt-4">
                             <button
                                 type="button"
-                                onClick={onClose}
+                                onClick={onEdit || onClose}
                                 className="py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
                             >
                                 Edit Design

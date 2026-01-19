@@ -59,12 +59,12 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
 
             {/* Templates Grid */}
             {filteredTemplates.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="columns-1 sm:columns-2 lg:columns-4 gap-8 space-y-8">
                     {filteredTemplates.map((template: any) => (
                         <Link
                             href={`/design?template=${template.id}`}
                             key={template.id}
-                            className="group flex flex-col bg-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1"
+                            className="group flex flex-col bg-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 break-inside-avoid mb-8 w-full"
                         >
                             {/* Template Title */}
                             <div className="p-6 pb-4">
@@ -82,7 +82,12 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
 
                             {/* Image Container */}
                             <div className="px-2">
-                                <div className="aspect-[4/3] rounded-lg overflow-hidden relative bg-white">
+                                <div
+                                    className="rounded-none overflow-hidden relative bg-slate-800/50 w-full shadow-inner"
+                                    style={{
+                                        aspectRatio: template.dimensions ? `${template.dimensions.width}/${template.dimensions.height}` : '4/3'
+                                    }}
+                                >
                                     {template.thumbnail || template.svgPath ? (
                                         <img
                                             src={template.thumbnail || template.svgPath}
@@ -98,15 +103,10 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
                             </div>
 
                             {/* Action Area */}
-                            <div className="p-6 mt-auto flex items-center justify-between gap-4">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ready to use</span>
-                                    <span className="text-sm font-black text-white">Customizable</span>
-                                </div>
-                                <div className="bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl transition-all duration-300 group-hover:shadow-lg group-hover:shadow-indigo-500/25 group-hover:scale-105">
-                                    <div className="flex items-center gap-2 font-bold text-sm px-2">
-                                        Use This <ChevronRight className="w-4 h-4" />
-                                    </div>
+                            <div className="p-4 mt-auto">
+                                <div className="w-full py-3 bg-white/5 group-hover:bg-indigo-600 text-slate-300 group-hover:text-white font-bold rounded-lg transition-all duration-300 flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-indigo-500/25">
+                                    <span className="text-sm">Customize Template</span>
+                                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                                 </div>
                             </div>
                         </Link>
@@ -126,7 +126,8 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
                         Clear Filters
                     </button>
                 </div>
-            )}
+            )
+            }
         </div>
     );
 }

@@ -30,7 +30,7 @@ interface FabricPreviewProps {
     compact?: boolean;
     isLandscape?: boolean;
     isReadOnly?: boolean;
-    initialJSON?: string;
+    initialJSON?: any;
     initialSVG?: string;
     onObjectSelected?: (obj: fabric.Object | null) => void;
     onToolbarAction?: (actionFn: (action: string) => void) => void;
@@ -165,6 +165,23 @@ export function FabricPreview({
             }
         };
     }, []);
+
+    // Load Initial JSON (Snapshot)
+    useEffect(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas || !initialJSON) return;
+
+        setIsProcessing(true);
+        canvas.loadFromJSON(initialJSON, () => {
+            canvas.getObjects().forEach((obj) => {
+                if (isReadOnly) {
+                    obj.set({ selectable: false, evented: false });
+                }
+            });
+            canvas.requestRenderAll();
+            setIsProcessing(false);
+        });
+    }, [initialJSON, isReadOnly, setIsProcessing]);
 
     const handleAction = useCallback((action: string) => {
         const canvas = fabricCanvasRef.current;

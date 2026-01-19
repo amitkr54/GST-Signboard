@@ -1,6 +1,8 @@
 import TemplateGallery from '@/components/TemplateGallery';
 import { getTemplates, getCategories } from '../actions';
 
+export const dynamic = 'force-dynamic';
+
 export default async function TemplatesPage() {
     const [templates, categoriesResponse] = await Promise.all([
         getTemplates(),
