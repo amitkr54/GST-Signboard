@@ -68,7 +68,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                         }
                     }}
                     disabled={disabled}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-all ${danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'} ${disabled ? 'opacity-30 cursor-not-allowed' : ''} ${isSubMenuActive ? 'bg-white/5 text-white' : ''}`}
+                    className={`w-full flex items-center justify-between px-4 py-1.5 text-sm transition-all ${danger ? 'text-rose-400 hover:bg-rose-500/10' : 'text-slate-300 hover:bg-white/5 hover:text-white'} ${disabled ? 'opacity-30 cursor-not-allowed' : ''} ${isSubMenuActive ? 'bg-white/5 text-white' : ''}`}
                 >
                     <div className="flex items-center gap-3">
                         {Icon && <Icon className="w-4 h-4 opacity-70" />}
@@ -113,7 +113,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
         );
     };
 
-    const Divider = () => <div className="h-px bg-white/5 my-1.5 mx-2" />;
+    const Divider = () => <div className="h-px bg-white/5 my-1 mx-2" />;
 
     // Adjust position to keep menu within viewport
     const menuWidth = 240;
@@ -124,7 +124,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
     return (
         <div
             ref={menuRef}
-            className="fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] py-2 min-w-[240px] animate-in fade-in zoom-in-95 duration-150"
+            className="fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] py-1 min-w-[240px] animate-in fade-in zoom-in-95 duration-150"
             style={{
                 left: adjustedX,
                 top: adjustedY

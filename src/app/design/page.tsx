@@ -16,6 +16,7 @@ import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as Im
 
 
 import { PreviewSection } from '@/components/PreviewSection';
+import { TextFormatToolbar } from '@/components/TextFormatToolbar';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { Circle, Triangle, Minus } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
@@ -25,7 +26,7 @@ const MOBILE_SHAPES = [
     { id: 'circle', icon: Circle, label: 'Circle' },
     { id: 'triangle', icon: Triangle, label: 'Triangle' },
     { id: 'line', icon: Minus, label: 'Line' },
-];
+] as const;
 
 const MOBILE_ICONS = [
     { id: 'phone', icon: Phone, label: 'Phone' },
@@ -96,6 +97,9 @@ function DesignContent() {
     const [showQRInput, setShowQRInput] = useState(false);
     const [qrText, setQrText] = useState('');
     const [isGeneratingQR, setIsGeneratingQR] = useState(false);
+    const [selectedObject, setSelectedObject] = useState<any>(null);
+    const [toolbarActionFn, setToolbarActionFn] = useState<((action: string) => void) | null>(null);
+    const [activeSidebarTab, setActiveSidebarTab] = useState<string | null>(null);
 
     // Responsive State
     const [isMobile, setIsMobile] = useState(false);
@@ -123,7 +127,6 @@ function DesignContent() {
 
         setIsSaving(true);
         try {
-            // @ts-expect-error - fabricCanvas is globally attached
             const canvas = (window as any).fabricCanvas;
             let thumbnailUrl = undefined;
 
@@ -179,86 +182,80 @@ function DesignContent() {
     const registerAddShape = useCallback((fn: any) => setAddShapeFn(() => fn), []);
     const registerAddImage = useCallback((fn: any) => setAddImageFn(() => fn), []);
 
-    // 1. Initial Load from URL or localStorage
+    // 1. Initial Load and Synchronization (URL & LocalStorage)
     useEffect(() => {
         const savedDesign = localStorage.getItem('signage_draft_design');
         const savedData = localStorage.getItem('signage_draft_data');
 
-        // Check for URL params first (New Project Flow)
+        // URL Parameters (Source of Truth)
         const widthParam = searchParams.get('width');
         const heightParam = searchParams.get('height');
         const unitParam = searchParams.get('unit');
         const productParam = searchParams.get('product');
-
-        if (widthParam && heightParam && unitParam) {
-            setDesign(prev => ({
-                ...prev,
-                width: parseFloat(widthParam),
-                height: parseFloat(heightParam),
-                unit: unitParam as 'in' | 'cm' | 'mm' | 'px'
-            }));
-            // Also clear old local storage if starting fresh to avoid conflicts
-            localStorage.removeItem('signage_canvas_json');
-        } else if (savedDesign) {
-            // Restore from local storage only if no URL params
-            try {
-                setDesign(JSON.parse(savedDesign));
-            } catch (e) {
-                console.error('Failed to parse saved design', e);
-            }
-        }
-
-        if (productParam) {
-            const mat = productParam.toLowerCase();
-            const validMaterials: MaterialId[] = ['flex', 'vinyl', 'acp_non_lit', 'acp_lit', 'acrylic_non_lit', 'acrylic_lit', 'neon'];
-            if (validMaterials.includes(mat as MaterialId)) {
-                setMaterial(mat as MaterialId);
-            }
-        }
-
-        const priceParam = searchParams.get('price');
-        if (priceParam) {
-            setPriceFromUrl(parseFloat(priceParam));
-        }
-
-        if (savedData) {
-            try {
-                setData(JSON.parse(savedData));
-            } catch (e) {
-                console.error('Failed to parse saved data', e);
-            }
-        }
-    }, [searchParams]);
-
-    // Separate effect to load template if needed
-    useEffect(() => {
         const templateId = searchParams.get('template');
-        const widthOverride = searchParams.get('width');
-        const heightOverride = searchParams.get('height');
+        const priceParam = searchParams.get('price');
 
-        async function loadTemplate() {
-            if (!templateId) return;
-            try {
-                const template = await getTemplateById(templateId);
+        async function initializeEditor() {
+            // Priority 1: URL Parameters (Manual or Project Start)
+            if (widthParam && heightParam && unitParam) {
+                setDesign(prev => ({
+                    ...prev,
+                    width: parseFloat(widthParam),
+                    height: parseFloat(heightParam),
+                    unit: unitParam as 'in' | 'cm' | 'mm' | 'px'
+                }));
+                localStorage.removeItem('signage_canvas_json');
+            }
+            // Priority 2: Restore from LocalStorage (Draft recovery)
+            else if (savedDesign && !templateId) {
+                try {
+                    setDesign(JSON.parse(savedDesign));
+                } catch (e) {
+                    console.error('Failed to parse saved design', e);
+                }
+            }
 
-                if (template && template.dimensions) {
-                    // Only apply template dimensions if there is no manual URL override
-                    if (!widthOverride || !heightOverride) {
+            // Load Template Dimensions if present
+            if (templateId) {
+                try {
+                    const template = await getTemplateById(templateId);
+                    if (template && template.dimensions) {
                         setDesign(prev => ({
                             ...prev,
-                            width: template.dimensions.width,
-                            height: template.dimensions.height,
-                            unit: template.dimensions.unit || 'in',
-                            templateId: templateId
+                            templateId: templateId as TemplateId,
+                            width: widthParam ? parseFloat(widthParam) : Number(template.dimensions.width),
+                            height: heightParam ? parseFloat(heightParam) : Number(template.dimensions.height),
+                            unit: (unitParam as any) || (template.dimensions.unit as any) || 'in'
                         }));
-                        console.log('Applied template dimensions:', template.dimensions);
                     }
+                } catch (error) {
+                    console.error('Failed to load template dimensions:', error);
                 }
-            } catch (error) {
-                console.error('Failed to load template dimensions:', error);
+            }
+
+            // Material/Product Sync
+            if (productParam) {
+                const mat = productParam.toLowerCase();
+                const validMaterials: MaterialId[] = ['flex', 'vinyl', 'acp_non_lit', 'acp_lit', 'acrylic_non_lit', 'acrylic_lit', 'neon'];
+                if (validMaterials.includes(mat as MaterialId)) {
+                    setMaterial(mat as MaterialId);
+                }
+            }
+
+            if (priceParam) {
+                setPriceFromUrl(parseFloat(priceParam));
+            }
+
+            if (savedData) {
+                try {
+                    setData(JSON.parse(savedData));
+                } catch (e) {
+                    console.error('Failed to parse saved data', e);
+                }
             }
         }
-        loadTemplate();
+
+        initializeEditor();
     }, [searchParams]);
 
     // 2. Auto-save to localStorage (Debounced)
@@ -356,12 +353,34 @@ function DesignContent() {
         setIsValidatingCode(false);
     };
 
-    const handleTemplateSelect = (id: TemplateId) => {
-        setDesign(prev => ({ ...prev, templateId: id }));
+    const handleTemplateSelect = async (id: TemplateId) => {
+        // 1. Logic Update: Sync state and URL
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('template', id);
+        // Remove manual overrides to ensure we use template defaults
+        params.delete('width');
+        params.delete('height');
 
-        // Automatically switch to design tab on mobile
+        router.push(`/design?${params.toString()}`);
+
         if (isMobile) {
             setMobileTab('design');
+        }
+
+        // 2. Immediate State Update for dimensions (no wait for router push if possible)
+        try {
+            const template = await getTemplateById(id);
+            if (template && template.dimensions) {
+                setDesign(prev => ({
+                    ...prev,
+                    width: Number(template.dimensions.width),
+                    height: Number(template.dimensions.height),
+                    unit: (template.dimensions.unit as 'px' | 'in' | 'cm' | 'mm') || 'in',
+                    templateId: id
+                }));
+            }
+        } catch (error) {
+            console.error('Error fetching template for direct selection:', error);
         }
 
         const defaults = TEMPLATE_DEFAULTS[id] || {
@@ -371,14 +390,11 @@ function DesignContent() {
         };
 
         setData(prev => {
-            // Check if current company name is a "default" name from any template or empty
             const currentName = prev.companyName;
-
-            // Collect all possible default names to check against
             const defaultNames = [
                 ...Object.values(TEMPLATE_DEFAULTS).map(d => d.companyName),
-                'ABC Company Name', // legacy or SVG hardcoded default
-                'YOUR BRAND',       // recently removed global default
+                'ABC Company Name',
+                'YOUR BRAND',
                 ''
             ];
 
@@ -396,14 +412,10 @@ function DesignContent() {
         });
     };
 
-    // Check for template query param
+    // URL Template Sync
     useEffect(() => {
         const templateId = searchParams.get('template');
         if (templateId) {
-            // @ts-expect-error - templateId is dynamic based on query param
-            setDesign(prev => ({ ...prev, templateId: templateId }));
-
-            // If on mobile, switch to design tab
             if (isMobile) {
                 setMobileTab('design');
             }
@@ -494,21 +506,51 @@ function DesignContent() {
                 const pdf = new jsPDF({
                     orientation: 'landscape',
                     unit: 'in',
-                    format: [12, 18],
-                    putOnlyUsedFonts: true
+                    format: [12, 18]
                 });
 
                 // 2. Load and register fonts with error handling
+                const registeredFonts = new Set<string>();
                 for (const family of Array.from(fontFamilies)) {
                     try {
-                        const base64 = await getFontBase64(family);
-                        if (base64) {
-                            pdf.addFileToVFS(`${family}.ttf`, base64);
+                        const regularBase64 = await getFontBase64(family);
+                        if (regularBase64) {
+                            pdf.addFileToVFS(`${family}.ttf`, regularBase64);
                             pdf.addFont(`${family}.ttf`, family, 'normal');
-                            console.log(`✓ Embedded: ${family}`);
+
+                            // Check for Bold variant
+                            const boldBase64 = await getFontBase64(`${family}-Bold`);
+                            if (boldBase64) {
+                                pdf.addFileToVFS(`${family}-Bold.ttf`, boldBase64);
+                                pdf.addFont(`${family}-Bold.ttf`, family, 'bold');
+                            } else {
+                                pdf.addFont(`${family}.ttf`, family, 'bold');
+                            }
+
+                            // Check for Italic variant
+                            const italicBase64 = await getFontBase64(`${family}-Italic`);
+                            if (italicBase64) {
+                                pdf.addFileToVFS(`${family}-Italic.ttf`, italicBase64);
+                                pdf.addFont(`${family}-Italic.ttf`, family, 'italic');
+                            } else {
+                                pdf.addFont(`${family}.ttf`, family, 'italic');
+                            }
+
+                            // Check for Bold-Italic variant
+                            const boldItalicBase64 = await getFontBase64(`${family}-BoldItalic`);
+                            if (boldItalicBase64) {
+                                pdf.addFileToVFS(`${family}-BoldItalic.ttf`, boldItalicBase64);
+                                pdf.addFont(`${family}-BoldItalic.ttf`, family, 'bolditalic');
+                            } else {
+                                // Fallback to bold or italic or regular
+                                const fallback = boldBase64 ? `${family}-Bold.ttf` : (italicBase64 ? `${family}-Italic.ttf` : `${family}.ttf`);
+                                pdf.addFont(fallback, family, 'bolditalic');
+                            }
+
+                            registeredFonts.add(family);
+                            console.log(`✓ Embedded: ${family} (variants: ${boldBase64 ? 'bold ' : ''}${italicBase64 ? 'italic ' : ''}${boldItalicBase64 ? 'bolditalic' : ''})`);
                         }
                     } catch (fontError) {
-                        // Font embedding failed - jsPDF will use fallback font
                         console.warn(`✗ Could not embed ${family}, using fallback`);
                     }
                 }
@@ -529,15 +571,22 @@ function DesignContent() {
                     return;
                 }
 
-                // Explicitly map fonts for svg2pdf
-                const fontMap: Record<string, string> = {};
-                fontFamilies.forEach(f => { fontMap[f] = f; });
+                // Manually replace font-family attributes in SVG to ensure they match registered names
+                const textElements = svgElement.querySelectorAll('text, tspan');
+                textElements.forEach((el: any) => {
+                    const fontFamily = el.getAttribute('font-family') || el.style.fontFamily;
+                    if (fontFamily) {
+                        const cleanFamily = fontFamily.replace(/['"]/g, '').trim();
+                        if (registeredFonts.has(cleanFamily)) {
+                            el.setAttribute('font-family', cleanFamily);
+                        } else {
+                            el.setAttribute('font-family', 'Helvetica');
+                        }
+                    }
+                });
 
                 await svg2pdfModule.svg2pdf(svgElement, pdf, {
-                    x: 0, y: 0, width: 18, height: 12,
-                    fontCallback: (family) => {
-                        return fontMap[family] || family;
-                    }
+                    x: 0, y: 0, width: 18, height: 12
                 });
 
                 pdf.save(`signage-${Date.now()}.pdf`);
@@ -567,8 +616,7 @@ function DesignContent() {
     // Handle Google Sign In from Auth Modal
     const handleGoogleSignIn = async () => {
         // Explicitly save canvas state to localStorage before redirect
-        // @ts-expect-error - fabricCanvas is globally attached to window
-        const canvas = window.fabricCanvas;
+        const canvas = (window as any).fabricCanvas;
         if (canvas) {
             const json = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'id', 'data']));
             localStorage.setItem('signage_canvas_json', json);
@@ -660,8 +708,7 @@ function DesignContent() {
 
         setIsProcessing(true);
         try {
-            // @ts-expect-error - fabricCanvas is globally attached to window
-            const canvas = window.fabricCanvas;
+            const canvas = (window as any).fabricCanvas;
             let approvalProof = '';
 
             if (canvas) {
@@ -680,20 +727,49 @@ function DesignContent() {
                     const pdf = new jsPDF({
                         orientation: 'landscape',
                         unit: 'in',
-                        format: [12, 18],
-                        putOnlyUsedFonts: true
+                        format: [12, 18]
                     });
 
                     // Load and register fonts with error handling
+                    const registeredFonts = new Set<string>();
                     for (const family of Array.from(fontFamilies)) {
                         try {
-                            const base64 = await getFontBase64(family);
-                            if (base64) {
-                                pdf.addFileToVFS(`${family}.ttf`, base64);
+                            const regularBase64 = await getFontBase64(family);
+                            if (regularBase64) {
+                                pdf.addFileToVFS(`${family}.ttf`, regularBase64);
                                 pdf.addFont(`${family}.ttf`, family, 'normal');
+
+                                // Check for Bold variant
+                                const boldBase64 = await getFontBase64(`${family}-Bold`);
+                                if (boldBase64) {
+                                    pdf.addFileToVFS(`${family}-Bold.ttf`, boldBase64);
+                                    pdf.addFont(`${family}-Bold.ttf`, family, 'bold');
+                                } else {
+                                    pdf.addFont(`${family}.ttf`, family, 'bold');
+                                }
+
+                                // Check for Italic variant
+                                const italicBase64 = await getFontBase64(`${family}-Italic`);
+                                if (italicBase64) {
+                                    pdf.addFileToVFS(`${family}-Italic.ttf`, italicBase64);
+                                    pdf.addFont(`${family}-Italic.ttf`, family, 'italic');
+                                } else {
+                                    pdf.addFont(`${family}.ttf`, family, 'italic');
+                                }
+
+                                // Check for Bold-Italic variant
+                                const boldItalicBase64 = await getFontBase64(`${family}-BoldItalic`);
+                                if (boldItalicBase64) {
+                                    pdf.addFileToVFS(`${family}-BoldItalic.ttf`, boldItalicBase64);
+                                    pdf.addFont(`${family}-BoldItalic.ttf`, family, 'bolditalic');
+                                } else {
+                                    const fallback = boldBase64 ? `${family}-Bold.ttf` : (italicBase64 ? `${family}-Italic.ttf` : `${family}.ttf`);
+                                    pdf.addFont(fallback, family, 'bolditalic');
+                                }
+
+                                registeredFonts.add(family);
                             }
                         } catch (fontError) {
-                            // Silently skip fonts that can't be embedded
                             console.warn(`Could not embed ${family} in order proof`);
                         }
                     }
@@ -711,14 +787,22 @@ function DesignContent() {
                     const svgElement = tempDiv.querySelector('svg');
 
                     if (svgElement) {
-                        const fontMap: Record<string, string> = {};
-                        fontFamilies.forEach(f => { fontMap[f] = f; });
+                        // Manually replace font-family attributes in SVG to ensure they match registered names
+                        const textElements = svgElement.querySelectorAll('text, tspan');
+                        textElements.forEach((el: any) => {
+                            const fontFamily = el.getAttribute('font-family') || el.style.fontFamily;
+                            if (fontFamily) {
+                                const cleanFamily = fontFamily.replace(/['"]/g, '').trim();
+                                if (registeredFonts.has(cleanFamily)) {
+                                    el.setAttribute('font-family', cleanFamily);
+                                } else {
+                                    el.setAttribute('font-family', 'Helvetica');
+                                }
+                            }
+                        });
 
                         await svg2pdfModule.svg2pdf(svgElement, pdf, {
-                            x: 0, y: 0, width: 18, height: 12,
-                            fontCallback: (family) => {
-                                return fontMap[family] || family;
-                            }
+                            x: 0, y: 0, width: 18, height: 12
                         });
 
                         // Convert PDF to Data URL (base64)
@@ -981,7 +1065,6 @@ function DesignContent() {
                                             <button
                                                 key={shape.id}
                                                 onClick={() => {
-                                                    // @ts-expect-error - shape.id is compatible
                                                     addShapeFn?.(shape.id);
                                                     setActivePicker(null);
                                                 }}
@@ -1367,16 +1450,44 @@ function DesignContent() {
         );
     }
 
+    const sidebarWidth = activeSidebarTab ? 352 : 72;
+    const rightPanelWidth = 340;
+    const toolbarOffset = (sidebarWidth - rightPanelWidth) / 2;
+
     // Standard Desktop Layout
     return (
         <div className="h-screen bg-gray-50 font-sans overflow-hidden flex flex-col">
-            {/* Minimal Header */}
-            <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-20">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">S</div>
-                    <span className="font-bold text-gray-900 tracking-tight">Signage Studio</span>
+            {/* 3-Column Header / Relocated Toolbar */}
+            <div className={`bg-white border-b border-gray-200 flex items-center px-6 shrink-0 z-40 transition-all duration-300 ${selectedObject ? 'h-24 py-2' : 'h-12'}`}>
+
+                {/* 1. Left Pillar: Logo & Title (Matched to Sidebar Width) */}
+                <div className="flex items-center shrink-0 transition-all duration-300 overflow-hidden" style={{ width: sidebarWidth - 24 }}>
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">S</div>
+                        {!selectedObject && (
+                            <span className="font-bold text-gray-900 tracking-tight text-lg whitespace-nowrap">Signage Studio</span>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-4">
+
+                {/* 2. Center Pillar: Formatting Toolbar (Centered to Canvas) */}
+                <div className="flex-1 flex justify-center min-w-0">
+                    {selectedObject && (
+                        <div className="animate-in fade-in zoom-in-95 duration-200">
+                            <TextFormatToolbar
+                                selectedObject={selectedObject}
+                                onUpdate={() => { (window as any).fabricCanvas?.requestRenderAll(); }}
+                                onAction={(action) => toolbarActionFn?.(action)}
+                                onDuplicate={() => toolbarActionFn?.('duplicate')}
+                                onDelete={() => toolbarActionFn?.('delete')}
+                                onLockToggle={() => toolbarActionFn?.('lock')}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* 3. Right Pillar: Status & User (Matched to Right Panel Width) */}
+                <div className="flex items-center justify-end gap-4 shrink-0 transition-all duration-300" style={{ width: rightPanelWidth - 24 }}>
                     {isAdminMode && (
                         <button
                             onClick={handleUpdateMasterTemplate}
@@ -1385,7 +1496,7 @@ function DesignContent() {
                             title="Overwrite global master template with current design"
                         >
                             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                            UPDATE MASTER
+                            <span className="hidden xl:inline">UPDATE MASTER</span>
                         </button>
                     )}
                     {isSaving ? (
@@ -1396,23 +1507,23 @@ function DesignContent() {
                     ) : (
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
                             <Check className="w-3 h-3 text-gray-400" />
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                {user ? 'Saved to Cloud' : 'Saved to Local'}
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                                {user ? 'Cloud Sync' : 'Local'}
                             </span>
                         </div>
                     )}
 
-                    <div className="h-4 w-px bg-gray-200 mx-1"></div>
+                    <div className="h-4 w-px bg-gray-200 mx-1 hidden sm:block"></div>
 
-                    <div className="text-sm text-gray-500 font-medium">
-                        {design.width}" x {design.height}"
+                    <div className="text-sm text-gray-500 font-medium hidden sm:block whitespace-nowrap">
+                        {design.width}"x{design.height}"
                     </div>
 
-                    <div className="h-4 w-px bg-gray-200 mx-1"></div>
+                    <div className="h-4 w-px bg-gray-200 mx-1 hidden sm:block"></div>
 
                     {/* User Verification Indicator */}
                     {user ? (
-                        <div className="flex items-center gap-2" title={`Logged in as ${user.email}`}>
+                        <div className="flex items-center gap-2 shrink-0" title={`Logged in as ${user.email}`}>
                             {user.user_metadata?.avatar_url ? (
                                 <img
                                     src={user.user_metadata.avatar_url}
@@ -1420,13 +1531,13 @@ function DesignContent() {
                                     className="w-8 h-8 rounded-full border border-gray-200 shadow-sm"
                                 />
                             ) : (
-                                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold border border-indigo-200">
+                                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold border border-indigo-200 text-xs">
                                     {user.email?.charAt(0).toUpperCase() || <User className="w-4 h-4" />}
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <div className="flex items-center gap-2 text-slate-400" title="Guest Mode">
+                        <div className="flex items-center gap-2 text-slate-400 shrink-0" title="Guest Mode">
                             <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
                                 <User className="w-4 h-4" />
                             </div>
@@ -1445,11 +1556,12 @@ function DesignContent() {
                         onAddIcon={(iconName) => addIconFn?.(iconName)}
                         onAddShape={(shape) => addShapeFn?.(shape)}
                         onAddImage={(url) => addImageFn?.(url)}
+                        onTabChange={setActiveSidebarTab}
                     />
                 </div>
 
                 {/* 2. Main Canvas Area (Center) */}
-                <div className="flex-1 bg-gray-200/50 relative overflow-hidden flex flex-col min-h-0">
+                <div className="flex-1 bg-gray-200/50 relative overflow-hidden flex flex-col min-h-0 z-30">
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
                         <PreviewSection
                             uploadedDesign={uploadedDesign}
@@ -1461,6 +1573,8 @@ function DesignContent() {
                             onAddIcon={registerAddIcon}
                             onAddShape={registerAddShape}
                             onAddImage={registerAddImage}
+                            onObjectSelected={setSelectedObject}
+                            onToolbarAction={setToolbarActionFn}
                         />
                     </div>
                 </div>

@@ -20,6 +20,7 @@ interface EditorSidebarProps {
     onAddIcon: (iconName: string) => void;
     onAddShape: (type: 'rect' | 'circle' | 'line' | 'triangle') => void;
     onAddImage: (imageUrl: string) => void;
+    onTabChange?: (tab: TabType | null) => void; // New prop
     currentProductId?: string;
     aspectRatio?: number;
 }
@@ -55,10 +56,16 @@ export function EditorSidebar({
     onAddIcon,
     onAddShape,
     onAddImage,
+    onTabChange,
     currentProductId,
     aspectRatio
 }: EditorSidebarProps) {
     const [activeTab, setActiveTab] = useState<TabType | null>(null);
+
+    // Notify parent of tab changes
+    React.useEffect(() => {
+        onTabChange?.(activeTab);
+    }, [activeTab, onTabChange]);
     const [uploadedImages, setUploadedImages] = useState<string[]>([]);
     const [customIcons, setCustomIcons] = useState<string[]>([]);
     const [qrText, setQrText] = useState('');
