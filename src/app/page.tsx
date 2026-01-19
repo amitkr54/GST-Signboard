@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AuthButton } from '@/components/AuthButton';
 import { Button } from '@/components/ui/Button';
@@ -12,12 +12,22 @@ import { TEMPLATES } from '@/lib/templates';
 import { PRODUCTS, PRODUCT_CATEGORIES } from '@/lib/products';
 import { ProductCatalog } from '@/components/ProductCatalog';
 import { ReferralCheckSection } from '@/components/ReferralCheckSection';
+import { getAppSetting } from './actions';
 import { generateLocalBusinessSchema } from '@/lib/seo';
 import Head from 'next/head';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [isReferralEnabled, setIsReferralEnabled] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const enabled = await getAppSetting('referral_scheme_enabled', true);
+      setIsReferralEnabled(enabled);
+    };
+    fetchSettings();
+  }, []);
 
   const filteredProducts = activeCategory === 'all'
     ? PRODUCTS
@@ -412,7 +422,7 @@ export default function Home() {
         */}
 
         {/* Referral Check Section */}
-        <ReferralCheckSection />
+        {isReferralEnabled && <ReferralCheckSection />}
 
         {/* Footer */}
         <footer className="bg-gradient-to-b from-gray-50 to-white pt-20 pb-8 border-t border-gray-200 relative">

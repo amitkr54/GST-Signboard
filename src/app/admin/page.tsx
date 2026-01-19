@@ -14,7 +14,8 @@ import {
     saveProductAction, deleteProductAction, uploadProductImages,
     uploadTemplate, getTemplates, deleteTemplate as deleteTemplateActionImport,
     getOrders as getOrdersAction, updateOrderStatus as updateOrderStatusAction,
-    getCategories, saveCategory, deleteCategory
+    getCategories, saveCategory, deleteCategory,
+    getAppSetting, updateAppSetting
 } from '../actions';
 
 const PRODUCT_CATEGORIES = [
@@ -190,7 +191,7 @@ export default function AdminPage() {
     const [existingImages, setExistingImages] = useState<string[]>([]);
     const [pin, setPin] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [activeTab, setActiveTab] = useState<'templates' | 'products' | 'orders' | 'categories'>('orders');
+    const [activeTab, setActiveTab] = useState<'templates' | 'products' | 'orders' | 'categories' | 'settings'>('orders');
     const [sizes, setSizes] = useState<ProductSize[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -209,6 +210,7 @@ export default function AdminPage() {
     const [editingCategory, setEditingCategory] = useState<any | null>(null);
     const [showCategoryForm, setShowCategoryForm] = useState(false);
     const [fileDimensions, setFileDimensions] = useState<{ width: number, height: number } | null>(null);
+    const [referralEnabled, setReferralEnabled] = useState(true);
 
     const router = useRouter();
 
@@ -452,10 +454,30 @@ export default function AdminPage() {
         fetchCategories();
         if (isAuthenticated) {
             fetchOrders();
+            fetchSettings();
         }
         // Initialize with default size on client side to avoid hydration mismatch
         setSizes([{ id: 'standard', name: 'Standard', dimensions: { width: 24, height: 16, unit: 'in' }, priceMultiplier: 1 }]);
     }, [isAuthenticated, pin]);
+
+    const fetchSettings = async () => {
+        const enabled = await getAppSetting('referral_scheme_enabled', true);
+        setReferralEnabled(enabled);
+    };
+
+    const handleToggleReferral = async () => {
+        if (!pin) return;
+        setIsLoading(true);
+        const newValue = !referralEnabled;
+        const res = await updateAppSetting('referral_scheme_enabled', newValue, pin);
+        if (res.success) {
+            setReferralEnabled(newValue);
+            setMessage({ type: 'success', text: `Referral scheme ${newValue ? 'enabled' : 'disabled'}` });
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Failed to update setting' });
+        }
+        setIsLoading(false);
+    };
 
     const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
         if (!pin) return;
@@ -683,6 +705,14 @@ export default function AdminPage() {
                         <Filter className="w-5 h-5 inline mr-2" />
                         Categories
                         {activeTab === 'categories' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('settings')}
+                        className={`px-6 py-3 font-bold transition-all relative ${activeTab === 'settings' ? 'text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        <Wrench className="w-5 h-5 inline mr-2" />
+                        Settings
+                        {activeTab === 'settings' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
                     </button>
                 </div>
 
@@ -1567,6 +1597,48 @@ export default function AdminPage() {
                         </div>
                     )
                 }
+
+                {/* Settings Tab */}
+                {activeTab === 'settings' && (
+                    <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-white">Application Settings</h2>
+                        </div>
+
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-[2.5rem] shadow-xl border border-white/10 p-8 space-y-8">
+                            <div className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5">
+                                <div className="space-y-1">
+                                    <h3 className="font-bold text-white text-lg">Referral Scheme</h3>
+                                    <p className="text-sm text-slate-400">Toggle referral discounts and tracking system-wide</p>
+                                </div>
+                                <div className="relative">
+                                    <button
+                                        onClick={handleToggleReferral}
+                                        disabled={isLoading}
+                                        className={`w-14 h-7 rounded-full transition-all duration-300 relative focus:outline-none ${referralEnabled ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                                    >
+                                        <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-lg ${referralEnabled ? 'left-8' : 'left-1'}`} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-indigo-500/10 rounded-3xl border border-indigo-500/20">
+                                <div className="flex gap-4">
+                                    <AlertCircle className="w-6 h-6 text-indigo-400 shrink-0" />
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-bold text-indigo-200">Impact of disabling referrals:</p>
+                                        <ul className="text-xs text-indigo-300/80 space-y-1 list-disc ml-4">
+                                            <li>Referral section on Landing Page will be hidden</li>
+                                            <li>Referral Program tab in User Dashboard will be hidden</li>
+                                            <li>Discount field in Designer Checkout will be hidden</li>
+                                            <li>Referral tracking and ₹150 discount will be disabled on the backend</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {
                     message && (

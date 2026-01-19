@@ -50,7 +50,8 @@ export async function createOrder(
     if (options?.includeInstallation) totalAmount += 500;
 
     // Apply Referral Discount
-    if (options?.referralCode) {
+    const isReferralEnabled = await getAppSetting('referral_scheme_enabled', true);
+    if (options?.referralCode && isReferralEnabled) {
         const { data: referrer } = await supabase
             .from('referrers')
             .select('id')
@@ -314,6 +315,11 @@ export async function createReferrer(name: string, email: string, phone: string)
 }
 
 export async function trackReferral(orderId: string, referralCode: string) {
+    const isReferralEnabled = await getAppSetting('referral_scheme_enabled', true);
+    if (!isReferralEnabled) {
+        return { success: false, error: 'Referral scheme is currently disabled' };
+    }
+
     const COMMISSION_AMOUNT = 150; // ₹150 fixed commission
 
     // Find the referrer
@@ -1109,6 +1115,49 @@ export async function deleteCategory(id: string, pin: string) {
         return { success: true };
     } catch (error: any) {
         console.error('Error deleting category:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// ========== APP SETTINGS MANAGEMENT ==========
+
+export async function getAppSetting(key: string, defaultValue: any = null) {
+    try {
+        const { data, error } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', key)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') return defaultValue;
+            throw error;
+        }
+        return data.value;
+    } catch (error) {
+        console.error(`Error fetching setting ${key}:`, error);
+        return defaultValue;
+    }
+}
+
+export async function updateAppSetting(key: string, value: any, pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from('app_settings')
+            .upsert({
+                key,
+                value,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error(`Error updating setting ${key}:`, error);
         return { success: false, error: error.message };
     }
 }

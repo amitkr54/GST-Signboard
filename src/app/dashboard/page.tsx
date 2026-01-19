@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useEffect, useState } from 'react';
-import { getReferrerDashboard, getReferrerByEmail, createReferrer, getUserOrders } from '@/app/actions';
+import { getReferrerDashboard, getReferrerByEmail, createReferrer, getUserOrders, getAppSetting, initiatePhonePePayment } from '@/app/actions';
 import { useAuth } from '@/components/AuthProvider';
 import { Copy, TrendingUp, Users, DollarSign, RefreshCw, LogIn, UserPlus, ShoppingBag, Package } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -38,33 +38,45 @@ function DashboardContent() {
 
     const [phone, setPhone] = useState('');
     const [isSigningUp, setIsSigningUp] = useState(false);
+    const [isReferralEnabled, setIsReferralEnabled] = useState(true);
+    const [isPaying, setIsPaying] = useState<string | null>(null);
 
     useEffect(() => {
         if (authLoading) return;
 
         const initDashboard = async () => {
             setLoading(true);
+            // Fetch Settings
+            const enabled = await getAppSetting('referral_scheme_enabled', true);
+            setIsReferralEnabled(enabled);
 
             // Fetch User Orders
             if (user?.email) {
                 const ordersRes = await getUserOrders(user.email);
                 if (ordersRes.success) {
                     setMyOrders(ordersRes.orders || []);
-                    // Default to orders tab if they have orders but no referrer status yet
-                    if ((ordersRes.orders || []).length > 0) {
+                    // Default to orders tab:
+                    // 1. If referral scheme is disabled
+                    // 2. OR if they have orders but no referrer status yet
+                    if (!enabled || (ordersRes.orders || []).length > 0) {
                         setActiveTab('orders');
                     }
                 }
             }
 
             // Fetch Referral Data
-            if (urlCode) {
-                await loadDashboard(urlCode);
-            } else if (user?.email) {
-                const result = await getReferrerByEmail(user.email);
-                if (result.success && result.referrer) {
-                    await loadDashboard(result.referrer.referral_code);
-                    setActiveTab('referrals'); // Prioritize referral view if they are a referrer
+            if (enabled) {
+                if (urlCode) {
+                    await loadDashboard(urlCode);
+                    setActiveTab('referrals');
+                } else if (user?.email) {
+                    const result = await getReferrerByEmail(user.email);
+                    if (result.success && result.referrer) {
+                        await loadDashboard(result.referrer.referral_code);
+                        setActiveTab('referrals'); // Prioritize referral view if they are a referrer
+                    } else {
+                        setData(null);
+                    }
                 } else {
                     setData(null);
                 }
@@ -109,6 +121,24 @@ function DashboardContent() {
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handlePayment = async (orderId: string, amount: number, phone: string) => {
+        if (isPaying) return;
+        setIsPaying(orderId);
+        try {
+            const result = await initiatePhonePePayment(orderId, amount, phone);
+            if (result.success && result.url) {
+                window.location.href = result.url;
+            } else {
+                alert('Payment failed: ' + result.error);
+                setIsPaying(null);
+            }
+        } catch (error) {
+            console.error('Payment Error:', error);
+            alert('An unexpected error occurred. Please try again.');
+            setIsPaying(null);
+        }
     };
 
     if (authLoading || loading) {
@@ -160,12 +190,14 @@ function DashboardContent() {
                         >
                             <ShoppingBag className="w-4 h-4" /> My Orders
                         </button>
-                        <button
-                            onClick={() => setActiveTab('referrals')}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'referrals' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                        >
-                            <Users className="w-4 h-4" /> Referral Program
-                        </button>
+                        {isReferralEnabled && (
+                            <button
+                                onClick={() => setActiveTab('referrals')}
+                                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'referrals' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                            >
+                                <Users className="w-4 h-4" /> Referral Program
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -256,8 +288,12 @@ function DashboardContent() {
 
                                                     {order.status === 'pending' && (
                                                         <div className="flex justify-end">
-                                                            <Button className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-6 py-2 font-bold text-sm">
-                                                                Complete Payment
+                                                            <Button
+                                                                onClick={() => handlePayment(order.id, order.amount, order.customer_phone)}
+                                                                disabled={isPaying === order.id}
+                                                                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-6 py-2 font-bold text-sm disabled:opacity-50"
+                                                            >
+                                                                {isPaying === order.id ? 'Processing...' : 'Complete Payment'}
                                                             </Button>
                                                         </div>
                                                     )}
@@ -272,7 +308,7 @@ function DashboardContent() {
                 )}
 
                 {/* REFERRALS TAB */}
-                {activeTab === 'referrals' && (
+                {isReferralEnabled && activeTab === 'referrals' && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {(!data && user) ? (
                             <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl border border-white/10 p-8 max-w-2xl mx-auto shadow-2xl text-center">

@@ -11,7 +11,7 @@ import { DesignUpload } from '@/components/DesignUpload';
 import { ReviewApproval } from '@/components/ReviewApproval';
 import { SignageData, DesignConfig, DEFAULT_DESIGN, TemplateId } from '@/lib/types';
 import { calculatePrice, MaterialId } from '@/lib/utils';
-import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode, getReferrerByCode, updateTemplateConfig, uploadProductImages, getTemplateById } from '@/app/actions';
+import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode, getReferrerByCode, updateTemplateConfig, uploadProductImages, getTemplateById, getAppSetting } from '@/app/actions';
 import {
     ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon,
     Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin,
@@ -75,6 +75,15 @@ function DesignContent() {
     const [referralCode, setReferralCode] = useState('');
     const [isValidatingCode, setIsValidatingCode] = useState(false);
     const [codeValidated, setCodeValidated] = useState(false);
+    const [isReferralEnabled, setIsReferralEnabled] = useState(true);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            const enabled = await getAppSetting('referral_scheme_enabled', true);
+            setIsReferralEnabled(enabled);
+        };
+        fetchSettings();
+    }, []);
 
     // Delivery & Installation State
     const [deliveryType, setDeliveryType] = useState<'standard' | 'fast'>('standard');
@@ -1923,24 +1932,26 @@ function DesignContent() {
                             {/* Footer / Checkout - Always visible */}
                             <div className="p-5 border-t border-slate-800 bg-slate-900/80 space-y-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.4)] z-20">
                                 {/* Referral Code */}
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={referralCode}
-                                        onChange={(e) => {
-                                            const code = e.target.value.toUpperCase();
-                                            setReferralCode(code);
-                                            if (code) {
-                                                validateReferralCode(code);
-                                            } else {
-                                                setCodeValidated(false);
-                                            }
-                                        }}
-                                        placeholder="Referral Code (Optional)"
-                                        className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-500 ring-green-500 bg-green-900/30 text-green-300 placeholder-green-500' : 'border-slate-700 focus:border-indigo-500 bg-slate-800 text-white placeholder-gray-500'}`}
-                                    />
-                                    {codeValidated && <div className="absolute right-3 top-2 text-green-400 text-xs font-bold">✓ APPLIED</div>}
-                                </div>
+                                {isReferralEnabled && (
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={referralCode}
+                                            onChange={(e) => {
+                                                const code = e.target.value.toUpperCase();
+                                                setReferralCode(code);
+                                                if (code) {
+                                                    validateReferralCode(code);
+                                                } else {
+                                                    setCodeValidated(false);
+                                                }
+                                            }}
+                                            placeholder="Referral Code (Optional)"
+                                            className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-1 ${codeValidated ? 'border-green-500 ring-green-500 bg-green-900/30 text-green-300 placeholder-green-500' : 'border-slate-700 focus:border-indigo-500 bg-slate-800 text-white placeholder-gray-500'}`}
+                                        />
+                                        {codeValidated && <div className="absolute right-3 top-2 text-green-400 text-xs font-bold">✓ APPLIED</div>}
+                                    </div>
+                                )}
 
                                 <button
                                     onClick={handleOpenReview}
