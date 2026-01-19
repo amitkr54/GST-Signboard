@@ -38,6 +38,7 @@ export function Header() {
                             { name: 'Products', href: '/#products' },
                             { name: 'Templates', href: '/templates' },
                             { name: 'Gallery', href: '/#gallery' },
+                            { name: 'Contact Us', href: '/contact' },
                         ].map((item) => (
                             <Link
                                 key={item.name}
@@ -115,6 +116,7 @@ export function Header() {
                             { name: 'Products', href: '/#products' },
                             { name: 'Templates', href: '/templates' },
                             { name: 'Gallery', href: '/#gallery' },
+                            { name: 'Contact Us', href: '/contact' },
                         ].map((item) => (
                             <Link
                                 key={item.name}

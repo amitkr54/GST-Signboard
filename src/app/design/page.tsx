@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { TEMPLATE_DEFAULTS } from '@/lib/templates';
 import { MaterialSelector } from '@/components/MaterialSelector';
 import { EditorSidebar, TabType } from '@/components/EditorSidebar';
@@ -16,7 +17,7 @@ import {
     ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon,
     Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin,
     Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3,
-    Download, Save, Circle, Triangle, Minus
+    Download, Save, Circle, Triangle, Minus, Sparkles
 } from 'lucide-react';
 
 import { PreviewSection } from '@/components/PreviewSection';
@@ -267,6 +268,30 @@ function DesignContent() {
                 if (validMaterials.includes(mat as MaterialId)) {
                     setMaterial(mat as MaterialId);
                 }
+
+                // Set Product Name as Company Name fallback
+                if (!savedData) {
+                    fetch(`/api/products/${productParam}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.product && data.product.name) {
+                                setData(prev => ({
+                                    ...prev,
+                                    companyName: prev.companyName || data.product.name
+                                }));
+                            }
+                        })
+                        .catch(err => {
+                            const formattedName = productParam
+                                .split('-')
+                                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                .join(' ');
+                            setData(prev => ({
+                                ...prev,
+                                companyName: prev.companyName || formattedName
+                            }));
+                        });
+                }
             }
 
             if (priceParam) {
@@ -405,6 +430,22 @@ function DesignContent() {
         setCodeValidated(result.success && result.referrer !== null);
         setIsValidatingCode(false);
     };
+
+    // Warning on leaving page
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isSaving || (localStorage.getItem('signage_draft_design'))) {
+                e.preventDefault();
+                e.returnValue = ''; // Standard for modern browsers
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [isSaving]);
 
     const handleTemplateSelect = async (id: TemplateId) => {
         // 1. Logic Update: Sync state and URL
@@ -1726,13 +1767,17 @@ function DesignContent() {
             <div id="tutorial-header" className={`bg-white border-b border-gray-200 flex items-center px-6 shrink-0 z-40 transition-all duration-300 ${selectedObject ? 'h-24 py-2' : 'h-12'}`}>
 
                 {/* 1. Left Pillar: Logo & Title (Matched to Sidebar Width) */}
-                <div className="flex items-center shrink-0 transition-all duration-300 overflow-hidden" style={{ width: sidebarWidth - 24 }}>
-                    <div className="flex items-center gap-3 shrink-0">
-                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">S</div>
+                <div className="flex items-center shrink-0 transition-all duration-300 overflow-hidden" style={{ width: Math.max(sidebarWidth - 24, 200) }}>
+                    <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+                        <div className="flex items-center justify-center text-indigo-600 group-hover:text-indigo-500 transition-colors">
+                            <Sparkles className="w-6 h-6 fill-current" />
+                        </div>
                         {!selectedObject && (
-                            <span className="font-bold text-gray-900 tracking-tight text-lg whitespace-nowrap">Signage Studio</span>
+                            <span className="text-xl font-black text-slate-900 tracking-tight whitespace-nowrap" style={{ fontFamily: '"Playfair Display", serif' }}>
+                                SignagePro
+                            </span>
                         )}
-                    </div>
+                    </Link>
                 </div>
 
                 {/* 2. Center Pillar: Formatting Toolbar (Centered to Canvas) */}
@@ -2205,182 +2250,186 @@ function DesignContent() {
             </div>
 
             {/* Auth Modal - Choose between Sign In or Guest Checkout */}
-            {showAuthModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full p-8 transform animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="text-center mb-8">
-                            <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <User className="w-8 h-8 text-indigo-400" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">
-                                Save Your Design?
-                            </h2>
-                            <p className="text-slate-400 text-sm">
-                                Choose how you'd like to proceed with your order
-                            </p>
-                        </div>
-
-                        {/* Options */}
-                        <div className="space-y-4 mb-6">
-                            {/* Google Sign In */}
-                            <button
-                                onClick={handleGoogleSignIn}
-                                className="w-full p-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl text-left transition-all group border border-indigo-500/50 hover:border-indigo-400 shadow-lg hover:shadow-indigo-500/50"
-                            >
-                                <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                        <svg className="w-6 h-6" viewBox="0 0 24 24">
-                                            <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                            <path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                            <path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                            <path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                        </svg>
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-bold text-white text-base mb-1">
-                                            Sign In with Google
-                                        </h3>
-                                        <p className="text-indigo-200 text-xs leading-relaxed">
-                                            Save design to your account for future edits and easy reorders
-                                        </p>
-                                    </div>
-                                    <ArrowRight className="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
+            {
+                showAuthModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full p-8 transform animate-in zoom-in-95 duration-200">
+                            {/* Header */}
+                            <div className="text-center mb-8">
+                                <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <User className="w-8 h-8 text-indigo-400" />
                                 </div>
-                            </button>
+                                <h2 className="text-2xl font-bold text-white mb-2">
+                                    Save Your Design?
+                                </h2>
+                                <p className="text-slate-400 text-sm">
+                                    Choose how you'd like to proceed with your order
+                                </p>
+                            </div>
 
-                            {/* Guest Checkout */}
-                            <button
-                                onClick={handleGuestCheckout}
-                                className="w-full p-5 bg-slate-800 hover:bg-slate-700 rounded-xl text-left transition-all group border border-slate-600 hover:border-slate-500"
-                            >
-                                <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 bg-slate-700 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                        <User className="w-6 h-6 text-slate-300" />
+                            {/* Options */}
+                            <div className="space-y-4 mb-6">
+                                {/* Google Sign In */}
+                                <button
+                                    onClick={handleGoogleSignIn}
+                                    className="w-full p-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl text-left transition-all group border border-indigo-500/50 hover:border-indigo-400 shadow-lg hover:shadow-indigo-500/50"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                            <svg className="w-6 h-6" viewBox="0 0 24 24">
+                                                <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                                <path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                                <path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                                <path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-white text-base mb-1">
+                                                Sign In with Google
+                                            </h3>
+                                            <p className="text-indigo-200 text-xs leading-relaxed">
+                                                Save design to your account for future edits and easy reorders
+                                            </p>
+                                        </div>
+                                        <ArrowRight className="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
                                     </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-bold text-white text-base mb-1">
-                                            Continue as Guest
-                                        </h3>
-                                        <p className="text-slate-400 text-xs leading-relaxed">
-                                            Complete your order without creating an account
-                                        </p>
+                                </button>
+
+                                {/* Guest Checkout */}
+                                <button
+                                    onClick={handleGuestCheckout}
+                                    className="w-full p-5 bg-slate-800 hover:bg-slate-700 rounded-xl text-left transition-all group border border-slate-600 hover:border-slate-500"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-slate-700 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                            <User className="w-6 h-6 text-slate-300" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-white text-base mb-1">
+                                                Continue as Guest
+                                            </h3>
+                                            <p className="text-slate-400 text-xs leading-relaxed">
+                                                Complete your order without creating an account
+                                            </p>
+                                        </div>
+                                        <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-slate-300 group-hover:translate-x-1 transition-all shrink-0" />
                                     </div>
-                                    <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-slate-300 group-hover:translate-x-1 transition-all shrink-0" />
-                                </div>
-                            </button>
-                        </div>
-
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setShowAuthModal(false)}
-                            className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
-                        >
-                            Maybe Later
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Contact Form Modal - Shown after auth choice */}
-            {showContactForm && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full p-8 transform animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-                        {/* Header */}
-                        <div className="text-center mb-6">
-                            <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <MapPin className="w-8 h-8  text-indigo-400" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">
-                                Contact & Shipping
-                            </h2>
-                            <p className="text-slate-400 text-sm">
-                                {authChoice === 'google' ? 'Almost there! Just confirm your details' : 'Please provide your delivery information'}
-                            </p>
-                        </div>
-
-                        {/* Form Fields */}
-                        <div className="space-y-4 mb-6">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
-                                <input
-                                    type="text"
-                                    value={contactDetails.name}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
-                                    placeholder="John Doe"
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                                />
+                                </button>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
-                                <input
-                                    type="email"
-                                    value={contactDetails.email}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
-                                    placeholder="john@example.com"
-                                    disabled={authChoice === 'google' && !!user?.email}
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition disabled:opacity-60 disabled:cursor-not-allowed"
-                                />
-                                {authChoice === 'google' && !!user?.email && (
-                                    <p className="text-xs text-slate-500 mt-1">✓ Pre-filled from your Google account</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Mobile Number</label>
-                                <input
-                                    type="tel"
-                                    value={contactDetails.mobile}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, mobile: e.target.value })}
-                                    placeholder="+91 98765 43210"
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Shipping Address</label>
-                                <textarea
-                                    value={contactDetails.shippingAddress}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, shippingAddress: e.target.value })}
-                                    placeholder="123 Main Street, Apt 4B, City, State, ZIP"
-                                    rows={3}
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="space-y-3">
+                            {/* Close Button */}
                             <button
-                                type="button"
-                                onClick={handleContactFormSubmit}
-                                disabled={isProcessing}
-                                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                {isProcessing ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        Processing...
-                                    </>
-                                ) : (
-                                    <>
-                                        Confirm & Proceed to Payment
-                                        <ArrowRight className="w-5 h-5" />
-                                    </>
-                                )}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setShowContactForm(false)}
+                                onClick={() => setShowAuthModal(false)}
                                 className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
                             >
-                                Go Back
+                                Maybe Later
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
+
+            {/* Contact Form Modal - Shown after auth choice */}
+            {
+                showContactForm && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full p-8 transform animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                            {/* Header */}
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MapPin className="w-8 h-8  text-indigo-400" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-white mb-2">
+                                    Contact & Shipping
+                                </h2>
+                                <p className="text-slate-400 text-sm">
+                                    {authChoice === 'google' ? 'Almost there! Just confirm your details' : 'Please provide your delivery information'}
+                                </p>
+                            </div>
+
+                            {/* Form Fields */}
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                                    <input
+                                        type="text"
+                                        value={contactDetails.name}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
+                                        placeholder="John Doe"
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                                    <input
+                                        type="email"
+                                        value={contactDetails.email}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
+                                        placeholder="john@example.com"
+                                        disabled={authChoice === 'google' && !!user?.email}
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                    />
+                                    {authChoice === 'google' && !!user?.email && (
+                                        <p className="text-xs text-slate-500 mt-1">✓ Pre-filled from your Google account</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Mobile Number</label>
+                                    <input
+                                        type="tel"
+                                        value={contactDetails.mobile}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, mobile: e.target.value })}
+                                        placeholder="+91 98765 43210"
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Shipping Address</label>
+                                    <textarea
+                                        value={contactDetails.shippingAddress}
+                                        onChange={(e) => setContactDetails({ ...contactDetails, shippingAddress: e.target.value })}
+                                        placeholder="123 Main Street, Apt 4B, City, State, ZIP"
+                                        rows={3}
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="space-y-3">
+                                <button
+                                    type="button"
+                                    onClick={handleContactFormSubmit}
+                                    disabled={isProcessing}
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {isProcessing ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Confirm & Proceed to Payment
+                                            <ArrowRight className="w-5 h-5" />
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowContactForm(false)}
+                                    className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
+                                >
+                                    Go Back
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
 
             <ReviewApproval
                 data={data}
@@ -2410,6 +2459,6 @@ function DesignContent() {
                 message="Hi! I&apos;m on the design page and need help with my signage. Can you assist?"
             />
             <OnboardingTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
-        </div>
+        </div >
     );
 }

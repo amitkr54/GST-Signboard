@@ -47,6 +47,7 @@ export default function UploadDesignPage({ params }: { params: { id: string } })
 
     const handleContinue = () => {
         // In a real app, this would upload the file and proceed to checkout
+        // For now, redirecting to design page with upload context or correct checkout flow
         router.push(`/checkout?product=${product.id}&size=${sizeId}&hasDesign=true`);
     };
 
@@ -91,10 +92,10 @@ export default function UploadDesignPage({ params }: { params: { id: string } })
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     className={`border-2 border-dashed rounded-3xl p-12 text-center transition-all duration-300 ${isDragging
-                            ? 'border-indigo-600 bg-indigo-50 scale-105'
-                            : uploadedFile
-                                ? 'border-green-400 bg-green-50'
-                                : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-gray-50'
+                        ? 'border-indigo-600 bg-indigo-50 scale-105'
+                        : uploadedFile
+                            ? 'border-green-400 bg-green-50'
+                            : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-gray-50'
                         }`}
                 >
                     {uploadedFile ? (

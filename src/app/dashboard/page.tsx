@@ -35,11 +35,52 @@ function DashboardContent() {
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState<'referrals' | 'orders'>('referrals');
+    const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
 
     const [phone, setPhone] = useState('');
     const [isSigningUp, setIsSigningUp] = useState(false);
     const [isReferralEnabled, setIsReferralEnabled] = useState(true);
     const [isPaying, setIsPaying] = useState<string | null>(null);
+
+    // Dynamic Product Name Resolution for existing orders
+    useEffect(() => {
+        const fetchProductNames = async () => {
+            const updates: Record<string, string> = {};
+            let hasUpdates = false;
+
+            for (const order of myOrders) {
+                const currentName = order.company_details?.companyName;
+                // Check for generic "Product 123..." pattern
+                if (currentName && currentName.match(/^Product\s+\d/)) {
+                    try {
+                        // Extract parts: "Product 1768..." -> "1768..."
+                        // The original ID logic was: product-1768... -> "Product 1768..."
+                        const idPart = currentName.split(' ').slice(1).join('-');
+                        const potentialId = `product-${idPart}`;
+
+                        const res = await fetch(`/api/products/${potentialId}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.product?.name) {
+                                updates[order.id] = data.product.name;
+                                hasUpdates = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to resolve product name for order", order.id, e);
+                    }
+                }
+            }
+
+            if (hasUpdates) {
+                setResolvedNames(prev => ({ ...prev, ...updates }));
+            }
+        };
+
+        if (myOrders.length > 0) {
+            fetchProductNames();
+        }
+    }, [myOrders]);
 
     useEffect(() => {
         if (authLoading) return;
@@ -227,7 +268,7 @@ function DashboardContent() {
                                         <div key={order.id} className="p-6 hover:bg-white/5 transition-colors">
                                             <div className="flex flex-col md:flex-row gap-6">
                                                 {/* Visual Proof / Thumbnail */}
-                                                <div className="w-full md:w-48 aspect-[3/2] bg-slate-800 rounded-xl overflow-hidden border border-white/10 shrink-0 relative group">
+                                                <div className="w-full md:w-48 aspect-[3/2] bg-slate-800 overflow-hidden border border-white/10 shrink-0 relative group">
                                                     {order.visual_proof ? (
                                                         order.visual_proof.startsWith('data:application/pdf') ? (
                                                             <>
@@ -255,7 +296,7 @@ function DashboardContent() {
                                                     <div className="flex justify-between items-start">
                                                         <div>
                                                             <h3 className="text-lg font-bold text-white mb-1">
-                                                                {order.company_details?.companyName || 'Custom Signage'}
+                                                                {resolvedNames[order.id] || order.company_details?.companyName || 'Custom Signage'}
                                                             </h3>
                                                             <p className="text-xs text-indigo-300 font-mono">ORDER #{order.id.split('-')[0].toUpperCase()}</p>
                                                         </div>

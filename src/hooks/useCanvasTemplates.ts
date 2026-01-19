@@ -69,6 +69,14 @@ export function useCanvasTemplates(
             });
             canvas.add(bgRect);
             canvas.sendToBack(bgRect);
+        } else {
+            bgRect.set({
+                width: baseWidth,
+                height: baseHeight,
+                left: baseWidth / 2,
+                top: baseHeight / 2
+            });
+            bgRect.setCoords();
         }
 
         if (design.backgroundGradientEnabled) {
