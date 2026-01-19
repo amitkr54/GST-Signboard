@@ -170,6 +170,9 @@ async function fetchFontAsBase64(url: string): Promise<string | null> {
 }
 
 export async function getFontBase64(fontFamily: string): Promise<string | null> {
+    // Strip quotes from font family name
+    fontFamily = fontFamily.replace(/['"]/g, '').trim();
+
     // Skip system fonts
     if (SYSTEM_FONTS.has(fontFamily)) {
         return null;
