@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { MessageCircle } from 'lucide-react';
+import { WhatsAppIcon } from './WhatsAppIcon';
 
 // WhatsApp button component
 interface WhatsAppButtonProps {
@@ -37,7 +37,7 @@ export function WhatsAppButton({
         title="Chat with us on WhatsApp"
         aria-label="Chat on WhatsApp"
       >
-        <MessageCircle className="w-7 h-7 group-hover:scale-110 transition-transform" />
+        <WhatsAppIcon className="w-7 h-7 group-hover:scale-110 transition-transform" />
         <span className="absolute right-16 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           Need help? Chat with us
         </span>
@@ -54,7 +54,7 @@ export function WhatsAppButton({
           className
         )}
       >
-        <MessageCircle className="w-5 h-5" />
+        <WhatsAppIcon className="w-5 h-5" />
         {text}
       </button>
     );
@@ -68,7 +68,7 @@ export function WhatsAppButton({
         className
       )}
     >
-      <MessageCircle className="w-5 h-5 flex-shrink-0" />
+      <WhatsAppIcon className="w-5 h-5 flex-shrink-0" />
       {text}
     </button>
   );

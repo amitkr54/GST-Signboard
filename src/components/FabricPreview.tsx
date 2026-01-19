@@ -187,6 +187,9 @@ export function FabricPreview({
                         style.fontWeight = t.fontWeight;
                         style.fontStyle = t.fontStyle;
                         style.textAlign = t.textAlign;
+                        style.charSpacing = t.charSpacing;
+                        style.lineHeight = t.lineHeight;
+                        style.underline = t.underline;
                     }
                     setCopiedStyle(style);
                 }
@@ -198,8 +201,28 @@ export function FabricPreview({
                         : [activeObject];
 
                     objects.forEach(obj => {
-                        obj.set(copiedStyle);
-                        if (obj.type?.includes('text') || obj.type === 'textbox') {
+                        const isText = obj.type?.includes('text') || obj.type === 'textbox';
+
+                        // Basic styles for all
+                        obj.set({
+                            fill: copiedStyle.fill,
+                            stroke: copiedStyle.stroke,
+                            strokeWidth: copiedStyle.strokeWidth,
+                            opacity: copiedStyle.opacity
+                        });
+
+                        // Text specific style
+                        if (isText) {
+                            (obj as any).set({
+                                fontFamily: copiedStyle.fontFamily,
+                                fontSize: copiedStyle.fontSize,
+                                fontWeight: copiedStyle.fontWeight,
+                                fontStyle: copiedStyle.fontStyle,
+                                textAlign: copiedStyle.textAlign,
+                                charSpacing: copiedStyle.charSpacing,
+                                lineHeight: copiedStyle.lineHeight,
+                                underline: copiedStyle.underline
+                            });
                             (obj as any).initDimensions?.();
                         }
                     });

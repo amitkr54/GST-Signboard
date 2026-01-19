@@ -4,7 +4,7 @@ import React, { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TEMPLATE_DEFAULTS } from '@/lib/templates';
 import { MaterialSelector } from '@/components/MaterialSelector';
-import { EditorSidebar } from '@/components/EditorSidebar';
+import { EditorSidebar, TabType } from '@/components/EditorSidebar';
 import { Button } from '@/components/ui/Button';
 import { TemplateSelector } from '@/components/TemplateSelector';
 import { DesignUpload } from '@/components/DesignUpload';
@@ -12,14 +12,19 @@ import { ReviewApproval } from '@/components/ReviewApproval';
 import { SignageData, DesignConfig, DEFAULT_DESIGN, TemplateId } from '@/lib/types';
 import { calculatePrice, MaterialId } from '@/lib/utils';
 import { createOrder, processPayment, trackReferral, initiatePhonePePayment, syncDesign, generateQRCode, getReferrerByCode, updateTemplateConfig, uploadProductImages, getTemplateById } from '@/app/actions';
-import { ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon, Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3, Download, Save } from 'lucide-react';
-
+import {
+    ArrowRight, Truck, Wrench, ChevronLeft, Undo2, Redo2, Type, Image as ImageIcon,
+    Square, QrCode, X, Loader2, Check, Maximize, Minimize, Phone, Mail, MapPin,
+    Globe, Star, Heart, Clock, Calendar, User, Building, Palette, Grid3X3,
+    Download, Save, Circle, Triangle, Minus
+} from 'lucide-react';
 
 import { PreviewSection } from '@/components/PreviewSection';
 import { TextFormatToolbar } from '@/components/TextFormatToolbar';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
-import { Circle, Triangle, Minus } from 'lucide-react';
+import { ShareMenu } from '@/components/ShareMenu';
 import { useAuth } from '@/components/AuthProvider';
+import { OnboardingTour } from '@/components/OnboardingTour';
 
 const MOBILE_SHAPES = [
     { id: 'rect', icon: Square, label: 'Square' },
@@ -93,18 +98,6 @@ function DesignContent() {
     const [addShapeFn, setAddShapeFn] = useState<((type: 'rect' | 'circle' | 'line' | 'triangle') => void) | null>(null);
     const [addImageFn, setAddImageFn] = useState<((imageUrl: string) => void) | null>(null);
     const [mobileTab, setMobileTab] = useState<'templates' | 'design' | 'material' | 'order'>('templates');
-    const [activePicker, setActivePicker] = useState<'shapes' | 'icons' | 'background' | null>(null);
-    const [showQRInput, setShowQRInput] = useState(false);
-    const [qrText, setQrText] = useState('');
-    const [isGeneratingQR, setIsGeneratingQR] = useState(false);
-    const [selectedObject, setSelectedObject] = useState<any>(null);
-    const [toolbarActionFn, setToolbarActionFn] = useState<((action: string) => void) | null>(null);
-    const [activeSidebarTab, setActiveSidebarTab] = useState<string | null>(null);
-
-    // Responsive State
-    const [isMobile, setIsMobile] = useState(false);
-    const [isLandscape, setIsLandscape] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -113,6 +106,19 @@ function DesignContent() {
     const adminPin = searchParams.get('pin');
     const { user, signInWithGoogle } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedObject, setSelectedObject] = useState<any>(null);
+    const [toolbarActionFn, setToolbarActionFn] = useState<((action: string) => void) | null>(null);
+    const [activeSidebarTab, setActiveSidebarTab] = useState<TabType | null>(null);
+    const [isTourOpen, setIsTourOpen] = useState(false);
+
+    // Responsive State
+    const [isMobile, setIsMobile] = useState(false);
+    const [isLandscape, setIsLandscape] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isGeneratingQR, setIsGeneratingQR] = useState(false);
+    const [qrText, setQrText] = useState('');
+    const [showQRInput, setShowQRInput] = useState(false);
+    const [activePicker, setActivePicker] = useState<'shapes' | 'icons' | 'background' | null>(null);
 
     const handleUpdateMasterTemplate = async () => {
         if (!isAdminMode || !adminPin) return;
@@ -689,6 +695,19 @@ function DesignContent() {
         // Don't close modal yet, wait for processing
         await handleCheckout();
     };
+
+    // Check for first-time tour
+    useEffect(() => {
+        const hasSeenTour = localStorage.getItem('hasSeenDesignTour');
+        if (!hasSeenTour) {
+            // Slight delay to ensure layout is ready
+            const timer = setTimeout(() => {
+                setIsTourOpen(true);
+                localStorage.setItem('hasSeenDesignTour', 'true');
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, []);
 
     const handleCheckout = async () => {
         console.log('Starting Checkout Process...', contactDetails);
@@ -1458,7 +1477,7 @@ function DesignContent() {
     return (
         <div className="h-screen bg-gray-50 font-sans overflow-hidden flex flex-col">
             {/* 3-Column Header / Relocated Toolbar */}
-            <div className={`bg-white border-b border-gray-200 flex items-center px-6 shrink-0 z-40 transition-all duration-300 ${selectedObject ? 'h-24 py-2' : 'h-12'}`}>
+            <div id="tutorial-header" className={`bg-white border-b border-gray-200 flex items-center px-6 shrink-0 z-40 transition-all duration-300 ${selectedObject ? 'h-24 py-2' : 'h-12'}`}>
 
                 {/* 1. Left Pillar: Logo & Title (Matched to Sidebar Width) */}
                 <div className="flex items-center shrink-0 transition-all duration-300 overflow-hidden" style={{ width: sidebarWidth - 24 }}>
@@ -1518,6 +1537,16 @@ function DesignContent() {
                     <div className="text-sm text-gray-500 font-medium hidden sm:block whitespace-nowrap">
                         {design.width}"x{design.height}"
                     </div>
+
+                    <div className="h-4 w-px bg-gray-200 mx-1 hidden sm:block shadow-[0_0_10px_rgba(0,0,0,0.1)]"></div>
+
+                    <ShareMenu
+                        onDownload={handleDownload}
+                        onWhatsApp={() => {
+                            const message = "Hi! I'm on the design page and need help with my signage. Can you assist?";
+                            window.open(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`, '_blank');
+                        }}
+                    />
 
                     <div className="h-4 w-px bg-gray-200 mx-1 hidden sm:block"></div>
 
@@ -1580,14 +1609,20 @@ function DesignContent() {
                 </div>
 
                 {/* 3. Properties & Checkout Panel (Right) */}
-                <div className="w-[340px] bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar flex flex-col">
+                <div id="tutorial-right-panel" className="w-[340px] bg-slate-900 border-l border-slate-800 h-full overflow-y-auto shrink-0 z-10 custom-scrollbar flex flex-col">
                     <div className="p-0 flex-1">
                         {/* Header */}
                         <div className="h-14 px-6 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
                             <h3 className="font-bold text-white flex items-center gap-2">
                                 Configuration
                             </h3>
-                            <button className="text-xs font-semibold text-indigo-400 hover:text-indigo-300">Need Help?</button>
+                            <button
+                                id="tutorial-help-button"
+                                onClick={() => setIsTourOpen(true)}
+                                className="text-xs font-semibold text-indigo-400 hover:text-indigo-300"
+                            >
+                                Need Help?
+                            </button>
                         </div>
 
                         <div className="p-6 space-y-8">
@@ -2125,6 +2160,7 @@ function DesignContent() {
                 variant="floating"
                 message="Hi! I&apos;m on the design page and need help with my signage. Can you assist?"
             />
+            <OnboardingTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
         </div>
     );
 }

@@ -53,7 +53,7 @@ export function PreviewSection({
     }
 
     return (
-        <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div id="tutorial-actual-canvas" className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden">
             <FabricPreview
                 data={data}
                 design={design}

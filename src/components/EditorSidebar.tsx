@@ -9,6 +9,7 @@ import { Button } from './ui/Button';
 
 // Reusing icons from DesignSidebar
 import { Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Facebook, Instagram, Twitter, Linkedin, Youtube, MessageCircle } from 'lucide-react';
+import { WhatsAppIcon } from './WhatsAppIcon';
 
 interface EditorSidebarProps {
     // Template Props
@@ -25,7 +26,7 @@ interface EditorSidebarProps {
     aspectRatio?: number;
 }
 
-type TabType = 'templates' | 'text' | 'elements' | 'uploads';
+export type TabType = 'templates' | 'text' | 'elements' | 'uploads';
 
 const SOCIAL_ICONS = [
     { name: 'facebook', icon: Facebook, label: 'Facebook', color: '#1877F2' },
@@ -33,7 +34,7 @@ const SOCIAL_ICONS = [
     { name: 'x', icon: X, label: 'X', color: '#000000' },
     { name: 'linkedin', icon: Linkedin, label: 'LinkedIn', color: '#0A66C2' },
     { name: 'youtube', icon: Youtube, label: 'YouTube', color: '#FF0000' },
-    { name: 'whatsapp', icon: Phone, label: 'WhatsApp', color: '#25D366' },
+    { name: 'whatsapp', icon: WhatsAppIcon, label: 'WhatsApp', color: '#25D366' },
 ];
 
 const GENERIC_ICONS = [
@@ -130,7 +131,7 @@ export function EditorSidebar({
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
-                        id={`tutorial-tab-${tab.id}`}
+                        id={tab.id === 'templates' ? 'tutorial-tab-templates' : undefined}
                         onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
                         className={`group relative w-full h-[68px] flex flex-col items-center justify-center gap-1 transition-all duration-200 ${activeTab === tab.id
                             ? 'text-white bg-indigo-600 relative after:content-[""] after:absolute after:left-0 after:top-1/2 after:-translate-y-1/2 after:h-8 after:w-1 after:bg-white after:rounded-r-full'
@@ -414,7 +415,8 @@ export function EditorSidebar({
                         </div>
                     )}
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
