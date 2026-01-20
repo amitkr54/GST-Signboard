@@ -26,7 +26,7 @@ export function useCanvasObjectManagers(
             borderColor: '#E53935',
             cornerStrokeColor: '#E53935',
             cornerColor: '#ffffff',
-            cornerSize: 14,
+            cornerSize: 8,
             borderScaleFactor: 2.5,
             transparentCorners: false,
             padding: 4,

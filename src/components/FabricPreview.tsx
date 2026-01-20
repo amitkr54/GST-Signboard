@@ -70,6 +70,7 @@ export function FabricPreview({
     const [toolbarPos, setToolbarPos] = useState<{ x: number, y: number } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+    const [rotationAngle, setRotationAngle] = useState<number | null>(null);
     const hasInitialLoadRef = useRef(false);
 
     const { width: baseWidth, height: baseHeight } = useMemo(() => {
@@ -137,11 +138,48 @@ export function FabricPreview({
             borderColor: '#E53935',
             cornerColor: '#ffffff',
             cornerStrokeColor: '#E53935',
-            cornerSize: 14,
+            cornerSize: 8,
             transparentCorners: false,
             padding: 0,
             cornerStyle: 'circle',
             borderScaleFactor: 2.5
+        });
+
+        // Rotation indicator with snapping
+        canvas.on('object:rotating', (e) => {
+            const obj = e.target;
+            if (obj) {
+                let angle = obj.angle || 0;
+
+                // Snap to key angles (0, 90, 180, 270, 360) with 5-degree threshold
+                const snapAngles = [0, 90, 180, 270, 360];
+                const snapThreshold = 5;
+
+                for (const snapAngle of snapAngles) {
+                    const normalizedAngle = angle % 360;
+                    const distance = Math.abs(normalizedAngle - snapAngle);
+                    const reverseDistance = Math.abs(normalizedAngle - (snapAngle - 360));
+
+                    if (distance < snapThreshold || reverseDistance < snapThreshold) {
+                        angle = snapAngle;
+                        obj.set({ angle: snapAngle });
+                        obj.setCoords();
+                        canvas.requestRenderAll();
+                        break;
+                    }
+                }
+
+                const displayAngle = Math.round(angle % 360);
+                setRotationAngle(displayAngle);
+            }
+        });
+
+        canvas.on('object:modified', () => {
+            setRotationAngle(null);
+        });
+
+        canvas.on('selection:cleared', () => {
+            setRotationAngle(null);
         });
 
         fabricCanvasRef.current = canvas;
@@ -762,6 +800,11 @@ export function FabricPreview({
                         {hasSafetyViolation && (
                             <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-1.5 px-3 py-1 bg-[#cc0000] rounded-full shadow-lg ring-1 ring-white/20">
                                 <span className="text-[11px] font-black text-white uppercase tracking-wider">Danger zone</span>
+                            </div>
+                        )}
+                        {rotationAngle !== null && (
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[50] px-2.5 py-1.5 bg-[#3b82f6] rounded-md shadow-lg">
+                                <span className="text-sm font-semibold text-white">{rotationAngle}°</span>
                             </div>
                         )}
                     </div>
