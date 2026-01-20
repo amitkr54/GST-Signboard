@@ -134,11 +134,29 @@ export function FabricPreview({
             preserveObjectStacking: true
         });
 
+
         fabric.Object.prototype.set({
             borderColor: '#E53935',
             cornerColor: '#ffffff',
             cornerStrokeColor: '#E53935',
             cornerSize: 8,
+            transparentCorners: false,
+            padding: 0,
+            cornerStyle: 'circle',
+            borderScaleFactor: 2.5
+        });
+
+        // Rotation indicator
+        canvas.on('object:rotating', (e) => {
+            const obj = e.target;
+            if (obj) {
+                const angle = Math.round(obj.angle || 0);
+                setRotationAngle(angle);
+            }
+        });
+
+        canvas.on('object:modified', () => {
+            setRotationAngle(null);
         });
 
         canvas.on('selection:cleared', () => {
