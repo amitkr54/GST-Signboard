@@ -141,6 +141,7 @@ function DesignContent() {
     const [qrText, setQrText] = useState('');
     const [showQRInput, setShowQRInput] = useState(false);
     const [activePicker, setActivePicker] = useState<'shapes' | 'icons' | 'background' | null>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const handleUpdateMasterTemplate = async () => {
         if (!isAdminMode || !adminPin) return;
@@ -209,6 +210,7 @@ function DesignContent() {
     const registerAddIcon = useCallback((fn: any) => setAddIconFn(() => fn), []);
     const registerAddShape = useCallback((fn: any) => setAddShapeFn(() => fn), []);
     const registerAddImage = useCallback((fn: any) => setAddImageFn(() => fn), []);
+    const registerToolbarAction = useCallback((fn: any) => setToolbarActionFn(() => fn), []);
 
     // 1. Initial Load and Synchronization (URL & LocalStorage)
     useEffect(() => {
@@ -568,24 +570,25 @@ function DesignContent() {
             return;
         }
 
-        if (format === 'svg') {
-            const svg = canvas.toSVG({
-                suppressPreamble: false,
-                width: 1800,
-                height: 1200,
-                viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
-            });
-            const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `signage-${Date.now()}.svg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        } else {
-            try {
+        setIsDownloading(true);
+        try {
+            if (format === 'svg') {
+                const svg = canvas.toSVG({
+                    suppressPreamble: false,
+                    width: 1800,
+                    height: 1200,
+                    viewBox: { x: 0, y: 0, width: 1800, height: 1200 }
+                });
+                const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `signage-${Date.now()}.svg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else {
                 const { jsPDF } = await import('jspdf');
                 const svg2pdfModule = await import('svg2pdf.js');
                 const { getFontBase64 } = await import('@/lib/font-utils');
@@ -643,7 +646,7 @@ function DesignContent() {
                             }
 
                             registeredFonts.add(family);
-                            console.log(`✓ Embedded: ${family} (variants: ${boldBase64 ? 'bold ' : ''}${italicBase64 ? 'italic ' : ''}${boldItalicBase64 ? 'bolditalic' : ''})`);
+                            console.log(`✓ Embedded: ${family}`);
                         }
                     } catch (fontError) {
                         console.warn(`✗ Could not embed ${family}, using fallback`);
@@ -666,7 +669,7 @@ function DesignContent() {
                     return;
                 }
 
-                // Manually replace font-family attributes in SVG to ensure they match registered names
+                // Manually replace font-family attributes
                 const textElements = svgElement.querySelectorAll('text, tspan');
                 textElements.forEach((el: any) => {
                     const fontFamily = el.getAttribute('font-family') || el.style.fontFamily;
@@ -685,10 +688,12 @@ function DesignContent() {
                 });
 
                 pdf.save(`signage-${Date.now()}.pdf`);
-            } catch (error) {
-                console.error('PDF generation error:', error);
-                alert('Failed to generate PDF. Please try again.');
             }
+        } catch (error) {
+            console.error('Download error:', error);
+            alert('Failed to generate file. Please try again.');
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -1137,6 +1142,8 @@ function DesignContent() {
                                     onAddIcon={registerAddIcon}
                                     onAddShape={registerAddShape}
                                     onAddImage={registerAddImage}
+                                    onObjectSelected={setSelectedObject}
+                                    onToolbarAction={registerToolbarAction}
                                 />
                             </div>
 
@@ -1798,30 +1805,40 @@ function DesignContent() {
                     )}
                 </div>
 
-                {/* 3. Right Pillar: Status & User (Matched to Right Panel Width) */}
-                <div className="flex items-center justify-end gap-4 shrink-0 transition-all duration-300" style={{ width: rightPanelWidth - 24 }}>
-                    {isAdminMode && (
-                        <button
-                            onClick={handleUpdateMasterTemplate}
-                            disabled={isSaving}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-bold transition-colors shadow-sm animate-pulse"
-                            title="Overwrite global master template with current design"
-                        >
-                            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                            <span className="hidden xl:inline">UPDATE MASTER</span>
-                        </button>
-                    )}
-                    {isSaving ? (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Saving...</span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
-                            <Check className="w-3 h-3 text-gray-400" />
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                                {user ? 'Cloud Sync' : 'Local'}
-                            </span>
+                {/* 3. Right Pillar: Status & User */}
+                <div className="flex items-center justify-end gap-3 shrink-0 transition-all duration-300 min-w-fit">
+                    {!isMobile && (
+                        <div className="flex items-center gap-3 mr-2">
+                            {isAdminMode && (
+                                <button
+                                    onClick={handleUpdateMasterTemplate}
+                                    disabled={isSaving}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-[10px] font-bold transition-colors shadow-sm animate-pulse"
+                                    title="Overwrite global master template with current design"
+                                >
+                                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                    <span className="hidden xl:inline tracking-tighter">UPDATE MASTER</span>
+                                </button>
+                            )}
+                            {isSaving ? (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                    <span className="text-[9px] font-bold text-green-600 uppercase tracking-tight">Saving...</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-full border border-slate-200">
+                                    <Check className="w-3 h-3 text-slate-400" />
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight whitespace-nowrap">
+                                        {user ? 'Cloud Sync' : 'Local Draft'}
+                                    </span>
+                                </div>
+                            )}
+
+                            <div className="h-4 w-px bg-gray-200 mx-1 hidden xl:block"></div>
+
+                            <div className="text-[11px] text-gray-500 font-bold hidden xl:block whitespace-nowrap tracking-tight">
+                                {design.width}" x {design.height}"
+                            </div>
                         </div>
                     )}
 
@@ -1834,6 +1851,7 @@ function DesignContent() {
                     <div className="h-4 w-px bg-gray-200 mx-1 hidden sm:block shadow-[0_0_10px_rgba(0,0,0,0.1)]"></div>
 
                     <ShareMenu
+                        isDownloading={isDownloading}
                         onDownload={handleDownload}
                         onWhatsApp={() => {
                             const message = "Hi! I'm on the design page and need help with my signage. Can you assist?";
@@ -1896,7 +1914,7 @@ function DesignContent() {
                             onAddShape={registerAddShape}
                             onAddImage={registerAddImage}
                             onObjectSelected={setSelectedObject}
-                            onToolbarAction={setToolbarActionFn}
+                            onToolbarAction={registerToolbarAction}
                         />
                     </div>
                 </div>
@@ -2031,19 +2049,29 @@ function DesignContent() {
                                     <div className="flex gap-2">
                                         <Button
                                             onClick={() => handleDownload('svg')}
+                                            disabled={isDownloading}
                                             variant="outline"
-                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-indigo-400 hover:border-indigo-500"
+                                            className={`flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-indigo-400 hover:border-indigo-500 ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
-                                            <Download className="w-3.5 h-3.5" />
-                                            SVG
+                                            {isDownloading ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <Download className="w-3.5 h-3.5" />
+                                            )}
+                                            {isDownloading ? '...' : 'SVG'}
                                         </Button>
                                         <Button
                                             onClick={() => handleDownload('pdf')}
+                                            disabled={isDownloading}
                                             variant="outline"
-                                            className="flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-red-400 hover:border-red-500"
+                                            className={`flex-1 gap-2 h-9 text-xs border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-red-400 hover:border-red-500 ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
-                                            <Download className="w-3.5 h-3.5" />
-                                            PDF
+                                            {isDownloading ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <Download className="w-3.5 h-3.5" />
+                                            )}
+                                            {isDownloading ? '...' : 'PDF'}
                                         </Button>
                                     </div>
                                 </div>

@@ -13,16 +13,18 @@ import {
     Check,
     Globe,
     MoreHorizontal,
-    Monitor
+    Monitor,
+    Loader2
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 
 interface ShareMenuProps {
     onDownload: (format: 'svg' | 'pdf') => void;
     onWhatsApp: () => void;
+    isDownloading?: boolean;
 }
 
-export const ShareMenu: React.FC<ShareMenuProps> = ({ onDownload, onWhatsApp }) => {
+export const ShareMenu: React.FC<ShareMenuProps> = ({ onDownload, onWhatsApp, isDownloading = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [copied, setCopied] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -84,13 +86,15 @@ export const ShareMenu: React.FC<ShareMenuProps> = ({ onDownload, onWhatsApp }) 
                             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 px-1">Share & Download</h4>
                             <div className="grid grid-cols-4 gap-4">
                                 <ShareOption
-                                    icon={Download}
-                                    label="Download"
+                                    icon={isDownloading ? Loader2 : Download}
+                                    label={isDownloading ? "Wait..." : "Download"}
                                     onClick={() => {
+                                        if (isDownloading) return;
                                         onDownload('pdf');
-                                        setIsOpen(false);
+                                        // Don't close if downloading starts
                                     }}
-                                    color="bg-blue-50 text-blue-600"
+                                    color={isDownloading ? "bg-blue-50 text-blue-400 cursor-wait" : "bg-blue-50 text-blue-600"}
+                                    iconClassName={isDownloading ? "animate-spin" : ""}
                                 />
                                 <ShareOption
                                     icon={WhatsAppIcon}
@@ -137,15 +141,16 @@ interface ShareOptionProps {
     label: string;
     onClick: () => void;
     color: string;
+    iconClassName?: string;
 }
 
-const ShareOption: React.FC<ShareOptionProps> = ({ icon: Icon, label, onClick, color }) => (
+const ShareOption: React.FC<ShareOptionProps> = ({ icon: Icon, label, onClick, color, iconClassName = "" }) => (
     <button
         onClick={onClick}
         className="flex flex-col items-center gap-1.5 group outline-none"
     >
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all shadow-sm group-hover:shadow-md group-hover:scale-110 active:scale-95 ${color}`}>
-            <Icon className="w-5 h-5" />
+            <Icon className={`w-5 h-5 ${iconClassName}`} />
         </div>
         <span className="text-[10px] font-medium text-gray-500 group-hover:text-gray-900 text-center leading-tight">
             {label}

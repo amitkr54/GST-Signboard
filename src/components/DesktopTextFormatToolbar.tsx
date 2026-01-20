@@ -2,14 +2,11 @@ import { fabric } from 'fabric';
 import React from 'react';
 import { FontVariantSupport } from '@/lib/font-utils';
 import {
-    GripVertical,
     Minus,
     Plus,
     AlignLeft,
     AlignCenter,
     AlignRight,
-    AlignJustify,
-    LayoutGrid,
     ArrowUp,
     ArrowDown,
     ArrowUpToLine,
@@ -17,8 +14,6 @@ import {
     Unlock,
     Lock,
     Copy,
-    Clipboard,
-    Paintbrush,
     Trash2,
     Layers,
     Type,
@@ -27,7 +22,8 @@ import {
     MoreHorizontal,
     MoreVertical,
     Download,
-    Layout
+    Layout,
+    ChevronDown
 } from 'lucide-react';
 
 interface DesktopTextFormatToolbarProps {
@@ -90,240 +86,165 @@ export function DesktopTextFormatToolbar({
     supportedVariants
 }: DesktopTextFormatToolbarProps) {
     return (
-        <div className="flex flex-col gap-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded-xl shadow-sm shrink-0">
-            {/* Row 1: Typography, Formatting, Alignment & Color */}
-            <div className="flex items-center gap-2 px-1 h-8">
-                {/* Font Family - Text only */}
-                {isTextObject && (
-                    <div className="relative group shrink-0">
-                        <select
-                            value={fontFamily}
-                            onChange={handleFontFamilyChange}
-                            disabled={isLocked}
-                            className="appearance-none pl-2.5 pr-7 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer disabled:opacity-50 min-w-[130px]"
-                        >
-                            {fontOptions.map(font => (
-                                <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+        <div className="flex flex-col gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl shadow-lg shrink-0 min-w-fit animate-in fade-in slide-in-from-top-2 duration-300">
+            {/* Row 1: Typography (HIDDEN if multiple selected) */}
+            {isTextObject && !isMultiple && (
+                <div className="flex items-center gap-3 h-8 animate-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <Type className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden xl:inline">Text Format</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {/* Font Family */}
+                        <div className="relative shrink-0">
+                            <select
+                                value={fontFamily}
+                                onChange={handleFontFamilyChange}
+                                disabled={isLocked}
+                                className="appearance-none pl-3 pr-8 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer disabled:opacity-50 min-w-[150px]"
+                            >
+                                {fontOptions.map(font => (
+                                    <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                        </div>
+
+                        {/* Font Size */}
+                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg h-7 px-0.5">
+                            <button
+                                onClick={() => handleFontSizeChange(Math.max(8, fontSize - 1))}
+                                disabled={isLocked}
+                                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all font-black text-sm"
+                            >
+                                <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                                type="number"
+                                value={fontSize}
+                                onChange={(e) => handleFontSizeChange(parseInt(e.target.value) || 0)}
+                                disabled={isLocked}
+                                className="w-10 text-center bg-transparent border-none text-xs font-bold text-slate-700"
+                            />
+                            <button
+                                onClick={() => handleFontSizeChange(Math.min(300, fontSize + 1))}
+                                disabled={isLocked}
+                                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all font-black text-sm"
+                            >
+                                <Plus className="w-3 h-3" />
+                            </button>
                         </div>
                     </div>
-                )}
 
-                {/* Font Size - Text only */}
-                {isTextObject && (
-                    <div className="flex items-center gap-0.5 shrink-0 bg-white border border-slate-200 rounded-lg px-1">
-                        <button
-                            onClick={() => handleFontSizeChange(Math.max(8, fontSize - 1))}
-                            disabled={isLocked || fontSize <= 8}
-                            className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-50 transition-all disabled:opacity-30"
-                        >
-                            <Minus className="w-3 h-3" />
-                        </button>
-                        <input
-                            type="number"
-                            value={fontSize}
-                            onChange={(e) => handleFontSizeChange(parseInt(e.target.value) || 0)}
-                            disabled={isLocked}
-                            min="8"
-                            max="300"
-                            className="w-9 text-center py-1 bg-transparent border-none text-[11px] font-bold text-slate-700 focus:outline-none"
-                        />
-                        <button
-                            onClick={() => handleFontSizeChange(Math.min(300, fontSize + 1))}
-                            disabled={isLocked || fontSize >= 300}
-                            className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-50 transition-all disabled:opacity-30"
-                        >
-                            <Plus className="w-3 h-3" />
-                        </button>
-                    </div>
-                )}
+                    <div className="w-px h-4 bg-slate-200 mx-1" />
 
-                {isTextObject && <div className="w-px h-5 bg-slate-200 shrink-0 mx-0.5" />}
-
-                {/* Formatting & Alignment Group */}
-                {isTextObject && (
-                    <div className="flex gap-0.5 p-0.5 bg-white rounded-lg border border-slate-200 shrink-0">
+                    {/* Styles */}
+                    <div className="flex items-center gap-1">
                         <button
                             onClick={toggleBold}
                             disabled={isLocked || (supportedVariants && !supportedVariants.bold)}
-                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${isBold ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                                } font-black text-[10px] disabled:opacity-30 disabled:cursor-not-allowed`}
-                            title={supportedVariants?.bold === false ? "Bold not available for this font" : "Bold"}
-                        >
-                            B
-                        </button>
+                            className={`w-7 h-7 flex items-center justify-center rounded-md font-black text-xs transition-all ${isBold ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                            title="Bold"
+                        >B</button>
                         <button
                             onClick={toggleItalic}
                             disabled={isLocked || (supportedVariants && !supportedVariants.italic)}
-                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${isItalic ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                                } italic font-black text-[10px] disabled:opacity-30 disabled:cursor-not-allowed`}
-                            title={supportedVariants?.italic === false ? "Italic not available for this font" : "Italic"}
-                        >
-                            I
-                        </button>
-                        <div className="w-px h-4 bg-slate-200 my-auto mx-0.5" />
-                        <button
-                            onClick={() => handleAlignChange('left')}
-                            disabled={isLocked}
-                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${textAlign === 'left' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                                } disabled:opacity-50`}
-                            title="Align Left"
-                        >
-                            <AlignLeft className="w-3 h-3" />
-                        </button>
-                        <button
-                            onClick={() => handleAlignChange('center')}
-                            disabled={isLocked}
-                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${textAlign === 'center' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                                } disabled:opacity-50`}
-                            title="Align Center"
-                        >
-                            <AlignCenter className="w-3 h-3" />
-                        </button>
-                        <button
-                            onClick={() => handleAlignChange('right')}
-                            disabled={isLocked}
-                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${textAlign === 'right' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                                } disabled:opacity-50`}
-                            title="Align Right"
-                        >
-                            <AlignRight className="w-3 h-3" />
-                        </button>
+                            className={`w-7 h-7 flex items-center justify-center rounded-md italic font-black text-xs transition-all ${isItalic ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                            title="Italic"
+                        >I</button>
                     </div>
-                )}
 
-                {/* Color */}
-                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Color</span>
-                    <input
-                        type="color"
-                        value={textColor}
-                        onChange={handleColorChange}
-                        disabled={isLocked}
-                        className="w-7 h-7 rounded-lg cursor-pointer bg-white border border-slate-200 p-0.5 shadow-sm hover:border-indigo-300 transition-all disabled:opacity-50"
-                        title="Color"
-                    />
-                </div>
+                    <div className="w-px h-4 bg-slate-200 mx-1" />
 
-                <div className="w-px h-5 bg-slate-200 shrink-0 mx-0.5" />
+                    {/* Text Alignment */}
+                    <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                        <button onClick={() => handleAlignChange('left')} disabled={isLocked} className={`w-7 h-6 flex items-center justify-center rounded ${textAlign === 'left' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} title="Text Align Left"><AlignLeft className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleAlignChange('center')} disabled={isLocked} className={`w-7 h-6 flex items-center justify-center rounded ${textAlign === 'center' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} title="Text Align Center"><AlignCenter className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleAlignChange('right')} disabled={isLocked} className={`w-7 h-6 flex items-center justify-center rounded ${textAlign === 'right' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} title="Text Align Right"><AlignRight className="w-3.5 h-3.5" /></button>
+                    </div>
 
-                {/* Clipboard Group */}
-                <div className="flex items-center gap-1 shrink-0 px-1 bg-white border border-slate-200 rounded-lg">
-                    <button onClick={() => onAction?.('copy')} className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all" title="Copy (Ctrl+C)"><Copy className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => onAction?.('copy-style')} className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all" title="Copy Style (Ctrl+Alt+C)"><Paintbrush className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => onAction?.('paste')} className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all" title="Paste (Ctrl+V)"><Clipboard className="w-3.5 h-3.5" /></button>
-                    <div className="w-px h-3.5 bg-slate-200" />
-                    <button onClick={() => onAction?.('paste-style')} className="h-6 px-1.5 flex items-center gap-1.5 rounded-md text-[9px] font-bold text-slate-500 hover:bg-slate-50 hover:text-indigo-600 uppercase tracking-tighter" title="Paste Style">Paste Style</button>
-                </div>
-            </div>
-
-            {/* Row 2: Position, Layers & Actions */}
-            <div className="flex items-center gap-3 px-1 h-8">
-                {/* Position Group */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-1">Arrange</span>
-                    <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200">
-                        <button
-                            onClick={() => setShowPositionMenu(!showPositionMenu)}
-                            disabled={isLocked}
-                            className={`h-6 flex items-center gap-1 px-2 rounded-md transition-all font-bold text-[9px] uppercase tracking-wider ${showPositionMenu ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
-                                } disabled:opacity-50`}
-                            title="Positioning"
+                    <div className="ml-auto flex items-center gap-2">
+                        <div
+                            className="w-7 h-7 rounded-lg border-2 border-slate-100 shadow-sm relative cursor-pointer"
+                            style={{ backgroundColor: textColor }}
                         >
-                            <LayoutGrid className="w-3 h-3" />
-                            Position
-                        </button>
-
-                        <div className="w-px h-3.5 bg-slate-200 shrink-0 mx-0.5" />
-
-                        {/* Quick Alignment (for objects) */}
-                        {(isMultiple || selectedObject) && !isTextObject && (
-                            <>
-                                <button onClick={() => onAction?.('align-left')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 transition-all" title="Align Left"><AlignLeft className="w-3 h-3" /></button>
-                                <button onClick={() => onAction?.('align-center')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 transition-all" title="Align Center"><AlignCenter className="w-3 h-3" /></button>
-                                <button onClick={() => onAction?.('align-right')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 transition-all" title="Align Right"><AlignRight className="w-3 h-3" /></button>
-                                <div className="w-px h-3.5 bg-slate-200 shrink-0 mx-0.5" />
-                                <button onClick={() => onAction?.('align-top')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 transition-all" title="Align Top"><ArrowUpToLine className="w-3 h-3" /></button>
-                                <button onClick={() => onAction?.('align-middle')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 transition-all" title="Align Middle"><Layers className="w-3 h-3" /></button>
-                                <button onClick={() => onAction?.('align-bottom')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-50 transition-all" title="Align Bottom"><ArrowDownToLine className="w-3 h-3" /></button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {/* Layers Group */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Layers</span>
-                    <div className="flex gap-0.5 p-0.5 bg-white rounded-lg border border-slate-200 shrink-0">
-                        <button onClick={() => handleLayerAction('front')} disabled={isLocked} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 disabled:opacity-50" title="Bring to Front"><ArrowUpToLine className="w-3 h-3" /></button>
-                        <button onClick={() => handleLayerAction('forward')} disabled={isLocked} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 disabled:opacity-50" title="Bring Forward"><ArrowUp className="w-3 h-3" /></button>
-                        <button onClick={() => handleLayerAction('backward')} disabled={isLocked} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 disabled:opacity-50" title="Send Backward"><ArrowDown className="w-3 h-3" /></button>
-                        <button onClick={() => handleLayerAction('back')} disabled={isLocked} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 disabled:opacity-50" title="Send to Back"><ArrowDownToLine className="w-3 h-3" /></button>
-                    </div>
-                </div>
-
-                {/* Distribution Group (Multi-select) */}
-                {isMultiple && (
-                    <div className="flex items-center gap-1.5 shrink-0 border-l border-slate-200 pl-2">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Space</span>
-                        <div className="flex gap-0.5 p-0.5 bg-white rounded-lg border border-slate-200 shrink-0">
-                            <button onClick={() => onAction?.('distribute-h')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50" title="Space Evenly Horizontal"><MoreHorizontal className="w-3 h-3" /></button>
-                            <button onClick={() => onAction?.('distribute-v')} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50" title="Space Evenly Vertical"><MoreVertical className="w-3 h-3 rotate-90" /></button>
+                            <input
+                                type="color"
+                                value={textColor}
+                                onChange={handleColorChange}
+                                disabled={isLocked}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Row 2: Layout & Object Actions (Primary row for selection/multiples) */}
+            <div className={`flex items-center gap-3 ${isTextObject && !isMultiple ? 'pt-1.5 border-t border-slate-100' : ''} h-8`}>
+                {/* Layers Group */}
+                <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 bg-slate-50 rounded-lg border border-slate-200">
+                    <Layers className="w-3.5 h-3.5 text-slate-400" />
+                    <div className="flex items-center gap-0.5">
+                        <button onClick={() => handleLayerAction('front')} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-white hover:text-indigo-600 transition-all" title="To Front"><ArrowUpToLine className="w-3 h-3" /></button>
+                        <button onClick={() => handleLayerAction('forward')} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-white hover:text-indigo-600 transition-all" title="Forward"><ArrowUp className="w-3 h-3" /></button>
+                        <button onClick={() => handleLayerAction('backward')} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-white hover:text-indigo-600 transition-all" title="Backward"><ArrowDown className="w-3 h-3" /></button>
+                        <button onClick={() => handleLayerAction('back')} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-white hover:text-indigo-600 transition-all" title="To Back"><ArrowDownToLine className="w-3 h-3" /></button>
+                    </div>
+                </div>
+
+                <div className="w-px h-4 bg-slate-200" />
+
+                {/* Align elements Group (Matches Context Menu) */}
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight hidden xl:inline">Align elements</span>
+                    <div className="flex items-center gap-0.5 bg-slate-50 rounded-lg border border-slate-200 p-0.5">
+                        <button onClick={() => onAction?.('align-left')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all" title="Align Left"><AlignLeft className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => onAction?.('align-center')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all" title="Align Center"><AlignCenter className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => onAction?.('align-right')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all" title="Align Right"><AlignRight className="w-3.5 h-3.5" /></button>
+                        <div className="w-px h-3 bg-slate-200 mx-0.5" />
+                        <button onClick={() => onAction?.('align-top')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all" title="Align Top"><ArrowUpToLine className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => onAction?.('align-middle')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all rotate-90" title="Align Middle"><AlignCenter className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => onAction?.('align-bottom')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all" title="Align Bottom"><ArrowDownToLine className="w-3.5 h-3.5" /></button>
+                    </div>
+                </div>
+
+                {/* Space evenly (Matches Context Menu) */}
+                {isMultiple && (
+                    <>
+                        <div className="w-px h-4 bg-slate-200 mx-1" />
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight hidden xl:inline">Space evenly</span>
+                            <div className="flex items-center gap-0.5 bg-slate-50 rounded-lg border border-slate-200 p-0.5">
+                                <button onClick={() => onAction?.('distribute-h')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all" title="Horizontal"><MoreHorizontal className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => onAction?.('distribute-v')} className="w-7 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:text-indigo-600 transition-all rotate-90" title="Vertical"><MoreVertical className="w-3.5 h-3.5" /></button>
+                            </div>
+                        </div>
+                    </>
                 )}
 
-                {/* Grouping Actions */}
-                {(isMultiple || isGroup) && (
-                    <div className="flex gap-1 p-0.5 bg-white rounded-lg border border-slate-200 shrink-0">
+                {/* Selection Actions (Far Right) */}
+                <div className="flex items-center gap-2 ml-auto">
+                    {(isMultiple || isGroup) && (
                         <button
                             onClick={() => onAction?.(isMultiple ? 'group' : 'ungroup')}
-                            className="h-6 px-2 flex items-center gap-1 rounded-md bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 transition-all font-bold text-[9px] uppercase tracking-wide"
+                            className="h-7 px-3 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-2 shrink-0"
                         >
-                            {isMultiple ? <GroupIcon className="w-3 h-3" /> : <UngroupIcon className="w-3 h-3" />}
+                            {isMultiple ? <GroupIcon className="w-3.5 h-3.5" /> : <UngroupIcon className="w-3.5 h-3.5" />}
                             {isMultiple ? 'Group' : 'Ungroup'}
                         </button>
-                    </div>
-                )}
+                    )}
 
-                {/* Actions Group */}
-                <div className="flex items-center gap-2 shrink-0 ml-auto mr-1">
-                    <div className="flex gap-0.5 bg-white p-0.5 rounded-lg border border-slate-200">
-                        <button
-                            onClick={() => onAction?.('markAsBackground')}
-                            disabled={isLocked}
-                            className="h-6 px-1.5 flex items-center gap-1 rounded-md text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all font-bold text-[9px] uppercase tracking-wide"
-                            title="Set as background"
-                        >
-                            <Layout className="w-3 h-3" />
-                            To BG
-                        </button>
-                        <div className="w-px h-3.5 bg-slate-200 my-auto" />
-                        <button
-                            onClick={() => onAction?.('download-selection')}
-                            className="h-6 px-1.5 flex items-center gap-1 rounded-md text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all font-bold text-[9px] uppercase tracking-wide"
-                            title="Download selection"
-                        >
-                            <Download className="w-3 h-3" />
-                            SVG
-                        </button>
-                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-0.5 flex items-center shrink-0">
+                        <button onClick={() => onAction?.('markAsBackground')} className="h-6 px-2 text-[9px] font-bold text-slate-500 hover:bg-white hover:text-indigo-600 rounded transition-all flex items-center gap-1.5 uppercase tracking-tighter" title="Set as Background"><Layout className="w-3 h-3" /> BG</button>
+                        <button onClick={() => onAction?.('download-selection')} className="h-6 px-2 text-[9px] font-bold text-slate-500 hover:bg-white hover:text-indigo-600 rounded transition-all flex items-center gap-1.5 uppercase tracking-tighter" title="Export PNG"><Download className="w-3 h-3" /> PNG</button>
 
-                    <button
-                        onClick={onLockToggle}
-                        className={`h-6.5 flex items-center gap-1 px-2.5 rounded-lg transition-all font-bold text-[9px] uppercase tracking-wider ${isLocked ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'
-                            }`}
-                    >
-                        {isLocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                        {isLocked ? 'Unlock' : 'Lock'}
-                    </button>
+                        <div className="w-px h-3 bg-slate-200 mx-1" />
 
-                    <div className="flex gap-0.5 p-0.5 bg-white rounded-lg border border-slate-200 shrink-0">
-                        <button onClick={onDuplicate} disabled={isLocked} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 disabled:opacity-50" title="Duplicate"><Copy className="w-3 h-3" /></button>
-                        <button onClick={onDelete} disabled={isLocked} className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 disabled:opacity-50" title="Delete"><Trash2 className="w-3 h-3" /></button>
+                        <button onClick={onLockToggle} className={`w-7 h-6 flex items-center justify-center rounded transition-all ${isLocked ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:bg-white hover:text-amber-600'}`} title={isLocked ? "Unlock" : "Lock"}>{isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}</button>
+                        <button onClick={onDuplicate} disabled={isLocked} className="w-7 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-white hover:text-indigo-600 transition-all" title="Duplicate"><Copy className="w-3.5 h-3.5" /></button>
+                        <button onClick={onDelete} disabled={isLocked} className="w-7 h-6 flex items-center justify-center rounded text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                 </div>
             </div>

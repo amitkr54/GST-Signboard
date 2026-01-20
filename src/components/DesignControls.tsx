@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { DesignConfig } from '@/lib/types';
 
 interface DesignControlsProps {
@@ -11,6 +12,8 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
         const { name, value } = e.target;
         onChange({ ...design, [name]: value });
     };
+
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownload = async (type: 'svg' | 'pdf') => {
         const canvas = (window as any).fabricCanvas;
@@ -69,6 +72,8 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
         if (!confirm(message)) return;
 
         // --- PROCEED WITH DOWNLOAD ---
+        // --- PROCEED WITH DOWNLOAD ---
+        setIsDownloading(true);
         try {
             const svgContent = canvas.toSVG({
                 suppressPreamble: false,
@@ -119,6 +124,8 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
         } catch (error) {
             console.error('Download error:', error);
             alert('Failed to generate file. Please try again.');
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -310,18 +317,38 @@ export function DesignControls({ design, onChange }: DesignControlsProps) {
             <div className="mt-8 pt-4 border-t space-y-3">
                 <button
                     onClick={() => handleDownload('svg')}
-                    className="w-full bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
+                    disabled={isDownloading}
+                    className={`w-full bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 ${isDownloading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                    Download SVG
+                    {isDownloading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        <>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            Download SVG
+                        </>
+                    )}
                 </button>
 
                 <button
                     onClick={() => handleDownload('pdf')}
-                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                    disabled={isDownloading}
+                    className={`w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 ${isDownloading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                    Download PDF
+                    {isDownloading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        <>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            Download PDF
+                        </>
+                    )}
                 </button>
 
                 <p className="text-xs text-gray-500 mt-2 text-center">

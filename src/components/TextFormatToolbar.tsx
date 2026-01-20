@@ -50,13 +50,20 @@ export function TextFormatToolbar({
     // Mobile Toolbar State
     const [activeTool, setActiveTool] = useState<null | 'font' | 'size' | 'color' | 'format' | 'layers'>(null);
 
-    // Check if selected object is a text object (only when single selection)
-    const isTextObject = !!(selectedObject && !isMultiple && (
-        selectedObject.type === 'i-text' ||
-        selectedObject.type === 'textbox' ||
-        selectedObject.type === 'text'
-    ));
-    const textObject = isTextObject ? selectedObject as fabric.IText : null;
+    // Check if selected objects are all text objects
+    const areAllTextObjects = (obj: fabric.Object | null): boolean => {
+        if (!obj) return false;
+        if (obj.type === 'activeSelection') {
+            const selection = obj as fabric.ActiveSelection;
+            return selection.getObjects().every(child =>
+                child.type === 'i-text' || child.type === 'textbox' || child.type === 'text'
+            );
+        }
+        return obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text';
+    };
+
+    const isTextObject = areAllTextObjects(selectedObject);
+    const textObject = (isTextObject && !isMultiple) ? (selectedObject as fabric.IText) : null;
 
     useEffect(() => {
         if (!selectedObject) return;
@@ -64,19 +71,38 @@ export function TextFormatToolbar({
         // Set lock state for any object
         setIsLocked(!!selectedObject.lockMovementX);
 
-        // Set text-specific properties only for text objects
         if (textObject) {
+            // Single text object - easy sync
             setFontFamily(textObject.fontFamily || 'Arial');
             setFontSize(textObject.fontSize || 30);
             setIsBold(textObject.fontWeight === 'bold');
             setIsItalic(textObject.fontStyle === 'italic');
             setTextColor(textObject.fill as string || '#000000');
             setTextAlign(textObject.textAlign as any || 'center');
+        } else if (isMultiple && isTextObject) {
+            // Multiple text objects - find common values
+            const selection = selectedObject as fabric.ActiveSelection;
+            const objects = selection.getObjects() as fabric.IText[];
+
+            const first = objects[0];
+            const allSameFont = objects.every(o => o.fontFamily === first.fontFamily);
+            const allSameSize = objects.every(o => o.fontSize === first.fontSize);
+            const allSameBold = objects.every(o => o.fontWeight === first.fontWeight);
+            const allSameItalic = objects.every(o => o.fontStyle === first.fontStyle);
+            const allSameColor = objects.every(o => o.fill === first.fill);
+            const allSameAlign = objects.every(o => o.textAlign === first.textAlign);
+
+            setFontFamily(allSameFont ? (first.fontFamily || 'Arial') : 'Arial');
+            setFontSize(allSameSize ? (first.fontSize || 30) : 30);
+            setIsBold(allSameBold && first.fontWeight === 'bold');
+            setIsItalic(allSameItalic && first.fontStyle === 'italic');
+            setTextColor(allSameColor ? (first.fill as string || '#000000') : '#000000');
+            setTextAlign(allSameAlign ? (first.textAlign as any || 'left') : 'left');
         } else {
-            // For non-text objects, get fill/stroke color
+            // Non-text or mixed objects
             setTextColor((selectedObject.fill as string) || (selectedObject.stroke as string) || '#000000');
         }
-    }, [selectedObject, textObject]);
+    }, [selectedObject, textObject, isMultiple, isTextObject]);
 
     if (!selectedObject) return null;
 
@@ -117,7 +143,16 @@ export function TextFormatToolbar({
         if (isText && (selectedObject as any).isEditing && canStylePartially) {
             (selectedObject as any).setSelectionStyles({ [property]: value });
         } else {
-            selectedObject.set(property as any, value);
+            if (isMultiple) {
+                (selectedObject as fabric.ActiveSelection).getObjects().forEach(obj => {
+                    obj.set(property as any, value);
+                    if (obj.type?.includes('text') || obj.type === 'textbox') {
+                        robustAutoFit(obj);
+                    }
+                });
+            } else {
+                selectedObject.set(property as any, value);
+            }
         }
 
         if (isText && ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle'].includes(property)) {
