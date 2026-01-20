@@ -132,7 +132,7 @@ export function useCanvasTemplates(
         const bleedRects = existing.filter(o => (o as any).name === 'safety_bleed_rect');
         if (bleedRects.length === 0) {
             const rectProps = {
-                fill: '#ff0000',
+                fill: '#dd0a0aff',
                 opacity: 0,
                 selectable: false,
                 evented: false,

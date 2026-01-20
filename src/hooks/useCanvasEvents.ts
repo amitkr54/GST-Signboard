@@ -103,7 +103,7 @@ export function useCanvasEvents({
 
         // Toggle bleed rects visibility
         objects.filter(o => o.name === 'safety_bleed_rect').forEach(r => {
-            r.set('opacity', violation ? 0.3 : 0);
+            r.set('opacity', violation ? 0.7 : 0);
         });
         canvas.requestRenderAll();
     }, [onSafetyChange, baseWidth, baseHeight]);
