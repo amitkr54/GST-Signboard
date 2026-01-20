@@ -1,5 +1,12 @@
 import TemplateGallery from '@/components/TemplateGallery';
 import { getTemplates, getCategories } from '../actions';
+import { Metadata } from 'next';
+import { siteConfig } from '@/config/site';
+
+export const metadata: Metadata = {
+    title: `Professional Signage Templates | ${siteConfig.name}`,
+    description: 'Browse our collection of professional signage templates. Customize them in minutes for your business.',
+};
 
 export const dynamic = 'force-dynamic';
 

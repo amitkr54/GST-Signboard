@@ -1765,21 +1765,19 @@ function DesignContent() {
             <div id="tutorial-header" className={`bg-white border-b border-gray-200 flex items-center px-6 shrink-0 z-40 transition-all duration-300 ${selectedObject ? 'h-24 py-2' : 'h-12'}`}>
 
                 {/* 1. Left Pillar: Logo & Title (Matched to Sidebar Width) */}
-                <div className="flex items-center shrink-0 transition-all duration-300 overflow-hidden" style={{ width: sidebarWidth - 24 }}>
+                <div className="flex items-center shrink-0 transition-all duration-300" style={{ width: selectedObject ? 160 : Math.max(sidebarWidth - 24, 160) }}>
                     <Link href="/" className="flex items-center gap-2.5 group shrink-0">
                         <div className="flex items-center justify-center text-indigo-600 group-hover:text-indigo-500 transition-colors">
                             <Sparkles className="w-6 h-6 fill-current" />
                         </div>
-                        {!selectedObject && (
-                            <span className="text-xl font-black text-slate-900 tracking-tight whitespace-nowrap" style={{ fontFamily: '"Playfair Display", serif' }}>
-                                SignagePro
-                            </span>
-                        )}
+                        <span className="text-xl font-black text-slate-900 tracking-tight whitespace-nowrap" style={{ fontFamily: '"Playfair Display", serif' }}>
+                            SignagePro
+                        </span>
                     </Link>
                 </div>
 
                 {/* 2. Center Pillar: Formatting Toolbar (Centered to Canvas) */}
-                <div className="flex-1 flex justify-center min-w-0">
+                <div className="flex-1 flex justify-center min-w-fit relative mx-4">
                     {selectedObject && (
                         <div className="animate-in fade-in zoom-in-95 duration-200">
                             <TextFormatToolbar
