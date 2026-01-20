@@ -23,8 +23,44 @@ import {
     Ungroup as UngroupIcon,
     MoreHorizontal,
     MoreVertical,
-    Paintbrush
+    Paintbrush,
+    Columns,
+    Rows,
+    Menu
 } from 'lucide-react';
+
+// Custom Canva-style "Space Evenly" Icons
+const DistributeHorizontalIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M5 5v14" />
+        <path d="M12 9v6" />
+        <path d="M19 5v14" />
+    </svg>
+);
+
+const DistributeVerticalIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M5 5h14" />
+        <path d="M9 12h6" />
+        <path d="M5 19h14" />
+    </svg>
+);
+
+const DuplicateIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M9 9h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
+        <path d="M5 15V5a1 1 0 0 1 1-1h9" />
+        <path d="M11 14h5M13.5 11.5v5" />
+    </svg>
+);
+
+const DownloadIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M12 15V3" />
+        <path d="M7 10l5 5 5-5" />
+        <path d="M5 21h14" />
+    </svg>
+);
 
 interface ContextMenuProps {
     x: number;
@@ -103,8 +139,8 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                         )}
                         {subMenuId === 'space' && (
                             <>
-                                <MenuItem icon={MoreHorizontal} label="Horizontal" action="distribute-h" />
-                                <MenuItem icon={MoreVertical} label="Vertical" action="distribute-v" />
+                                <MenuItem icon={DistributeHorizontalIcon} label="Horizontal" action="distribute-h" />
+                                <MenuItem icon={DistributeVerticalIcon} label="Vertical" action="distribute-v" />
                             </>
                         )}
                     </div>
@@ -133,7 +169,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
             <MenuItem icon={Copy} label="Copy" action="copy" shortcut="Ctrl+C" disabled={!hasSelection} />
             <MenuItem icon={Paintbrush} label="Copy style" action="copy-style" shortcut="Ctrl+Alt+C" disabled={!hasSelection} />
             <MenuItem icon={Clipboard} label="Paste" action="paste" shortcut="Ctrl+V" />
-            <MenuItem icon={Layers} label="Duplicate" action="duplicate" shortcut="Ctrl+D" disabled={!hasSelection || isLocked} />
+            <MenuItem icon={DuplicateIcon} label="Duplicate" action="duplicate" shortcut="Ctrl+D" disabled={!hasSelection || isLocked} />
             <MenuItem icon={Trash2} label="Delete" action="delete" shortcut="Delete" danger disabled={!hasSelection || isLocked} />
 
             <Divider />
@@ -150,7 +186,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
 
             <MenuItem icon={Layers} label="Layer" hasSubMenu subMenuId="layer" disabled={!hasSelection || isLocked} />
             <MenuItem icon={AlignCenter} label="Align elements" hasSubMenu subMenuId="align" disabled={!hasSelection || isLocked} />
-            <MenuItem icon={MoreHorizontal} label="Space evenly" hasSubMenu subMenuId="space" disabled={!hasSelection || isLocked || !isMultiple} />
+            <MenuItem icon={Menu} label="Space evenly" hasSubMenu subMenuId="space" disabled={!hasSelection || isLocked || !isMultiple} />
 
             <Divider />
 
@@ -169,7 +205,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
 
             <Divider />
 
-            <MenuItem icon={ArrowUp} label="Download selection" action="download-selection" disabled={!hasSelection} />
+            <MenuItem icon={DownloadIcon} label="Download selection" action="download-selection" disabled={!hasSelection} />
         </div>
     );
 }

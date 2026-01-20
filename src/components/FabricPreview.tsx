@@ -591,9 +591,23 @@ export function FabricPreview({
         };
         const ro = new ResizeObserver(() => requestAnimationFrame(updateScale));
         if (containerRef.current) ro.observe(containerRef.current);
+
+        // Initial measurement
         updateScale();
+
+        // Robust fallback: re-measure after a delay to catch settled layout
+        const timer1 = setTimeout(updateScale, 100);
+        const timer2 = setTimeout(updateScale, 500);
+        const timer3 = setTimeout(updateScale, 1000);
+
         window.addEventListener('resize', updateScale);
-        return () => { ro.disconnect(); window.removeEventListener('resize', updateScale); };
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('resize', updateScale);
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+            clearTimeout(timer3);
+        };
     }, [baseWidth, baseHeight]);
 
     // Apply Scaling to Canvas

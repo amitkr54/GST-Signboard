@@ -18,6 +18,14 @@ import {
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 
+const DownloadIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M12 15V3" />
+        <path d="M7 10l5 5 5-5" />
+        <path d="M5 21h14" />
+    </svg>
+);
+
 interface ShareMenuProps {
     onDownload: (format: 'svg' | 'pdf') => void;
     onWhatsApp: () => void;
@@ -86,12 +94,21 @@ export const ShareMenu: React.FC<ShareMenuProps> = ({ onDownload, onWhatsApp, is
                             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 px-1">Share & Download</h4>
                             <div className="grid grid-cols-4 gap-4">
                                 <ShareOption
-                                    icon={isDownloading ? Loader2 : Download}
-                                    label={isDownloading ? "Wait..." : "Download"}
+                                    icon={isDownloading ? Loader2 : DownloadIcon}
+                                    label={isDownloading ? "Wait..." : "PDF Print"}
                                     onClick={() => {
                                         if (isDownloading) return;
                                         onDownload('pdf');
-                                        // Don't close if downloading starts
+                                    }}
+                                    color={isDownloading ? "bg-red-50 text-red-400 cursor-wait" : "bg-red-50 text-red-600"}
+                                    iconClassName={isDownloading ? "animate-spin" : ""}
+                                />
+                                <ShareOption
+                                    icon={isDownloading ? Loader2 : DownloadIcon}
+                                    label={isDownloading ? "Wait..." : "SVG Vector"}
+                                    onClick={() => {
+                                        if (isDownloading) return;
+                                        onDownload('svg');
                                     }}
                                     color={isDownloading ? "bg-blue-50 text-blue-400 cursor-wait" : "bg-blue-50 text-blue-600"}
                                     iconClassName={isDownloading ? "animate-spin" : ""}

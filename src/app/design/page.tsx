@@ -1003,18 +1003,7 @@ function DesignContent() {
                         {!isLandscape && <p className="text-[10px] text-gray-500">Canvas editor for this playlist</p>}
                     </div>
                     <div className="flex items-center gap-3">
-                        {isSaving && (
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
-                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Saving...</span>
-                            </div>
-                        )}
-                        {!isSaving && typeof window !== 'undefined' && localStorage.getItem('signage_draft_design') && (
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
-                                <Check className="w-3 h-3 text-gray-400" />
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Saved</span>
-                            </div>
-                        )}
+                        {/* Savings Status Hidden */}
                         <div className="flex gap-1">
                             <button className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"><Undo2 className="w-5 h-5" /></button>
                             <button className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"><Redo2 className="w-5 h-5" /></button>
@@ -1820,35 +1809,10 @@ function DesignContent() {
                                     <span className="hidden xl:inline tracking-tighter">UPDATE MASTER</span>
                                 </button>
                             )}
-                            {isSaving ? (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 rounded-full border border-green-100 animate-pulse">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                    <span className="text-[9px] font-bold text-green-600 uppercase tracking-tight">Saving...</span>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-full border border-slate-200">
-                                    <Check className="w-3 h-3 text-slate-400" />
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight whitespace-nowrap">
-                                        {user ? 'Cloud Sync' : 'Local Draft'}
-                                    </span>
-                                </div>
-                            )}
+                            {/* Savings Status Hidden */}
 
-                            <div className="h-4 w-px bg-gray-200 mx-1 hidden xl:block"></div>
-
-                            <div className="text-[11px] text-gray-500 font-bold hidden xl:block whitespace-nowrap tracking-tight">
-                                {design.width}" x {design.height}"
-                            </div>
                         </div>
                     )}
-
-                    <div className="h-4 w-px bg-gray-200 mx-1 hidden sm:block"></div>
-
-                    <div className="text-sm text-gray-500 font-medium hidden sm:block whitespace-nowrap">
-                        {design.width}"x{design.height}"
-                    </div>
-
-                    <div className="h-4 w-px bg-gray-200 mx-1 hidden sm:block shadow-[0_0_10px_rgba(0,0,0,0.1)]"></div>
 
                     <ShareMenu
                         isDownloading={isDownloading}
