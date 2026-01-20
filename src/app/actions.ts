@@ -460,20 +460,34 @@ export async function uploadTemplate(formData: FormData) {
     }
 
     try {
+
         const buffer = Buffer.from(await file.arrayBuffer());
         // Detect extension
         const ext = file.name.endsWith('.pdf') ? 'pdf' : 'svg';
         const filename = `${crypto.randomUUID()}.${ext}`;
 
-        const publicDir = path.join(process.cwd(), 'public', 'templates');
+        // OLD: Local filesystem storage
+        // const publicDir = path.join(process.cwd(), 'public', 'templates');
+        // const filePath = path.join(publicDir, filename);
+        // fs.writeFileSync(filePath, buffer);
 
-        // Ensure directory exists
-        if (!fs.existsSync(publicDir)) {
-            fs.mkdirSync(publicDir, { recursive: true });
+        // NEW: Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase
+            .storage
+            .from('templates')
+            .upload(filename, buffer, {
+                contentType: ext === 'svg' ? 'image/svg+xml' : 'application/pdf',
+                upsert: false
+            });
+
+        if (uploadError) {
+            console.error('Supabase Storage Upload Error:', uploadError);
+            return { success: false, error: 'Failed to upload image to cloud storage: ' + uploadError.message };
         }
 
-        const filePath = path.join(publicDir, filename);
-        fs.writeFileSync(filePath, buffer);
+        // Get Public URL
+        const { data: publicUrlData } = supabase.storage.from('templates').getPublicUrl(filename);
+        const publicUrl = publicUrlData.publicUrl;
 
         // --- NEW: SVG Component Extraction ---
         let components: any = undefined;
@@ -785,7 +799,7 @@ export async function uploadTemplate(formData: FormData) {
             description,
             thumbnail_color: '#ffffff',
             layout_type: 'centered',
-            svg_path: `/templates/${filename}`,
+            svg_path: publicUrl, // Store full URL instead of relative path
             is_custom: true,
             components: ext === 'svg' ? components : undefined,
             fabric_config: fabricConfig,
@@ -893,9 +907,23 @@ export async function deleteTemplate(templateId: string, pin: string) {
         }
 
         if (template?.svg_path) {
-            const filePath = path.join(process.cwd(), 'public', template.svg_path);
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
+            // Check if it's a storage URL or old local path
+            if (template.svg_path.startsWith('http')) {
+                // Extract filename from URL
+                const urlParts = template.svg_path.split('/');
+                const filename = urlParts[urlParts.length - 1];
+
+                await supabase.storage.from('templates').remove([filename]);
+            } else {
+                // Legacy support for cleaning up local files (optional, mostly relevant for dev)
+                const filePath = path.join(process.cwd(), 'public', template.svg_path);
+                if (fs.existsSync(filePath)) {
+                    try {
+                        fs.unlinkSync(filePath);
+                    } catch (e) {
+                        console.warn('Failed to delete local file:', e);
+                    }
+                }
             }
         }
 
