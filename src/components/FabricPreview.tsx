@@ -139,43 +139,6 @@ export function FabricPreview({
             cornerColor: '#ffffff',
             cornerStrokeColor: '#E53935',
             cornerSize: 8,
-            transparentCorners: false,
-            padding: 0,
-            cornerStyle: 'circle',
-            borderScaleFactor: 2.5
-        });
-
-        // Rotation indicator with snapping
-        canvas.on('object:rotating', (e) => {
-            const obj = e.target;
-            if (obj) {
-                let angle = obj.angle || 0;
-
-                // Snap to key angles (0, 90, 180, 270, 360) with 5-degree threshold
-                const snapAngles = [0, 90, 180, 270, 360];
-                const snapThreshold = 5;
-
-                for (const snapAngle of snapAngles) {
-                    const normalizedAngle = angle % 360;
-                    const distance = Math.abs(normalizedAngle - snapAngle);
-                    const reverseDistance = Math.abs(normalizedAngle - (snapAngle - 360));
-
-                    if (distance < snapThreshold || reverseDistance < snapThreshold) {
-                        angle = snapAngle;
-                        obj.set({ angle: snapAngle });
-                        obj.setCoords();
-                        canvas.requestRenderAll();
-                        break;
-                    }
-                }
-
-                const displayAngle = Math.round(angle % 360);
-                setRotationAngle(displayAngle);
-            }
-        });
-
-        canvas.on('object:modified', () => {
-            setRotationAngle(null);
         });
 
         canvas.on('selection:cleared', () => {
