@@ -162,13 +162,25 @@ export const db = {
                 }
             }
 
-            if (options.category || options.productId) {
-                if (!t.isUniversal) {
-                    if (options.productId && t.productIds.includes(options.productId)) {
-                        // Keep it (match specific product)
-                    } else {
+            // Category filtering
+            if (options.category) {
+                // Universal templates appear in ALL categories
+                if (t.isUniversal) {
+                    // Keep it (universal templates show everywhere)
+                } else {
+                    // Non-universal templates only show in their specific category
+                    const templateCategory = (t.category || '').toLowerCase();
+                    const filterCategory = options.category.toLowerCase();
+                    if (templateCategory !== filterCategory) {
                         return false;
                     }
+                }
+            }
+
+            // Product-specific filtering
+            if (options.productId) {
+                if (!t.isUniversal && !t.productIds.includes(options.productId)) {
+                    return false;
                 }
             }
 

@@ -108,7 +108,8 @@ export function FabricPreview({
     // Template Mapping Hook
     const { updateTemplateContent, renderSVGTemplate } = useCanvasTemplates(
         fabricCanvasRef, baseWidth, baseHeight, design, data,
-        () => canvasInstance && checkSafetyArea(canvasInstance)
+        () => canvasInstance && checkSafetyArea(canvasInstance),
+        isReadOnly
     );
 
     // Initial load for templates

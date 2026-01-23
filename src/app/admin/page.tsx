@@ -16,7 +16,8 @@ import {
     getAppSetting, updateAppSetting,
     getMaterials, saveMaterial, deleteMaterial, type Material,
     getProducts as getProductsAction,
-    normalizeAllTemplates, uploadThumbnail, updateTemplateConfig
+    normalizeAllTemplates, uploadThumbnail, updateTemplateConfig,
+    updateTemplateMetadata, normalizeTemplateCategories
 } from '../actions';
 
 // Import refactored components
@@ -52,6 +53,10 @@ export default function AdminPage() {
     const [templateType, setTemplateType] = useState<'universal' | 'specific'>('universal');
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [templateCategory, setTemplateCategory] = useState<string>('Business');
+
+    // Template editing state
+    const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+    const [showTemplateEditForm, setShowTemplateEditForm] = useState(false);
 
     // Multi-select for bulk delete
     const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
@@ -241,6 +246,14 @@ export default function AdminPage() {
                             height: options.height || 1000
                         });
                         objects.forEach((obj, i) => tempCanvas.add(obj));
+
+                        // Remove safety lines if present in SVG (rare but possible)
+                        tempCanvas.getObjects().forEach(obj => {
+                            if (obj.name === 'safetyGuide' || obj.name === 'safety_bleed_rect' || (obj as any).name?.includes('safety')) {
+                                tempCanvas.remove(obj);
+                            }
+                        });
+
                         resolve({
                             fabricJson: JSON.stringify(tempCanvas.toJSON()),
                             thumbnail: tempCanvas.toDataURL({
@@ -465,6 +478,26 @@ export default function AdminPage() {
         }
     };
 
+    const handleNormalizeCategories = async () => {
+        if (!pin) {
+            setMessage({ type: 'error', text: 'Please enter Admin PIN' });
+            return;
+        }
+
+        if (!confirm('This will fix inconsistent data by removing categories from Universal templates. Continue?')) return;
+
+        setIsLoading(true);
+        const res = await normalizeTemplateCategories(pin);
+
+        if (res.success) {
+            setMessage({ type: 'success', text: `Fixed categories for ${res.count} templates!` });
+            fetchTemplates();
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Failed to normalize categories' });
+        }
+        setIsLoading(false);
+    };
+
     async function handleDeleteProduct(id: string) {
         if (!pin) {
             setMessage({ type: 'error', text: 'Please enter Admin PIN to delete products' });
@@ -481,6 +514,48 @@ export default function AdminPage() {
         }
         setIsLoading(false);
     }
+
+    const handleEditTemplate = (template: any) => {
+        setEditingTemplate(template);
+        setTemplateType(template.isUniversal ? 'universal' : 'specific');
+        setTemplateCategory(template.category || 'Business');
+        setSelectedProductIds(template.productIds || []);
+        setShowTemplateEditForm(true);
+    };
+
+    const handleUpdateTemplateMetadata = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!pin || !editingTemplate) {
+            setMessage({ type: 'error', text: 'Please enter Admin PIN' });
+            return;
+        }
+
+        setIsLoading(true);
+        const formData = new FormData(e.currentTarget);
+
+        const metadata = {
+            isUniversal: templateType === 'universal',
+            category: templateType === 'specific' ? templateCategory : null,
+            productIds: templateType === 'specific' ? selectedProductIds : [],
+            dimensions: {
+                width: parseFloat(formData.get('width') as string) || editingTemplate.dimensions?.width || 10,
+                height: parseFloat(formData.get('height') as string) || editingTemplate.dimensions?.height || 10,
+                unit: 'in'
+            }
+        };
+
+        const res = await updateTemplateMetadata(editingTemplate.id, metadata, pin);
+
+        if (res.success) {
+            setMessage({ type: 'success', text: 'Template updated successfully!' });
+            fetchTemplates();
+            setShowTemplateEditForm(false);
+            setEditingTemplate(null);
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Failed to update template' });
+        }
+        setIsLoading(false);
+    };
 
     // Bulk delete handlers
     async function handleBulkDeleteTemplates() {
@@ -540,6 +615,13 @@ export default function AdminPage() {
                     });
 
                     tempCanvas.loadFromJSON(template.fabric_config, async () => {
+                        // Remove safety lines before SNAPSHOT
+                        tempCanvas.getObjects().forEach(obj => {
+                            if (obj.name === 'safetyGuide' || obj.name === 'safety_bleed_rect' || (obj as any).name?.includes('safety')) {
+                                tempCanvas.remove(obj);
+                            }
+                        });
+
                         const dataUrl = tempCanvas.toDataURL({
                             format: 'png',
                             quality: 0.7,
@@ -691,6 +773,7 @@ export default function AdminPage() {
                         setTemplateCategory={setTemplateCategory}
                         handleSubmit={handleSubmit}
                         handleDelete={handleDelete}
+                        handleEditTemplate={handleEditTemplate}
                         selectedTemplateIds={selectedTemplateIds}
                         toggleTemplateSelection={toggleTemplateSelection}
                         toggleAllTemplates={toggleAllTemplates}
@@ -698,6 +781,11 @@ export default function AdminPage() {
                         isLoading={isLoading}
                         pin={pin}
                         handleNormalizeAll={handleNormalizeAll}
+                        editingTemplate={editingTemplate}
+                        showTemplateEditForm={showTemplateEditForm}
+                        setShowTemplateEditForm={setShowTemplateEditForm}
+                        handleUpdateTemplateMetadata={handleUpdateTemplateMetadata}
+                        handleNormalizeCategories={handleNormalizeCategories}
                     />
                 )}
 

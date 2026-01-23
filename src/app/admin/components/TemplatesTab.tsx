@@ -16,6 +16,7 @@ interface TemplatesTabProps {
     setTemplateCategory: (cat: string) => void;
     handleSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     handleDelete: (id: string) => void;
+    handleEditTemplate: (template: any) => void;
     selectedTemplateIds: string[];
     toggleTemplateSelection: (id: string) => void;
     toggleAllTemplates: () => void;
@@ -23,6 +24,11 @@ interface TemplatesTabProps {
     isLoading: boolean;
     pin: string;
     handleNormalizeAll: () => void;
+    editingTemplate: any | null;
+    showTemplateEditForm: boolean;
+    setShowTemplateEditForm: (show: boolean) => void;
+    handleUpdateTemplateMetadata: (e: React.FormEvent<HTMLFormElement>) => void;
+    handleNormalizeCategories: () => void;
 }
 
 const TemplatesTab = ({
@@ -37,13 +43,19 @@ const TemplatesTab = ({
     setTemplateCategory,
     handleSubmit,
     handleDelete,
+    handleEditTemplate,
     selectedTemplateIds,
     toggleTemplateSelection,
     toggleAllTemplates,
     handleBulkDeleteTemplates,
     isLoading,
     pin,
-    handleNormalizeAll
+    handleNormalizeAll,
+    editingTemplate,
+    showTemplateEditForm,
+    setShowTemplateEditForm,
+    handleUpdateTemplateMetadata,
+    handleNormalizeCategories
 }: TemplatesTabProps) => {
     const [templateWidth, setTemplateWidth] = React.useState('');
     const [templateHeight, setTemplateHeight] = React.useState('');
@@ -75,20 +87,6 @@ const TemplatesTab = ({
                         </div>
                     )}
 
-                    {/* Normalization Tool */}
-                    <div className="mb-6 pb-6 border-b border-white/10">
-                        <Button
-                            onClick={handleNormalizeAll}
-                            variant="outline"
-                            className="w-full border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 font-bold rounded-xl flex items-center justify-center gap-2"
-                        >
-                            <Wrench className="w-4 h-4" />
-                            Re-Save All Templates
-                        </Button>
-                        <p className="text-[10px] text-slate-500 mt-2 text-center">
-                            Updates all templates to standard pixel sizes based on aspect ratio.
-                        </p>
-                    </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
@@ -146,19 +144,23 @@ const TemplatesTab = ({
                             </div>
                         )}
 
-                        <div>
-                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Category</label>
-                            <select
-                                name="category"
-                                value={templateCategory}
-                                onChange={(e) => setTemplateCategory(e.target.value)}
-                                className="w-full px-6 py-4 bg-black/20 border border-white/10 text-white rounded-2xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold appearance-none"
-                            >
-                                {categories.filter(c => c.id !== 'all').map(cat => (
-                                    <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                ))}
-                            </select>
-                        </div>
+
+                        {templateType === 'specific' && (
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Category</label>
+                                <select
+                                    name="category"
+                                    value={templateCategory}
+                                    onChange={(e) => setTemplateCategory(e.target.value)}
+                                    className="w-full px-6 py-4 bg-black/20 border border-white/10 text-white rounded-2xl focus:border-indigo-500 outline-none transition-all shadow-inner font-bold appearance-none"
+                                    required
+                                >
+                                    {categories.filter(c => c.id !== 'all').map(cat => (
+                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4 relative">
                             <div>
@@ -300,6 +302,13 @@ const TemplatesTab = ({
                                                     <Wrench size={20} />
                                                 </a>
                                                 <button
+                                                    onClick={() => handleEditTemplate(template)}
+                                                    className="p-3 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl text-blue-500 transition-all border border-blue-500/10"
+                                                    title="Edit Metadata"
+                                                >
+                                                    <FileText size={20} />
+                                                </button>
+                                                <button
                                                     onClick={() => handleDelete(template.id)}
                                                     className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-red-500 transition-all border border-red-500/10"
                                                 >
@@ -320,6 +329,136 @@ const TemplatesTab = ({
                     </div>
                 )}
             </div>
+
+            {/* Edit Template Modal */}
+            {showTemplateEditForm && editingTemplate && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-900 rounded-3xl p-8 max-w-2xl w-full border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-2xl font-black text-white">Edit Template</h3>
+                            <button
+                                onClick={() => setShowTemplateEditForm(false)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                                <Plus className="w-6 h-6 text-slate-400 rotate-45" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleUpdateTemplateMetadata} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-300 mb-2">Template Name (Read-only)</label>
+                                <input
+                                    type="text"
+                                    value={editingTemplate.name}
+                                    disabled
+                                    className="w-full px-4 py-3 bg-black/20 border border-white/10 text-slate-400 rounded-xl"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-300 mb-2">Usage Type</label>
+                                <div className="grid grid-cols-2 gap-3 p-1 bg-black/20 rounded-xl border border-white/10">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTemplateType('universal')}
+                                        className={`py-3 px-4 rounded-lg text-xs font-black uppercase transition-all ${templateType === 'universal' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
+                                    >
+                                        Universal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTemplateType('specific')}
+                                        className={`py-3 px-4 rounded-lg text-xs font-black uppercase transition-all ${templateType === 'specific' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
+                                    >
+                                        Specific
+                                    </button>
+                                </div>
+                            </div>
+
+                            {templateType === 'specific' && (
+                                <>
+                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="block text-sm font-bold text-slate-300 mb-2">Category</label>
+                                        <select
+                                            value={templateCategory}
+                                            onChange={(e) => setTemplateCategory(e.target.value)}
+                                            className="w-full px-4 py-3 bg-black/20 border border-white/10 text-white rounded-xl"
+                                            required
+                                        >
+                                            {categories.filter(c => c.id !== 'all').map(cat => (
+                                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="block text-sm font-bold text-slate-300 mb-2">Select Products</label>
+                                        <div className="max-h-40 overflow-y-auto p-4 bg-black/20 rounded-xl border border-white/10 space-y-2">
+                                            {products.map(p => (
+                                                <label key={p.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedProductIds.includes(p.id)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) setSelectedProductIds(prev => [...prev, p.id]);
+                                                            else setSelectedProductIds(prev => prev.filter(id => id !== p.id));
+                                                        }}
+                                                        className="w-4 h-4 rounded"
+                                                    />
+                                                    <span className="text-sm text-slate-300">{p.name}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-300 mb-2">Width (in) - Reference</label>
+                                    <input
+                                        type="number"
+                                        name="width"
+                                        defaultValue={editingTemplate.dimensions?.width || ''}
+                                        step="0.1"
+                                        placeholder="Optional"
+                                        className="w-full px-4 py-3 bg-black/20 border border-white/10 text-white rounded-xl"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-300 mb-2">Height (in) - Reference</label>
+                                    <input
+                                        type="number"
+                                        name="height"
+                                        defaultValue={editingTemplate.dimensions?.height || ''}
+                                        step="0.1"
+                                        placeholder="Optional"
+                                        className="w-full px-4 py-3 bg-black/20 border border-white/10 text-white rounded-xl"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <Button
+                                    type="button"
+                                    onClick={() => setShowTemplateEditForm(false)}
+                                    variant="outline"
+                                    className="flex-1 border-white/10"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="flex-1 bg-indigo-600 hover:bg-indigo-500"
+                                >
+                                    {isLoading ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

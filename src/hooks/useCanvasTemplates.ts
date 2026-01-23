@@ -9,10 +9,12 @@ export function useCanvasTemplates(
     baseHeight: number,
     design: DesignConfig,
     data: SignageData,
-    onSafetyCheck?: () => void
+    onSafetyCheck?: () => void,
+    isReadOnly?: boolean
 ) {
     const finalizeStandardLayout = useCallback(() => {
         const canvas = canvasRef.current;
+        // ... (omitting existing finalizeStandardLayout body as it doesn't change, but need to be careful with range)
         if (!canvas) return;
         const { PADDING } = LAYOUT;
         let curY = PADDING + 50;
@@ -107,60 +109,68 @@ export function useCanvasTemplates(
             bgRect.set({ fill: design.backgroundColor });
         }
 
-        // 2. Safety Guide
+        // 2. Safety Guide & Bleed Rects
         let safety = existing.find(o => (o as any).name === 'safetyGuide');
-        const marginScale = 0.05;
-        const margin = Math.min(baseWidth, baseHeight) * marginScale;
-
-        if (!safety) {
-            safety = new fabric.Rect({
-                width: baseWidth - (margin * 2), height: baseHeight - (margin * 2),
-                left: baseWidth / 2, top: baseHeight / 2,
-                originX: 'center', originY: 'center', fill: 'transparent', stroke: '#00b8d4',
-                strokeWidth: 3, strokeDashArray: [15, 10], selectable: false, evented: false,
-                excludeFromExport: true, name: 'safetyGuide'
-            });
-            canvas.add(safety);
-        } else {
-            safety.set({
-                width: baseWidth - (margin * 2),
-                height: baseHeight - (margin * 2),
-                left: baseWidth / 2,
-                top: baseHeight / 2
-            });
-            safety.setCoords();
-        }
-        canvas.moveTo(safety, 1);
-
-        // 3. Bleed Rects (Canva-style red areas)
         const bleedRects = existing.filter(o => (o as any).name === 'safety_bleed_rect');
-        if (bleedRects.length === 0) {
-            const rectProps = {
-                fill: '#a70000ff',
-                opacity: 0,
-                selectable: false,
-                evented: false,
-                name: 'safety_bleed_rect',
-                excludeFromExport: true
-            };
 
-            const top = new fabric.Rect({ ...rectProps, left: 0, top: 0, width: baseWidth, height: margin, originX: 'left', originY: 'top' });
-            const bottom = new fabric.Rect({ ...rectProps, left: 0, top: baseHeight - margin, width: baseWidth, height: margin, originX: 'left', originY: 'top' });
-            const left = new fabric.Rect({ ...rectProps, left: 0, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
-            const right = new fabric.Rect({ ...rectProps, left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
-
-            canvas.add(top, bottom, left, right);
-            [top, bottom, left, right].forEach(r => canvas.moveTo(r, 1));
-            canvas.moveTo(safety, 5); // Ensure safety guide is above bleed rects
+        if (isReadOnly) {
+            // Remove guides if present
+            if (safety) canvas.remove(safety);
+            bleedRects.forEach(r => canvas.remove(r));
         } else {
-            // Update positions on resize
-            bleedRects.forEach((r: any, i) => {
-                if (i === 0) r.set({ left: 0, top: 0, width: baseWidth, height: margin }); // Top
-                if (i === 1) r.set({ left: 0, top: baseHeight - margin, width: baseWidth, height: margin }); // Bottom
-                if (i === 2) r.set({ left: 0, top: margin, width: margin, height: baseHeight - (margin * 2) }); // Left
-                if (i === 3) r.set({ left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2) }); // Right
-                r.setCoords();
-            });
+            // Add/Update guides
+            const marginScale = 0.05;
+            const margin = Math.min(baseWidth, baseHeight) * marginScale;
+
+            if (!safety) {
+                safety = new fabric.Rect({
+                    width: baseWidth - (margin * 2), height: baseHeight - (margin * 2),
+                    left: baseWidth / 2, top: baseHeight / 2,
+                    originX: 'center', originY: 'center', fill: 'transparent', stroke: '#00b8d4',
+                    strokeWidth: 3, strokeDashArray: [15, 10], selectable: false, evented: false,
+                    excludeFromExport: true, name: 'safetyGuide'
+                });
+                canvas.add(safety);
+            } else {
+                safety.set({
+                    width: baseWidth - (margin * 2),
+                    height: baseHeight - (margin * 2),
+                    left: baseWidth / 2,
+                    top: baseHeight / 2
+                });
+                safety.setCoords();
+            }
+            canvas.moveTo(safety, 1);
+
+            // 3. Bleed Rects
+            if (bleedRects.length === 0) {
+                const rectProps = {
+                    fill: '#a70000ff',
+                    opacity: 0,
+                    selectable: false,
+                    evented: false,
+                    name: 'safety_bleed_rect',
+                    excludeFromExport: true
+                };
+
+                const top = new fabric.Rect({ ...rectProps, left: 0, top: 0, width: baseWidth, height: margin, originX: 'left', originY: 'top' });
+                const bottom = new fabric.Rect({ ...rectProps, left: 0, top: baseHeight - margin, width: baseWidth, height: margin, originX: 'left', originY: 'top' });
+                const left = new fabric.Rect({ ...rectProps, left: 0, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
+                const right = new fabric.Rect({ ...rectProps, left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
+
+                canvas.add(top, bottom, left, right);
+                [top, bottom, left, right].forEach(r => canvas.moveTo(r, 1));
+                canvas.moveTo(safety, 5); // Ensure safety guide is above bleed rects
+            } else {
+                // Update positions on resize
+                bleedRects.forEach((r: any, i) => {
+                    if (i === 0) r.set({ left: 0, top: 0, width: baseWidth, height: margin }); // Top
+                    if (i === 1) r.set({ left: 0, top: baseHeight - margin, width: baseWidth, height: margin }); // Bottom
+                    if (i === 2) r.set({ left: 0, top: margin, width: margin, height: baseHeight - (margin * 2) }); // Left
+                    if (i === 3) r.set({ left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2) }); // Right
+                    r.setCoords();
+                });
+            }
         }
 
         // 4. Sync Text (Protecting Editing State)

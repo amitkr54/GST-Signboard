@@ -15,7 +15,7 @@ export function MaterialSelector({ selectedMaterial, onSelect, compact = false, 
 
     // Sort materials by price (cheapest first)
     // We need a reference price to sort, lets use 1 sqft price or the actual calculated price
-    const sortedMaterials = [...materials].sort((a, b) => a.price_per_sqft - b.price_per_sqft);
+    const sortedMaterials = [...materials].sort((a, b) => a.price_per_sqin - b.price_per_sqin);
 
     if (loading) return <div className="text-white/50 text-sm">Loading materials...</div>;
     return (
@@ -25,7 +25,7 @@ export function MaterialSelector({ selectedMaterial, onSelect, compact = false, 
         )}>
             {sortedMaterials.map((material) => {
                 const price = dimensions
-                    ? calculateDynamicPrice(dimensions.width, dimensions.height, dimensions.unit, material.price_per_sqft)
+                    ? calculateDynamicPrice(dimensions.width, dimensions.height, dimensions.unit, material.price_per_sqin)
                     : 0; // Or display rate if no dimensions
 
                 return (
@@ -50,7 +50,7 @@ export function MaterialSelector({ selectedMaterial, onSelect, compact = false, 
                             selectedMaterial === material.slug ? "text-indigo-400" : "text-slate-500",
                             compact ? "text-xs" : "text-sm"
                         )}>
-                            {price > 0 ? `₹${price}` : `₹${material.price_per_sqft}/sqft`}
+                            {price > 0 ? `₹${price}` : `₹${material.price_per_sqin}/sqin`}
                         </div>
                     </button>
                 )

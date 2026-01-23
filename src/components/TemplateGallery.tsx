@@ -19,7 +19,18 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
     ];
 
     const filteredTemplates = initialTemplates.filter(template => {
-        const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
+        // Category filtering
+        let matchesCategory = selectedCategory === 'all';
+        if (!matchesCategory) {
+            // Universal templates appear in ALL categories
+            if (template.isUniversal) {
+                matchesCategory = true;
+            } else {
+                // Non-universal templates only show in their specific category
+                matchesCategory = template.category?.toLowerCase() === selectedCategory.toLowerCase();
+            }
+        }
+
         const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
     });
@@ -32,8 +43,8 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
                     {displayCategories.map(cat => (
                         <button
                             key={cat.id}
-                            onClick={() => setSelectedCategory(cat.id)}
-                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedCategory === cat.id
+                            onClick={() => setSelectedCategory(cat.id === 'all' ? 'all' : cat.name)}
+                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedCategory === (cat.id === 'all' ? 'all' : cat.name)
                                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                                 : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                 }`}
@@ -64,7 +75,7 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
                         <Link
                             href={`/configure?template=${template.id}`}
                             key={template.id}
-                            className="group flex flex-col bg-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 break-inside-avoid mb-8 w-full"
+                            className="group flex flex-col bg-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 break-inside-avoid mb-8 w-full"
                         >
                             {/* Template Title */}
                             <div className="p-6 pb-4">
@@ -75,9 +86,6 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
                                 >
                                     {template.name}
                                 </h3>
-                                <p className="text-xs text-indigo-300 font-bold uppercase tracking-widest opacity-80 bg-indigo-500/10 inline-block px-2 py-1 rounded-md font-sans">
-                                    {template.category || 'Business'}
-                                </p>
                             </div>
 
                             {/* Image Container */}
@@ -92,7 +100,7 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
                                         <img
                                             src={template.thumbnail || template.svgPath}
                                             alt={template.name}
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                            className="w-full h-full object-cover transition-transform duration-700"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500/10 to-purple-500/10">

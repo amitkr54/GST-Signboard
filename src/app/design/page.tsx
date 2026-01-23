@@ -261,7 +261,7 @@ function DesignContent() {
     const initialPrice = initialPriceParam ? parseInt(initialPriceParam) : 0;
 
     const currentMaterial = getMaterial(material);
-    const basePrice = currentMaterial ? calculateDynamicPrice(design.width, design.height, design.unit as any, currentMaterial.price_per_sqft) : initialPrice;
+    const basePrice = currentMaterial ? calculateDynamicPrice(design.width, design.height, design.unit as any, currentMaterial.price_per_sqin) : initialPrice;
     const discount = (codeValidated && referralCode) ? REFERRAL_DISCOUNT : 0;
     const deliveryCost = deliveryType === 'fast' ? FAST_DELIVERY_COST : 0;
     const installationCost = includeInstallation ? INSTALLATION_COST : 0;
@@ -486,12 +486,20 @@ function DesignContent() {
 
         setIsSaving(true);
         try {
-            // 1. Generate Thumbnail
+            // 1. Generate Thumbnail (Hide safety guides temporarily)
+            const guides = canvas.getObjects().filter((o: any) => o.name === 'safetyGuide' || o.name === 'safety_bleed_rect' || (o.name && o.name.includes('safety')));
+            const originalVisibilities = guides.map((o: any) => o.visible);
+            guides.forEach((o: any) => o.visible = false);
+
             const thumbnailDataUrl = canvas.toDataURL({
                 format: 'png',
                 quality: 0.7,
                 multiplier: 0.2 // Small size for gallery thumbnail
             });
+
+            // Restore visibility
+            guides.forEach((o: any, i: number) => o.visible = originalVisibilities[i]);
+
             const thumbRes = await uploadThumbnail(thumbnailDataUrl, design.templateId);
 
             // 2. Save Config

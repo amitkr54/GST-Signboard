@@ -856,7 +856,7 @@ export async function uploadTemplate(formData: FormData) {
             components: ext === 'svg' ? components : undefined,
             fabric_config: fabricConfig,
             // New Fields
-            category: category || 'Uncategorized',
+            category: templateType === 'universal' ? null : (category || 'Uncategorized'),
             is_universal: templateType === 'universal',
             product_ids: templateType === 'specific' ? productIds : [],
             dimensions: {
@@ -1098,6 +1098,123 @@ export async function deleteTemplate(templateId: string, pin: string) {
         return { success: true };
     } catch (error: any) {
         console.error('Delete error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function updateTemplateMetadata(
+    templateId: string,
+    metadata: {
+        category?: string | null;
+        isUniversal?: boolean;
+        productIds?: string[];
+        dimensions?: { width: number; height: number; unit: string };
+    },
+    pin: string
+) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const updateData: any = {};
+
+        if (metadata.isUniversal !== undefined) {
+            updateData.is_universal = metadata.isUniversal;
+            // If switching to universal, clear category
+            if (metadata.isUniversal) {
+                updateData.category = null;
+                updateData.product_ids = [];
+            }
+        }
+
+        if (metadata.category !== undefined && !metadata.isUniversal) {
+            updateData.category = metadata.category;
+        }
+
+        if (metadata.productIds !== undefined && !metadata.isUniversal) {
+            updateData.product_ids = metadata.productIds;
+        }
+
+        if (metadata.dimensions) {
+            updateData.dimensions = metadata.dimensions;
+        }
+
+        const { error } = await supabase
+            .from('templates')
+            .update(updateData)
+            .eq('id', templateId);
+
+        if (error) throw error;
+
+        revalidatePath('/templates');
+        revalidatePath('/admin');
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Update template metadata error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+
+
+export async function normalizeTemplateCategories(pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        // 1. Fetch all templates
+        const { data: templates, error: fetchError } = await supabase
+            .from('templates')
+            .select('id, is_universal, category, product_ids');
+
+        if (fetchError) throw fetchError;
+        if (!templates) return { success: true, count: 0 };
+
+        let updatedCount = 0;
+
+        // 2. Iterate and fix
+        for (const t of templates) {
+            let needsUpdate = false;
+            const updates: any = {};
+
+            // Rule 1: Universal templates should not have a category or product_ids
+            if (t.is_universal) {
+                if (t.category !== null) {
+                    updates.category = null;
+                    needsUpdate = true;
+                }
+                if (t.product_ids && t.product_ids.length > 0) {
+                    updates.product_ids = [];
+                    needsUpdate = true;
+                }
+            }
+
+            // Rule 2: Specific templates MUST have a category (if missing, default to Uncategorized)
+            if (!t.is_universal && !t.category) {
+                updates.category = 'Uncategorized';
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                const { error: updateError } = await supabase
+                    .from('templates')
+                    .update(updates)
+                    .eq('id', t.id);
+
+                if (updateError) console.error(`Failed to normalize template ${t.id}:`, updateError);
+                else updatedCount++;
+            }
+        }
+
+        revalidatePath('/templates');
+        revalidatePath('/admin');
+
+        return { success: true, count: updatedCount };
+    } catch (error: any) {
+        console.error('Normalization error:', error);
         return { success: false, error: error.message };
     }
 }
