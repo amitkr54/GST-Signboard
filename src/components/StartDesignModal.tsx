@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, ArrowRight, Layout, Ruler, AlertCircle } from 'lucide-react';
 import { getAppSetting } from '@/app/actions';
+import { ALL_STANDARD_SIZES } from '@/lib/size-presets';
 
 interface StartDesignModalProps {
     isOpen: boolean;
@@ -13,12 +14,15 @@ interface StartDesignModalProps {
 type Unit = 'in' | 'cm' | 'mm' | 'px' | 'ft';
 
 const DEFAULT_PRESETS = [
-    { name: 'Landscape Standard', width: 24, height: 16, unit: 'in' },
-    { name: 'Portrait Standard', width: 16, height: 24, unit: 'in' },
-    { name: 'Square', width: 20, height: 20, unit: 'in' },
-    { name: 'Business Card', width: 3.5, height: 2, unit: 'in' },
-    { name: 'A4 Paper', width: 210, height: 297, unit: 'mm' },
-    { name: 'Instagram Post', width: 1080, height: 1080, unit: 'px' },
+    // 3:2 (Classic)
+    { name: 'Classic Pro', width: 36, height: 24, unit: 'in' },
+    { name: 'Classic Medium', width: 18, height: 12, unit: 'in' },
+    // 4:3 (Standard)
+    { name: 'Standard Pro', width: 48, height: 36, unit: 'in' },
+    // 2:1 (Wide)
+    { name: 'Wide Banner', width: 48, height: 24, unit: 'in' },
+    // 1:1 (Square)
+    { name: 'Square Pro', width: 48, height: 48, unit: 'in' },
 ];
 
 export function StartDesignModal({ isOpen, onClose }: StartDesignModalProps) {

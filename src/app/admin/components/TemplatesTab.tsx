@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/Button';
-import { Plus, Trash2, Upload, Loader2, FileText, Wrench } from 'lucide-react';
+import { Plus, Trash2, Upload, Loader2, FileText, Wrench, Hash } from 'lucide-react';
 import { Product } from '@/lib/products';
+import { getSimplifiedRatio } from '@/lib/utils';
 
 interface TemplatesTabProps {
     templates: any[];
@@ -44,6 +45,11 @@ const TemplatesTab = ({
     pin,
     handleNormalizeAll
 }: TemplatesTabProps) => {
+    const [templateWidth, setTemplateWidth] = React.useState('');
+    const [templateHeight, setTemplateHeight] = React.useState('');
+
+    const ratio = getSimplifiedRatio(parseFloat(templateWidth), parseFloat(templateHeight));
+
     return (
         <div className="grid lg:grid-cols-3 gap-8">
             {/* Upload Form */}
@@ -154,13 +160,14 @@ const TemplatesTab = ({
                             </select>
                         </div>
 
-                        {/* Dimensions Input */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 relative">
                             <div>
                                 <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Width (in)</label>
                                 <input
                                     type="number"
                                     name="width"
+                                    value={templateWidth}
+                                    onChange={(e) => setTemplateWidth(e.target.value)}
                                     placeholder="18"
                                     step="0.1"
                                     className="w-full px-6 py-4 bg-black/20 border-2 border-white/10 rounded-2xl focus:border-indigo-500 focus:ring-0 outline-none transition-all text-white font-bold"
@@ -172,12 +179,21 @@ const TemplatesTab = ({
                                 <input
                                     type="number"
                                     name="height"
+                                    value={templateHeight}
+                                    onChange={(e) => setTemplateHeight(e.target.value)}
                                     placeholder="12"
                                     step="0.1"
                                     className="w-full px-6 py-4 bg-black/20 border-2 border-white/10 rounded-2xl focus:border-indigo-500 focus:ring-0 outline-none transition-all text-white font-bold"
                                     required
                                 />
                             </div>
+
+                            {ratio && (
+                                <div className="absolute -right-2 top-0 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1 bg-indigo-500 text-white text-[10px] font-black rounded-full shadow-lg shadow-indigo-500/20 animate-in zoom-in duration-300">
+                                    <Hash className="w-3 h-3" />
+                                    <span>RATIO {ratio}</span>
+                                </div>
+                            )}
                         </div>
 
                         <div>

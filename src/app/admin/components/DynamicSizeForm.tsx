@@ -1,6 +1,7 @@
 import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Hash } from 'lucide-react';
 import { ProductSize } from '@/lib/products';
+import { getSimplifiedRatio } from '@/lib/utils';
 
 interface DynamicSizeFormProps {
     sizes: ProductSize[];
@@ -70,7 +71,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                     required
                                 />
                             </div>
-                            <div className="col-span-4 sm:col-span-2">
+                            <div className="col-span-4 sm:col-span-2 relative">
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Height</label>
                                 <input
                                     type="number"
@@ -79,6 +80,16 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                     className="w-full px-3 py-2 border-2 border-white rounded-xl focus:border-indigo-500 outline-none transition-all shadow-sm text-slate-900 font-bold"
                                     required
                                 />
+                                {(() => {
+                                    const ratio = getSimplifiedRatio(size.dimensions.width, size.dimensions.height);
+                                    if (!ratio) return null;
+                                    return (
+                                        <div className="absolute -top-3 right-0 flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white text-[8px] font-black rounded-lg shadow-lg z-10 animate-in zoom-in duration-300">
+                                            <Hash className="w-2.5 h-2.5" />
+                                            <span>{ratio}</span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             <div className="col-span-4 sm:col-span-2">
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Price X</label>

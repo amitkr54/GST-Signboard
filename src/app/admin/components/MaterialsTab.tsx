@@ -86,12 +86,12 @@ const MaterialsTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Price per Sq. Ft (₹)</label>
+                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Price per Sq. Inch (₹)</label>
                                 <input
-                                    name="price_per_sqft"
+                                    name="price_per_sqin"
                                     type="number"
                                     step="0.01"
-                                    defaultValue={editingMaterial?.price_per_sqft}
+                                    defaultValue={editingMaterial?.price_per_sqin}
                                     placeholder="0.00"
                                     className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-white font-bold"
                                     required
@@ -125,7 +125,7 @@ const MaterialsTab = ({
                                 <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">ID</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Name</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Description</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Price (₹/sqft)</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Price (₹/sqin)</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
@@ -142,7 +142,7 @@ const MaterialsTab = ({
                                         <span className="text-xs text-slate-400 line-clamp-1">{mat.description}</span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="font-black text-emerald-400">₹{mat.price_per_sqft}</span>
+                                        <span className="font-black text-emerald-400">₹{mat.price_per_sqin}</span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex gap-2 justify-end">

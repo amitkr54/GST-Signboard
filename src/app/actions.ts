@@ -25,7 +25,7 @@ export interface Material {
     name: string;
     slug: string;
     description?: string;
-    price_per_sqft: number;
+    price_per_sqin: number;
     is_active: boolean;
 }
 
@@ -55,17 +55,17 @@ export async function createOrder(
     // Fetch material rate from DB to ensure accurate pricing
     const { data: materialData } = await supabase
         .from('materials')
-        .select('price_per_sqft')
+        .select('price_per_sqin')
         .or(`id.eq.${materialId},slug.eq.${materialId}`)
         .single();
 
-    const pricePerSqFt = materialData?.price_per_sqft || 0;
+    const pricePerSqIn = materialData?.price_per_sqin || 0;
 
     let totalAmount = options?.customBasePrice ?? calculateDynamicPrice(
         design.width,
         design.height,
         design.unit as any,
-        pricePerSqFt
+        pricePerSqIn
     );
 
     // Add Delivery & Installation costs
@@ -1423,7 +1423,7 @@ export async function saveMaterial(material: Partial<Material>, pin: string) {
     const { id, ...updates } = material;
 
     // Validate
-    if (!updates.name || !updates.price_per_sqft || !updates.slug) {
+    if (!updates.name || !updates.price_per_sqin || !updates.slug) {
         return { success: false, error: 'Missing required fields' };
     }
 

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { ChevronRight, ArrowLeft, Layout, Ruler, Layers, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
+import { ALL_STANDARD_SIZES } from '@/lib/size-presets';
+
 function ConfigureContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -25,13 +27,7 @@ function ConfigureContent() {
     const [selectedSize, setSelectedSize] = React.useState<any>(null);
     const [isLoading, setIsLoading] = React.useState(true);
 
-    const STANDARD_SIZES = [
-        { id: '24x12', name: '24in × 12in', dimensions: { width: 24, height: 12, unit: 'in' } },
-        { id: '36x24', name: '36in × 24in', dimensions: { width: 36, height: 24, unit: 'in' } },
-        { id: '48x36', name: '48in × 36in', dimensions: { width: 48, height: 36, unit: 'in' } },
-        { id: '72x36', name: '72in × 36in', dimensions: { width: 72, height: 36, unit: 'in' } },
-        { id: '96x48', name: '96in × 48in', dimensions: { width: 96, height: 48, unit: 'in' } },
-    ];
+    const STANDARD_SIZES = ALL_STANDARD_SIZES;
 
     React.useEffect(() => {
         const loadInitialData = async () => {
@@ -72,8 +68,9 @@ function ConfigureContent() {
                 dimensions: {
                     width: initWidth,
                     height: initHeight,
-                    unit: initUnit
-                }
+                    unit: initUnit as any
+                },
+                ratio: 'custom'
             });
             return;
         }
@@ -134,8 +131,9 @@ function ConfigureContent() {
                     dimensions: {
                         width: initWidth,
                         height: initHeight,
-                        unit: initUnit
-                    }
+                        unit: initUnit as any
+                    },
+                    ratio: 'custom'
                 });
             }
         }
@@ -175,7 +173,8 @@ function ConfigureContent() {
                     setSelectedSize({
                         id: 'custom',
                         name: 'Custom Size',
-                        dimensions: { width: initWidth, height: initHeight, unit: initUnit }
+                        dimensions: { width: initWidth, height: initHeight, unit: initUnit as any },
+                        ratio: 'custom'
                     });
                 }
             }
@@ -218,22 +217,22 @@ function ConfigureContent() {
                                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold">1</div>
                                 <h2 className="text-xl font-bold">Select Material</h2>
                             </div>
-                            <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="grid sm:grid-cols-3 gap-3">
                                 {materials.map((material: any) => (
                                     <button
                                         key={material.id}
                                         onClick={() => handleSelectMaterial(material)}
-                                        className={`p-4 rounded-2xl border-2 transition-all text-left flex gap-4 ${selectedMaterial?.id === material.id
+                                        className={`p-3 rounded-2xl border-2 transition-all text-left flex items-center gap-3 ${selectedMaterial?.id === material.id
                                             ? 'border-indigo-500 bg-indigo-500/10 shadow-lg'
                                             : 'border-white/10 bg-white/5 hover:border-white/30'
                                             }`}
                                     >
-                                        <div className="w-16 h-16 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                            <Layers className="w-8 h-8 text-indigo-400" />
+                                        <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                                            <Layers className="w-5 h-5 text-indigo-400" />
                                         </div>
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-lg">{material.name}</h3>
-                                            <p className="text-xs text-indigo-300 line-clamp-2 mt-1">{material.description || 'Premium quality material'}</p>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-sm truncate">{material.name}</h3>
+                                            <p className="text-[10px] text-indigo-300 truncate opacity-70">Premium choice</p>
                                         </div>
                                     </button>
                                 ))}
@@ -247,7 +246,7 @@ function ConfigureContent() {
                                     <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold">2</div>
                                     <h2 className="text-xl font-bold">Select Size</h2>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
                                     {availableSizes.map((size: any) => {
                                         const templateWidth = template?.dimensions?.width || initWidth;
                                         const templateHeight = template?.dimensions?.height || initHeight;
@@ -258,19 +257,24 @@ function ConfigureContent() {
                                             <button
                                                 key={size.id}
                                                 onClick={() => setSelectedSize(size)}
-                                                className={`p-4 rounded-2xl border-2 transition-all relative ${selectedSize?.id === size.id
+                                                className={`px-2 py-1.5 rounded-lg border-2 transition-all relative text-center flex flex-col items-center justify-center ${selectedSize?.id === size.id
                                                     ? 'border-indigo-500 bg-indigo-500/10'
                                                     : 'border-white/10 bg-white/5 hover:border-white/30'
                                                     }`}
                                             >
                                                 {isMatch && (
-                                                    <div className="absolute -top-2 -right-2 bg-green-500 text-[10px] font-black px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
-                                                        <Sparkles className="w-3 h-3" /> BEST MATCH
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-[7px] font-black px-1 py-0.5 rounded-full shadow-lg flex items-center gap-1 z-10">
+                                                        <Sparkles className="w-2 h-2" />
                                                     </div>
                                                 )}
-                                                <div className="font-bold text-white">{size.name}</div>
-                                                {size.name !== `${size.dimensions.width}${size.dimensions.unit} × ${size.dimensions.height}${size.dimensions.unit}` && (
-                                                    <div className="text-xs text-indigo-300 font-mono mt-1">
+                                                <div className="font-bold text-white text-sm whitespace-nowrap">{size.name}</div>
+                                                {size.id !== 'custom' && size.name !== `${size.dimensions.width}${size.dimensions.unit} × ${size.dimensions.height}${size.dimensions.unit}` && (
+                                                    <div className="text-[8px] text-indigo-300 font-mono mt-0 opacity-70 leading-none">
+                                                        {size.dimensions.width}{size.dimensions.unit} × {size.dimensions.height}{size.dimensions.unit}
+                                                    </div>
+                                                )}
+                                                {size.id === 'custom' && (
+                                                    <div className="text-[8px] text-indigo-300 font-mono mt-0 leading-none">
                                                         {size.dimensions.width}{size.dimensions.unit} × {size.dimensions.height}{size.dimensions.unit}
                                                     </div>
                                                 )}
