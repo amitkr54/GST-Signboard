@@ -31,19 +31,23 @@ interface MobileTextFormatToolbarProps {
     isMultiple: boolean;
     isGroup: boolean;
     isLandscape: boolean;
-    activeTool: null | 'font' | 'size' | 'color' | 'format' | 'layers';
-    setActiveTool: (tool: null | 'font' | 'size' | 'color' | 'format' | 'layers') => void;
+    activeTool: null | 'font' | 'size' | 'color' | 'format' | 'spacing' | 'layers';
+    setActiveTool: (tool: null | 'font' | 'size' | 'color' | 'format' | 'spacing' | 'layers') => void;
     fontFamily: string;
     fontSize: number;
     isBold: boolean;
     isItalic: boolean;
     textColor: string;
     textAlign: string;
+    lineHeight: number;
+    charSpacing: number;
     handleFontFamilyChange: (font: string) => void;
     handleFontSizeChange: (size: number) => void;
     toggleBold: () => void;
     toggleItalic: () => void;
     handleAlignChange: (align: 'left' | 'center' | 'right' | 'justify') => void;
+    handleLineHeightChange: (value: number) => void;
+    handleCharSpacingChange: (value: number) => void;
     handleColorChange: (color: string | React.ChangeEvent<HTMLInputElement>) => void;
     handleLayerAction: (action: 'front' | 'back' | 'forward' | 'backward') => void;
     onDuplicate: () => void;
@@ -68,11 +72,15 @@ export function MobileTextFormatToolbar({
     isItalic,
     textColor,
     textAlign,
+    lineHeight,
+    charSpacing,
     handleFontFamilyChange,
     handleFontSizeChange,
     toggleBold,
     toggleItalic,
     handleAlignChange,
+    handleLineHeightChange,
+    handleCharSpacingChange,
     handleColorChange,
     handleLayerAction,
     onDuplicate,
@@ -155,11 +163,24 @@ export function MobileTextFormatToolbar({
             )}
 
             <button onClick={() => setActiveTool('color')} className="flex flex-col items-center gap-1 group">
-                <div className="w-11 h-11 rounded-full bg-slate-800/50 border border-white/5 flex items-center justify-center group-hover:bg-indigo-600/20 group-hover:border-indigo-500/50 transition-all shadow-lg">
-                    <div className="w-5 h-5 rounded-full border border-white/20 shadow-inner" style={{ backgroundColor: textColor }}></div>
+                <div className="w-11 h-11 rounded-full bg-slate-800/50 border border-white/5 flex flex-col items-center justify-center group-hover:bg-indigo-600/20 group-hover:border-indigo-500/50 transition-all shadow-lg">
+                    {isTextObject ? (
+                        <>
+                            <span className="text-sm font-bold text-white leading-none mt-0.5">A</span>
+                            <div className="w-4 h-1 rounded-sm mt-0.5" style={{
+                                background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff)'
+                            }} />
+                        </>
+                    ) : (
+                        <div
+                            className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                            style={{ backgroundColor: textColor }}
+                        />
+                    )}
                 </div>
                 {!isLandscape && <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Color</span>}
             </button>
+
 
             <button onClick={() => setActiveTool('format')} className="flex flex-col items-center gap-1 group">
                 <div className="w-11 h-11 rounded-full bg-slate-800/50 border border-white/5 flex items-center justify-center group-hover:bg-indigo-600/20 group-hover:border-indigo-500/50 transition-all shadow-lg">
@@ -167,6 +188,15 @@ export function MobileTextFormatToolbar({
                 </div>
                 {!isLandscape && <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Format</span>}
             </button>
+
+            {isTextObject && (
+                <button onClick={() => setActiveTool('spacing')} className="flex flex-col items-center gap-1 group">
+                    <div className="w-11 h-11 rounded-full bg-slate-800/50 border border-white/5 flex items-center justify-center group-hover:bg-indigo-600/20 group-hover:border-indigo-500/50 transition-all shadow-lg">
+                        <Type className="w-5 h-5 text-slate-300 group-hover:text-indigo-400" />
+                    </div>
+                    {!isLandscape && <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Spacing</span>}
+                </button>
+            )}
 
             <button onClick={() => setActiveTool('layers')} className="flex flex-col items-center gap-1 group">
                 <div className="w-11 h-11 rounded-full bg-slate-800/50 border border-white/5 flex items-center justify-center group-hover:bg-indigo-600/20 group-hover:border-indigo-500/50 transition-all shadow-lg">
@@ -378,6 +408,42 @@ export function MobileTextFormatToolbar({
                                     </button>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTool === 'spacing' && (
+                    <div className="flex flex-col gap-8 p-4">
+                        <div className="flex flex-col gap-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Line Spacing</span>
+                                <span className="text-xs font-bold text-white bg-indigo-600/20 px-2 py-1 rounded-lg border border-indigo-500/20">{lineHeight.toFixed(2)}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0.5"
+                                max="2.5"
+                                step="0.05"
+                                value={lineHeight}
+                                onChange={(e) => handleLineHeightChange(parseFloat(e.target.value))}
+                                className="w-full h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Letter Spacing</span>
+                                <span className="text-xs font-bold text-white bg-indigo-600/20 px-2 py-1 rounded-lg border border-indigo-500/20">{charSpacing}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="-100"
+                                max="500"
+                                step="1"
+                                value={charSpacing}
+                                onChange={(e) => handleCharSpacingChange(parseInt(e.target.value))}
+                                className="w-full h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                            />
                         </div>
                     </div>
                 )}

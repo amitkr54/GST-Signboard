@@ -39,6 +39,8 @@ export function TextFormatToolbar({
     const [isItalic, setIsItalic] = useState(false);
     const [textColor, setTextColor] = useState('#000000');
     const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>('center');
+    const [lineHeight, setLineHeight] = useState(1.16);
+    const [charSpacing, setCharSpacing] = useState(0);
     const [isLocked, setIsLocked] = useState(false);
     const [showPositionMenu, setShowPositionMenu] = useState(false);
 
@@ -48,7 +50,7 @@ export function TextFormatToolbar({
     const isGroup = selectedObject?.type === 'group';
 
     // Mobile Toolbar State
-    const [activeTool, setActiveTool] = useState<null | 'font' | 'size' | 'color' | 'format' | 'layers'>(null);
+    const [activeTool, setActiveTool] = useState<null | 'font' | 'size' | 'color' | 'format' | 'spacing' | 'layers'>(null);
 
     // Check if selected objects are all text objects
     const areAllTextObjects = (obj: fabric.Object | null): boolean => {
@@ -79,6 +81,8 @@ export function TextFormatToolbar({
             setIsItalic(textObject.fontStyle === 'italic');
             setTextColor(textObject.fill as string || '#000000');
             setTextAlign(textObject.textAlign as any || 'center');
+            setLineHeight(textObject.lineHeight || 1.16);
+            setCharSpacing(textObject.charSpacing || 0);
         } else if (isMultiple && isTextObject) {
             // Multiple text objects - find common values
             const selection = selectedObject as fabric.ActiveSelection;
@@ -231,6 +235,8 @@ export function TextFormatToolbar({
             }
             if (obj.type === 'group') {
                 (obj as fabric.Group).getObjects().forEach(child => {
+                    // Skip white logo parts for social icons
+                    if (child.name === 'icon_logo') return;
                     child.set({ fill: newColor, stroke: newColor });
                 });
             }
@@ -241,6 +247,18 @@ export function TextFormatToolbar({
         if (isLocked) return;
         setTextAlign(align);
         updateProperty('textAlign', align);
+    };
+
+    const handleLineHeightChange = (value: number) => {
+        if (isLocked) return;
+        setLineHeight(value);
+        updateProperty('lineHeight', value);
+    };
+
+    const handleCharSpacingChange = (value: number) => {
+        if (isLocked) return;
+        setCharSpacing(value);
+        updateProperty('charSpacing', value);
     };
 
     const handleLayerAction = (action: 'front' | 'back' | 'forward' | 'backward') => {
@@ -304,11 +322,15 @@ export function TextFormatToolbar({
         isItalic,
         textColor,
         textAlign,
+        lineHeight,
+        charSpacing,
         handleFontFamilyChange,
         handleFontSizeChange,
         toggleBold,
         toggleItalic,
         handleAlignChange,
+        handleLineHeightChange,
+        handleCharSpacingChange,
         handleColorChange,
         handleLayerAction,
         onDuplicate: onDuplicate || (() => { }),

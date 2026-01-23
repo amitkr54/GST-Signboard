@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb'
     }
   },
+  logging: {
+    fetches: {
+      fullUrl: true
+    }
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

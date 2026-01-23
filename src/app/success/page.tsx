@@ -3,7 +3,9 @@
 import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, Download, Home, ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckCircle, Download, Home, ArrowLeft, Loader2, MessageCircle } from 'lucide-react';
+import { getFontBase64 } from '@/lib/font-utils';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { Button } from '@/components/ui/Button';
 import { SignageData, DesignConfig } from '@/lib/types';
 import { MaterialId } from '@/lib/utils';
@@ -59,10 +61,97 @@ function SuccessContent() {
         loadOrder();
     }, [orderId]);
 
+    const downloadDesignAsPDF = async () => {
+        const visualProof = orderInfo?.visual_proof;
+        const designConfig = orderInfo?.design_config;
+
+        if (!visualProof || !orderId) return;
+
+        setIsLoading(true); // Reuse loading state for process
+        try {
+            const [jsPDFModule, svg2pdfModule] = await Promise.all([
+                import('jspdf'),
+                import('svg2pdf.js')
+            ]);
+
+            const jsPDF = jsPDFModule.jsPDF;
+
+            // Extract fonts from SVG
+            const fontFamilies = new Set<string>();
+            const fontMatch = visualProof.match(/(?:font-family)[:=]\s*['"]?([^'";\),]+)['"]?/gi);
+            if (fontMatch) {
+                fontMatch.forEach((m: string) => {
+                    const family = m.replace(/font-family[:=]\s*['"]?/, '').replace(/['"]?$/, '').trim();
+                    if (family) fontFamilies.add(family);
+                });
+            }
+
+            const widthIn = designConfig?.width || 12;
+            const heightIn = designConfig?.height || 12;
+
+            const pdf = new jsPDF({
+                orientation: widthIn > heightIn ? 'landscape' : 'portrait',
+                unit: 'in',
+                format: [heightIn, widthIn]
+            });
+
+            for (const family of Array.from(fontFamilies)) {
+                const variants = ['', '-Bold', '-Italic', '-BoldItalic'];
+                for (const variant of variants) {
+                    const fontName = `${family}${variant}`;
+                    const base64 = await getFontBase64(fontName);
+                    if (base64) {
+                        let style = 'normal';
+                        if (variant === '-Bold') style = 'bold';
+                        else if (variant === '-Italic') style = 'italic';
+                        else if (variant === '-BoldItalic') style = 'bolditalic';
+                        const vfsId = fontName.replace(/\s+/g, '_') + '.ttf';
+                        pdf.addFileToVFS(vfsId, base64);
+                        pdf.addFont(vfsId, family, style);
+                    }
+                }
+            }
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = visualProof;
+            const svgElement = tempDiv.querySelector('svg');
+
+            if (svgElement) {
+                await svg2pdfModule.svg2pdf(svgElement, pdf, {
+                    x: 0, y: 0, width: widthIn, height: heightIn
+                });
+                pdf.save(`signage-${Math.round(widthIn)}x${Math.round(heightIn)}${designConfig?.unit || 'in'}-${Date.now()}.pdf`);
+            } else {
+                const blob = new Blob([visualProof], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `signage-${orderId.split('-')[0]}.svg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+        } catch (error) {
+            console.error('PDF Generation Error:', error);
+            alert('Failed to generate PDF. Downloading SVG instead.');
+            handleDownload();
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleDownload = () => {
-        // Use stored visual proof if available, otherwise regenerate
         if (orderInfo?.visual_proof) {
-            downloadSVG(orderInfo.visual_proof, `approved-signage-${orderId}.svg`);
+            const blob = new Blob([orderInfo.visual_proof], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `signage-${orderId?.split('-')[0]}.svg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
             return;
         }
 
@@ -74,11 +163,25 @@ function SuccessContent() {
                 designData.design,
                 designData.material
             );
-            downloadSVG(svgContent, `signage-${orderId}.svg`);
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `signage-${orderId?.split('-')[0]}.svg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Error downloading:', error);
             alert('Failed to download. Please try again.');
         }
+    };
+
+    const handleWhatsAppShare = () => {
+        const text = `Hi, I just placed a signage order!\n\nOrder ID: ${orderId}\nStatus: Payment Successful\n\nYou can view my design here: ${window.location.href}`;
+        const wpUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(wpUrl, '_blank');
     };
 
     if (isLoading) {
@@ -144,14 +247,35 @@ function SuccessContent() {
 
                 <div className="space-y-4">
                     <Button
-                        onClick={handleDownload}
-                        className="w-full group bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        onClick={downloadDesignAsPDF}
+                        className="w-full group bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold h-14"
                         size="lg"
+                        disabled={!orderInfo?.visual_proof || isLoading}
+                    >
+                        {isLoading ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        ) : (
+                            <Download className="w-5 h-5 mr-2 group-hover:animate-bounce" />
+                        )}
+                        Download High-Quality PDF
+                    </Button>
+
+                    <Button
+                        onClick={handleWhatsAppShare}
+                        className="w-full group bg-[#25D366] hover:bg-[#128C7E] text-white font-bold h-14"
+                        size="lg"
+                    >
+                        <MessageCircle className="w-5 h-5 mr-2" />
+                        Share Proof via WhatsApp
+                    </Button>
+
+                    <button
+                        onClick={handleDownload}
+                        className="w-full text-indigo-600 text-sm font-bold hover:underline py-2"
                         disabled={!designData && !orderInfo}
                     >
-                        <Download className="w-5 h-5 mr-2 group-hover:animate-bounce" />
-                        Download Your Design (Vector SVG)
-                    </Button>
+                        Download Vector SVG (for editing)
+                    </button>
 
                     <Link href="/design" className="block">
                         <Button

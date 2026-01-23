@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { Copy, TrendingUp, Users, DollarSign, RefreshCw, LogIn, UserPlus, ShoppingBag, Package } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { getFontBase64 } from '@/lib/font-utils';
 
 export default function DashboardPage() {
     return (
@@ -182,6 +183,118 @@ function DashboardContent() {
         }
     };
 
+    const downloadDesignAsPDF = async (visualProof: string, orderId: string, designConfig?: any) => {
+        if (!visualProof) return;
+
+        // If it's already a PDF data URL, just download it
+        if (visualProof.startsWith('data:application/pdf')) {
+            const base64 = visualProof.split(',')[1];
+            const binary = atob(base64);
+            const array = [];
+            for (let i = 0; i < binary.length; i++) array.push(binary.charCodeAt(i));
+            const blob = new Blob([new Uint8Array(array)], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `signage-${Math.round(designConfig?.width || 12)}x${Math.round(designConfig?.height || 12)}${designConfig?.unit || 'in'}-${Date.now()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            return;
+        }
+
+        // If it's an SVG (or something else), convert to PDF on-the-fly
+        try {
+            const [jsPDFModule, svg2pdfModule] = await Promise.all([
+                import('jspdf'),
+                import('svg2pdf.js')
+            ]);
+
+            const jsPDF = jsPDFModule.jsPDF;
+
+            // Extract fonts from SVG - Handle both attributes (=) and styles (:)
+            const fontFamilies = new Set<string>();
+            const fontMatch = visualProof.match(/(?:font-family)[:=]\s*['"]?([^'";\),]+)['"]?/gi);
+            if (fontMatch) {
+                fontMatch.forEach((m: string) => {
+                    const family = m.replace(/font-family[:=]\s*['"]?/, '').replace(/['"]?$/, '').trim();
+                    if (family) fontFamilies.add(family);
+                });
+            }
+
+            // Get dimensions from designConfig or default
+            const widthIn = designConfig?.width || 12;
+            const heightIn = designConfig?.height || 12;
+
+            const pdf = new jsPDF({
+                orientation: widthIn > heightIn ? 'landscape' : 'portrait',
+                unit: 'in',
+                format: [heightIn, widthIn]
+            });
+
+            // Embed fonts
+            for (const family of Array.from(fontFamilies)) {
+                // Try to embed Normal, Bold, Italic, and BoldItalic variants if they exist
+                const variants = ['', '-Bold', '-Italic', '-BoldItalic'];
+                for (const variant of variants) {
+                    const fontName = `${family}${variant}`;
+                    const base64 = await getFontBase64(fontName);
+                    if (base64) {
+                        let style = 'normal';
+                        if (variant === '-Bold') style = 'bold';
+                        else if (variant === '-Italic') style = 'italic';
+                        else if (variant === '-BoldItalic') style = 'bolditalic';
+
+                        const vfsId = fontName.replace(/\s+/g, '_') + '.ttf';
+                        pdf.addFileToVFS(vfsId, base64);
+                        pdf.addFont(vfsId, family, style);
+                    }
+                }
+            }
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = visualProof;
+            const svgElement = tempDiv.querySelector('svg');
+
+            if (svgElement) {
+                // For on-the-fly SVG to PDF, we might need to fix font styles if they aren't embedded
+                // But for now, we assume the SVG is "styledSvg" with embedded font rules
+                await svg2pdfModule.svg2pdf(svgElement, pdf, {
+                    x: 0,
+                    y: 0,
+                    width: widthIn,
+                    height: heightIn
+                });
+                pdf.save(`signage-${Math.round(widthIn)}x${Math.round(heightIn)}${designConfig?.unit || 'in'}-${Date.now()}.pdf`);
+            } else {
+                // Fallback: If no SVG found, just download as text/SVG
+                const blob = new Blob([visualProof], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `design-${orderId.split('-')[0]}.svg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+        } catch (error) {
+            console.error('PDF Generation Error:', error);
+            alert('Failed to generate PDF. Downloading original design instead.');
+            // Final fallback
+            const blob = new Blob([visualProof], { type: visualProof.startsWith('data:application/pdf') ? 'application/pdf' : 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `signage-${Math.round(designConfig?.width || 12)}x${Math.round(designConfig?.height || 12)}${designConfig?.unit || 'in'}-${Date.now()}.${visualProof.startsWith('data:application/pdf') ? 'pdf' : 'svg'}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    };
+
     if (authLoading || loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -268,24 +381,34 @@ function DashboardContent() {
                                         <div key={order.id} className="p-6 hover:bg-white/5 transition-colors">
                                             <div className="flex flex-col md:flex-row gap-6">
                                                 {/* Visual Proof / Thumbnail */}
-                                                <div className="w-full md:w-48 aspect-[3/2] bg-slate-800 overflow-hidden border border-white/10 shrink-0 relative group">
+                                                <div className="w-full md:w-48 aspect-[3/2] bg-slate-800 overflow-hidden border border-white/10 shrink-0 relative group/proof">
                                                     {order.visual_proof ? (
-                                                        order.visual_proof.startsWith('data:application/pdf') ? (
-                                                            <>
-                                                                <iframe src={order.visual_proof} className="w-full h-full pointer-events-none" title="Proof" />
-                                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <a
-                                                                        href={order.visual_proof}
-                                                                        download={`proof-${order.id}.pdf`}
-                                                                        className="px-4 py-2 bg-white text-black font-bold text-xs rounded-lg hover:scale-105 transition-transform"
-                                                                    >
-                                                                        Download PDF
-                                                                    </a>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div dangerouslySetInnerHTML={{ __html: order.visual_proof }} className="w-full h-full object-contain" />
-                                                        )
+                                                        <>
+                                                            <div className="w-full h-full">
+                                                                {order.visual_proof.startsWith('data:application/pdf') ? (
+                                                                    <iframe
+                                                                        src={`${order.visual_proof}#toolbar=0&navpanes=0&scrollbar=0`}
+                                                                        className="w-full h-full pointer-events-none scale-[1.01] origin-top-left"
+                                                                        title="Proof"
+                                                                    />
+                                                                ) : (
+                                                                    <div
+                                                                        dangerouslySetInnerHTML={{ __html: order.visual_proof }}
+                                                                        className="w-full h-full [&>svg]:w-full [&>svg]:h-full [&>svg]:object-contain"
+                                                                    />
+                                                                )}
+                                                            </div>
+
+                                                            {/* Hover Overlay */}
+                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/proof:opacity-100 transition-opacity z-20">
+                                                                <button
+                                                                    onClick={() => downloadDesignAsPDF(order.visual_proof, order.id, order.design_config)}
+                                                                    className="px-5 py-2.5 bg-white text-black font-bold text-xs rounded-full hover:scale-105 transition-transform flex items-center gap-2 shadow-xl"
+                                                                >
+                                                                    Download PDF
+                                                                </button>
+                                                            </div>
+                                                        </>
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs font-bold uppercase tracking-widest">No Preview</div>
                                                     )}

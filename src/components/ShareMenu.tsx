@@ -60,8 +60,8 @@ export const ShareMenu: React.FC<ShareMenuProps> = ({ onDownload, onWhatsApp, is
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-                <Share className="w-4 h-4" />
                 <span>Share</span>
+                <Share className="w-4 h-4" />
             </button>
 
             {isOpen && (

@@ -30,6 +30,77 @@ export function useCanvasEvents({
     onSafetyChange,
     onSelectionChange
 }: UseCanvasEventsProps) {
+    const handleBackgroundSnapping = useCallback((obj: fabric.Object) => {
+        if (!(obj as any).isBackground && obj.name !== 'background') return;
+
+        const zoom = canvasInstance?.getZoom() || 1;
+        const thresholdX = baseWidth * 0.05; // Slightly larger for better "Fill" detection
+        const thresholdY = baseHeight * 0.05;
+
+        const bounds = obj.getBoundingRect(true, true);
+        const l = bounds.left;
+        const r = bounds.left + bounds.width;
+        const t = bounds.top;
+        const b = bounds.top + bounds.height;
+
+        let changed = false;
+
+        // DUAL SNAP (FILL) - Horizontal
+        if (Math.abs(l) < thresholdX && Math.abs(r - baseWidth) < thresholdX) {
+            // It's close to both sides -> FORCE FULL WIDTH
+            obj.set({
+                left: (obj.left || 0) - l,
+                scaleX: (obj.scaleX || 1) * (baseWidth / (r - l))
+            });
+            changed = true;
+        } else {
+            // SINGLE SIDE SNAPPING - Horizontal
+            if (Math.abs(l) < thresholdX) {
+                obj.set('left', (obj.left || 0) - l);
+                changed = true;
+            } else if (Math.abs(r - baseWidth) < thresholdX) {
+                const rightDiff = baseWidth - r;
+                if ((obj as any).__isScaling) {
+                    const newScaleX = (obj.scaleX || 1) * (baseWidth - l) / (r - l);
+                    obj.set('scaleX', newScaleX);
+                } else {
+                    obj.set('left', (obj.left || 0) + rightDiff);
+                }
+                changed = true;
+            }
+        }
+
+        // DUAL SNAP (FILL) - Vertical
+        if (Math.abs(t) < thresholdY && Math.abs(b - baseHeight) < thresholdY) {
+            // It's close to both sides -> FORCE FULL HEIGHT
+            obj.set({
+                top: (obj.top || 0) - t,
+                scaleY: (obj.scaleY || 1) * (baseHeight / (b - t))
+            });
+            changed = true;
+        } else {
+            // SINGLE SIDE SNAPPING - Vertical
+            if (Math.abs(t) < thresholdY) {
+                obj.set('top', (obj.top || 0) - t);
+                changed = true;
+            } else if (Math.abs(b - baseHeight) < thresholdY) {
+                const bottomDiff = baseHeight - b;
+                if ((obj as any).__isScaling) {
+                    const newScaleY = (obj.scaleY || 1) * (baseHeight - t) / (b - t);
+                    obj.set('scaleY', newScaleY);
+                } else {
+                    obj.set('top', (obj.top || 0) + bottomDiff);
+                }
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            obj.setCoords();
+            canvasInstance?.requestRenderAll();
+        }
+    }, [canvasInstance, baseWidth, baseHeight]);
+
     const checkSafetyArea = useCallback((canvas: fabric.Canvas) => {
         if (!onSafetyChange) return;
 
@@ -264,12 +335,22 @@ export function useCanvasEvents({
         canvasInstance.on('text:selection:changed', handleSelection);
 
 
-        canvasInstance.on('object:modified', () => {
+        canvasInstance.on('object:modified', (e) => {
+            if (e.target) (e.target as any).__isScaling = false;
             saveHistory(canvasInstance);
             checkSafetyArea(canvasInstance);
         });
-        canvasInstance.on('object:moving', () => checkSafetyArea(canvasInstance));
-        canvasInstance.on('object:scaling', () => checkSafetyArea(canvasInstance));
+        canvasInstance.on('object:moving', (e) => {
+            checkSafetyArea(canvasInstance);
+            if (e.target) handleBackgroundSnapping(e.target);
+        });
+        canvasInstance.on('object:scaling', (e) => {
+            checkSafetyArea(canvasInstance);
+            if (e.target) {
+                (e.target as any).__isScaling = true;
+                handleBackgroundSnapping(e.target);
+            }
+        });
         canvasInstance.on('object:added', () => {
             saveHistory(canvasInstance);
             checkSafetyArea(canvasInstance);

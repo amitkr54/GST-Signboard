@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, ArrowRight, Layout, Ruler } from 'lucide-react';
+import { X, ArrowRight, Layout, Ruler, AlertCircle } from 'lucide-react';
+import { getAppSetting } from '@/app/actions';
 
 interface StartDesignModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-type Unit = 'in' | 'cm' | 'mm' | 'px';
+type Unit = 'in' | 'cm' | 'mm' | 'px' | 'ft';
 
-const PRESETS = [
+const DEFAULT_PRESETS = [
     { name: 'Landscape Standard', width: 24, height: 16, unit: 'in' },
     { name: 'Portrait Standard', width: 16, height: 24, unit: 'in' },
     { name: 'Square', width: 20, height: 20, unit: 'in' },
@@ -29,14 +30,51 @@ export function StartDesignModal({ isOpen, onClose }: StartDesignModalProps) {
     const [height, setHeight] = useState<string>('16');
     const [unit, setUnit] = useState<Unit>('in');
 
+    // Dynamic Settings
+    const [presets, setPresets] = useState<any[]>(DEFAULT_PRESETS);
+    const [limits, setLimits] = useState({ minWidth: 1, maxWidth: 100, minHeight: 1, maxHeight: 100 });
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            const loadSettings = async () => {
+                const fetchedPresets = await getAppSetting('canvas_presets', DEFAULT_PRESETS);
+                if (fetchedPresets && fetchedPresets.length > 0) {
+                    setPresets(fetchedPresets);
+                }
+                const fetchedLimits = await getAppSetting('custom_size_limits', { minWidth: 1, maxWidth: 100, minHeight: 1, maxHeight: 100 });
+                setLimits(fetchedLimits);
+            };
+            loadSettings();
+        }
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     const handleCreate = (w: number | string, h: number | string, u: Unit) => {
+        const numW = Number(w);
+        const numH = Number(h);
+
+        // Validation only for custom mode or if values are editable
+        // Presets are assumed safe, but good to check generally? 
+        // Let's only validate strictly for User Input mode to allow admin to override via presets if needed
+        if (mode === 'custom') {
+            if (numW < limits.minWidth || numW > limits.maxWidth) {
+                setError(`Width must be between ${limits.minWidth} and ${limits.maxWidth}`);
+                return;
+            }
+            if (numH < limits.minHeight || numH > limits.maxHeight) {
+                setError(`Height must be between ${limits.minHeight} and ${limits.maxHeight}`);
+                return;
+            }
+        }
+
+        setError(null);
         const params = new URLSearchParams();
-        params.set('width', w.toString());
-        params.set('height', h.toString());
+        params.set('width', numW.toString());
+        params.set('height', numH.toString());
         params.set('unit', u);
-        router.push(`/design?${params.toString()}`);
+        router.push(`/configure?${params.toString()}`);
         onClose();
     };
 
@@ -64,13 +102,13 @@ export function StartDesignModal({ isOpen, onClose }: StartDesignModalProps) {
                     <div className="flex justify-between items-center mb-6">
                         <div className="flex bg-gray-100 p-1 rounded-lg">
                             <button
-                                onClick={() => setMode('presets')}
+                                onClick={() => { setMode('presets'); setError(null); }}
                                 className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${mode === 'presets' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                             >
                                 Presets
                             </button>
                             <button
-                                onClick={() => setMode('custom')}
+                                onClick={() => { setMode('custom'); setError(null); }}
                                 className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${mode === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                             >
                                 Custom Size
@@ -83,9 +121,9 @@ export function StartDesignModal({ isOpen, onClose }: StartDesignModalProps) {
 
                     {mode === 'presets' ? (
                         <div className="grid grid-cols-2 gap-3">
-                            {PRESETS.map((preset) => (
+                            {presets.map((preset, idx) => (
                                 <button
-                                    key={preset.name}
+                                    key={idx}
                                     onClick={() => handleCreate(preset.width, preset.height, preset.unit as Unit)}
                                     className="flex flex-col items-start p-4 bg-gray-50 border border-gray-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50/50 hover:shadow-sm transition-all text-left group"
                                 >
@@ -98,6 +136,12 @@ export function StartDesignModal({ isOpen, onClose }: StartDesignModalProps) {
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            {error && (
+                                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 animate-pulse">
+                                    <AlertCircle className="w-4 h-4" />
+                                    {error}
+                                </div>
+                            )}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Width</label>
@@ -105,9 +149,10 @@ export function StartDesignModal({ isOpen, onClose }: StartDesignModalProps) {
                                         type="number"
                                         value={width}
                                         onChange={(e) => setWidth(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none text-gray-900"
                                         placeholder="Width"
                                     />
+                                    <p className="text-[10px] text-gray-400 mt-1 text-right">Min: {limits.minWidth}, Max: {limits.maxWidth}</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Height</label>
@@ -115,16 +160,17 @@ export function StartDesignModal({ isOpen, onClose }: StartDesignModalProps) {
                                         type="number"
                                         value={height}
                                         onChange={(e) => setHeight(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none text-gray-900"
                                         placeholder="Height"
                                     />
+                                    <p className="text-[10px] text-gray-400 mt-1 text-right">Min: {limits.minHeight}, Max: {limits.maxHeight}</p>
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {(['in', 'cm', 'mm', 'px'] as const).map((u) => (
+                                <div className="grid grid-cols-5 gap-2">
+                                    {(['in', 'cm', 'mm', 'px', 'ft'] as const).map((u) => (
                                         <button
                                             key={u}
                                             onClick={() => setUnit(u)}

@@ -18,6 +18,7 @@ interface PreviewSectionProps {
     isLandscape?: boolean;
     onObjectSelected?: (obj: fabric.Object | null) => void;
     onToolbarAction?: (actionFn: (action: string) => void) => void;
+    initialJSON?: any;
 }
 
 export function PreviewSection({
@@ -34,7 +35,8 @@ export function PreviewSection({
     compact = false,
     isLandscape = false,
     onObjectSelected,
-    onToolbarAction
+    onToolbarAction,
+    initialJSON
 }: PreviewSectionProps) {
 
     if (uploadedDesign) {
@@ -68,6 +70,7 @@ export function PreviewSection({
                 isLandscape={isLandscape}
                 onObjectSelected={onObjectSelected}
                 onToolbarAction={onToolbarAction}
+                initialJSON={initialJSON}
             />
         </div>
     );

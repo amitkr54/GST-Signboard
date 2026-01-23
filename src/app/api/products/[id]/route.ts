@@ -12,18 +12,19 @@ export async function GET(
         const product = await db.getProduct(id);
 
         if (!product) {
-            return NextResponse.json(
-                { error: 'Product not found' },
-                { status: 404 }
-            );
+            return new Response(JSON.stringify({ error: 'Product not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
-
-        return NextResponse.json({ product });
+        return new Response(JSON.stringify({ product }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
     } catch (error) {
-        return NextResponse.json(
-            { error: 'Internal Server Error' },
-            { status: 500 }
-        );
+        return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
@@ -38,10 +39,10 @@ export async function PUT(
         const existingProduct = await db.getProduct(id);
 
         if (!existingProduct) {
-            return NextResponse.json(
-                { error: 'Product not found' },
-                { status: 404 }
-            );
+            return new Response(JSON.stringify({ error: 'Product not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         const updatedProduct = {
@@ -52,12 +53,14 @@ export async function PUT(
 
         await db.updateProduct(updatedProduct);
 
-        return NextResponse.json({ product: updatedProduct });
+        return new Response(JSON.stringify({ product: updatedProduct }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
     } catch (error) {
-        return NextResponse.json(
-            { error: 'Failed to update product' },
-            { status: 500 }
-        );
+        return new Response(JSON.stringify({ error: 'Failed to update product' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
@@ -69,14 +72,15 @@ export async function DELETE(
         const { id } = await params;
         await db.deleteProduct(id);
 
-        return NextResponse.json(
-            { message: 'Product deleted successfully' },
-            { status: 200 }
-        );
+        return new Response(JSON.stringify({ message: 'Product deleted successfully' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
     } catch (error) {
-        return NextResponse.json(
-            { error: 'Failed to delete product' },
-            { status: 500 }
-        );
+        return new Response(JSON.stringify({ error: 'Failed to delete product' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
+

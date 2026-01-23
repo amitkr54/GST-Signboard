@@ -54,18 +54,21 @@ export function useCanvasTemplates(
                     type: 'textbox',
                     editable: true
                 });
+                const index = canvas.getObjects().indexOf(obj);
+                canvas.insertAt(textbox, index, true);
                 canvas.remove(obj);
-                canvas.add(textbox);
             }
         });
 
         // 1. Background
-        let bgRect = canvas.getObjects().find(obj => (obj as any).name === 'background') as fabric.Rect;
+        let bgRect = canvas.getObjects().find(obj => (obj as any).name === 'background' || (obj as any).isBackground) as fabric.Rect;
         if (!bgRect) {
             bgRect = new fabric.Rect({
                 width: baseWidth, height: baseHeight, left: baseWidth / 2, top: baseHeight / 2,
                 originX: 'center', originY: 'center', fill: design.backgroundColor,
-                selectable: false, evented: false, name: 'background'
+                selectable: false, evented: false, name: 'background',
+                // @ts-ignore
+                isBackground: true
             });
             canvas.add(bgRect);
             canvas.sendToBack(bgRect);
@@ -77,6 +80,7 @@ export function useCanvasTemplates(
                 top: baseHeight / 2
             });
             bgRect.setCoords();
+            canvas.sendToBack(bgRect);
         }
 
         if (design.backgroundGradientEnabled) {
@@ -170,15 +174,15 @@ export function useCanvasTemplates(
                 editable: true,
                 lockScalingY: false,
                 objectCaching: false,
-                borderColor: '#E53935',
+                borderColor: '#FF3333',
                 cornerColor: '#ffffff',
-                cornerStrokeColor: '#E53935',
-                cornerSize: 8,
+                cornerStrokeColor: '#FF3333',
+                cornerSize: 28,
                 transparentCorners: false,
                 padding: 0,
                 lineHeight: 1,
                 cornerStyle: 'circle',
-                borderScaleFactor: 2.5
+                borderScaleFactor: 4
             });
             // Only sync global styles if they've changed in the design prop (manual overrides in toolbar take precedence)
             if (design.fontFamily && company.fontFamily !== design.fontFamily) company.set('fontFamily', design.fontFamily);

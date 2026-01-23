@@ -71,9 +71,10 @@ interface ContextMenuProps {
     hasSelection: boolean;
     isGroup?: boolean;
     isMultiple?: boolean;
+    isBackground?: boolean;
 }
 
-export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelection, isGroup, isMultiple }: ContextMenuProps) {
+export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelection, isGroup, isMultiple, isBackground }: ContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
     const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
 
@@ -198,7 +199,7 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
 
             <MenuItem
                 icon={Layout}
-                label="Mark as Background"
+                label={isBackground ? "Unmark Background" : "Mark as Background"}
                 action="markAsBackground"
                 disabled={!hasSelection || isLocked}
             />

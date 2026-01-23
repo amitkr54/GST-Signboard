@@ -8,9 +8,12 @@ export async function uploadLogo(file: File) {
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${fileName}`;
 
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const body = new Uint8Array(buffer);
+
         const { error: uploadError } = await supabase.storage
             .from('logos')
-            .upload(filePath, file);
+            .upload(filePath, body);
 
         if (uploadError) {
             return { success: false, error: uploadError.message };

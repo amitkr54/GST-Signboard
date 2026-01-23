@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { fabric } from 'fabric';
 import { SignageData, DesignConfig } from '@/lib/types';
-import { MaterialId } from '@/lib/utils';
+import { MaterialId, getNormalizedDimensions } from '@/lib/utils';
 import { TEMPLATES } from '@/lib/templates';
 import { getTemplates } from '@/app/actions';
 import { TextFormatToolbar } from './TextFormatToolbar';
 import { CanvasContextMenu } from './CanvasContextMenu';
 import { initAligningGuidelines } from '@/lib/fabric-aligning-guidelines';
+import { FloatingSelectionToolbar } from './FloatingSelectionToolbar';
 
 // Modular Hooks & Components
 import { useCanvasHistory } from '@/hooks/useCanvasHistory';
@@ -71,18 +73,15 @@ export function FabricPreview({
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
     const [rotationAngle, setRotationAngle] = useState<number | null>(null);
+    const [floatingToolbarPos, setFloatingToolbarPos] = useState<{ x: number, y: number } | null>(null);
     const hasInitialLoadRef = useRef(false);
 
+    // Canvas size based on user's selected dimensions (for correct aspect ratio)
+    // We normalize this to a Safe View Size (max 1800px) to prevent browser crashes on large banners
+    // Export will handle the full 100 DPI scaling separately
     const { width: baseWidth, height: baseHeight } = useMemo(() => {
-        const DPI = 75;
-        let w = design.width;
-        let h = design.height;
-        const u = design.unit || 'in';
-        if (u === 'in') { w *= DPI; h *= DPI; }
-        else if (u === 'cm') { w *= (DPI / 2.54); h *= (DPI / 2.54); }
-        else if (u === 'mm') { w *= (DPI / 25.4); h *= (DPI / 25.4); }
-        return { width: Math.round(w), height: Math.round(h) };
-    }, [design.width, design.height, design.unit]);
+        return getNormalizedDimensions(design.width, design.height);
+    }, [design.width, design.height]);
 
     // History & Managers Hooks
     const { saveHistory, undo, redo, setInitialHistory, setIsProcessing } = useCanvasHistory();
@@ -135,15 +134,28 @@ export function FabricPreview({
         });
 
 
+        // Apply global styles
         fabric.Object.prototype.set({
-            borderColor: '#E53935',
-            cornerColor: '#ffffff',
-            cornerStrokeColor: '#E53935',
-            cornerSize: 8,
+            borderColor: '#FF3333', // Vibrant red
+            cornerColor: '#ffffff', // White handles
+            cornerStrokeColor: '#FF3333', // Red stroke for corners
+            cornerSize: 28, // Scaled for 1800px normalization
             transparentCorners: false,
-            padding: 0,
+            padding: 8,
             cornerStyle: 'circle',
-            borderScaleFactor: 2.5
+            borderScaleFactor: 4 // Thicker selection lines
+        });
+
+        // Ensure Textbox also uses the same prototype settings
+        fabric.Textbox.prototype.set({
+            borderColor: '#FF3333',
+            cornerColor: '#ffffff',
+            cornerStrokeColor: '#FF3333',
+            cornerSize: 20,
+            transparentCorners: false,
+            padding: 8,
+            cornerStyle: 'circle',
+            borderScaleFactor: 4
         });
 
         // Rotation indicator
@@ -184,7 +196,6 @@ export function FabricPreview({
             }
         };
     }, []);
-
     // Load Initial JSON (Snapshot)
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
@@ -202,10 +213,53 @@ export function FabricPreview({
         });
     }, [initialJSON, isReadOnly, setIsProcessing]);
 
+    const updateFloatingToolbar = useCallback((obj: fabric.Object | null) => {
+        if (!obj || !fabricCanvasRef.current || !containerRef.current) {
+            setFloatingToolbarPos(null);
+            return;
+        }
+
+        const canvas = fabricCanvasRef.current;
+        const boundingRect = obj.getBoundingRect(true);
+
+        // Use the current design scale to map canvas coords to viewport div coords
+        const x = (boundingRect.left + boundingRect.width / 2) * scale;
+        const y = boundingRect.top * scale;
+
+        setFloatingToolbarPos({ x, y });
+    }, [scale]);
+
+    useEffect(() => {
+        const canvas = canvasInstance;
+        if (!canvas) return;
+
+        const handler = () => updateFloatingToolbar(canvas.getActiveObject());
+        const clearHandler = () => setFloatingToolbarPos(null);
+
+        canvas.on('selection:created', handler);
+        canvas.on('selection:updated', handler);
+        canvas.on('selection:cleared', clearHandler);
+        canvas.on('object:moving', handler);
+        canvas.on('object:scaling', handler);
+        canvas.on('object:rotating', handler);
+
+        return () => {
+            canvas.off('selection:created', handler);
+            canvas.off('selection:updated', handler);
+            canvas.off('selection:cleared', clearHandler);
+            canvas.off('object:moving', handler);
+            canvas.off('object:scaling', handler);
+            canvas.off('object:rotating', handler);
+        };
+    }, [canvasInstance, updateFloatingToolbar]);
+
     const handleAction = useCallback((action: string) => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
         const activeObject = canvas.getActiveObject();
+
+        // Safety Margin (consistent with guides)
+        const margin = Math.min(baseWidth, baseHeight) * 0.05;
 
         switch (action) {
             case 'copy-style':
@@ -347,15 +401,38 @@ export function FabricPreview({
             case 'distribute-h':
                 if (activeObject && activeObject.type === 'activeSelection') {
                     const selection = activeObject as fabric.ActiveSelection;
-                    const objs = [...selection.getObjects()].sort((a, b) => a.left! - b.left!);
+                    const objs = [...selection.getObjects()].sort((a, b) => a.getCenterPoint().x - b.getCenterPoint().x);
                     if (objs.length > 2) {
-                        const first = objs[0];
-                        const last = objs[objs.length - 1];
-                        const totalSpread = last.left! - first.left!;
-                        const gap = totalSpread / (objs.length - 1);
-                        objs.forEach((obj, i) => {
-                            obj.set('left', first.left! + (i * gap));
+                        const infos = objs.map(o => ({
+                            obj: o,
+                            width: o.getScaledWidth(),
+                            center: o.getCenterPoint().x
+                        }));
+
+                        const first = infos[0];
+                        const last = infos[infos.length - 1];
+
+                        let totalOccupied = 0;
+                        infos.forEach(i => totalOccupied += i.width);
+
+                        const firstLeft = first.center - first.width / 2;
+                        const lastRight = last.center + last.width / 2;
+                        let totalSpan = lastRight - firstLeft;
+
+                        let gap = (totalSpan - totalOccupied) / (infos.length - 1);
+
+                        // If objects are overlapping (negative gap), expand to create minimum 20px gaps
+                        if (gap < 0) {
+                            gap = 20;
+                            totalSpan = totalOccupied + gap * (infos.length - 1);
+                        }
+
+                        let currentLeft = firstLeft;
+                        infos.forEach(info => {
+                            info.obj.setPositionByOrigin(new fabric.Point(currentLeft + info.width / 2, info.obj.getCenterPoint().y), 'center', 'center');
+                            currentLeft += info.width + gap;
                         });
+
                         selection.setCoords();
                         canvas.requestRenderAll();
                         saveHistory(canvas);
@@ -365,15 +442,40 @@ export function FabricPreview({
             case 'distribute-v':
                 if (activeObject && activeObject.type === 'activeSelection') {
                     const selection = activeObject as fabric.ActiveSelection;
-                    const objs = [...selection.getObjects()].sort((a, b) => a.top! - b.top!);
+                    const objs = [...selection.getObjects()].sort((a, b) => a.getCenterPoint().y - b.getCenterPoint().y);
                     if (objs.length > 2) {
-                        const first = objs[0];
-                        const last = objs[objs.length - 1];
-                        const totalSpread = last.top! - first.top!;
-                        const gap = totalSpread / (objs.length - 1);
-                        objs.forEach((obj, i) => {
-                            obj.set('top', first.top! + (i * gap));
+                        const infos = objs.map(o => ({
+                            obj: o,
+                            height: o.getScaledHeight(),
+                            center: o.getCenterPoint().y
+                        }));
+
+                        const first = infos[0];
+                        const last = infos[infos.length - 1];
+
+                        let totalOccupied = 0;
+                        infos.forEach(i => totalOccupied += i.height);
+
+                        const firstTop = first.center - first.height / 2;
+                        const lastBottom = last.center + last.height / 2;
+                        let totalSpan = lastBottom - firstTop;
+
+                        let gap = (totalSpan - totalOccupied) / (infos.length - 1);
+
+                        // If objects are overlapping (negative gap), expand to create minimum 20px gaps
+                        if (gap < 0) {
+                            gap = 20;
+                            totalSpan = totalOccupied + gap * (infos.length - 1);
+                        }
+
+                        console.log('[DISTRIBUTE-V] totalSpan:', totalSpan, 'occupied:', totalOccupied, 'gap:', gap);
+
+                        let currentTop = firstTop;
+                        infos.forEach(info => {
+                            info.obj.setPositionByOrigin(new fabric.Point(info.obj.getCenterPoint().x, currentTop + info.height / 2), 'center', 'center');
+                            currentTop += info.height + gap;
                         });
+
                         selection.setCoords();
                         canvas.requestRenderAll();
                         saveHistory(canvas);
@@ -396,19 +498,25 @@ export function FabricPreview({
                 break;
             case 'markAsBackground':
                 if (activeObject) {
-                    (activeObject as any).isBackground = true;
-                    (activeObject as any).name = 'background';
-                    activeObject.set({
-                        selectable: false,
-                        evented: false,
-                        lockMovementX: true,
-                        lockMovementY: true
-                    } as any);
-                    const bgIdx = canvas.getObjects().findIndex(o => (o as any).name === 'background');
-                    if (bgIdx !== -1) activeObject.moveTo(bgIdx + 1);
-                    else activeObject.sendToBack();
+                    const isCurrentlyBg = (activeObject as any).isBackground;
+                    (activeObject as any).isBackground = !isCurrentlyBg;
+                    (activeObject as any).name = !isCurrentlyBg ? 'background' : '';
+
+                    if (!isCurrentlyBg) {
+                        // Move to bottom but above existing backgrounds
+                        const objects = canvas.getObjects();
+                        let lastBgIdx = -1;
+                        for (let i = 0; i < objects.length; i++) {
+                            if ((objects[i] as any).isBackground || objects[i].name === 'background') {
+                                lastBgIdx = i;
+                            }
+                        }
+                        activeObject.moveTo(lastBgIdx + 1);
+                    }
+
                     saveHistory(canvas);
                     checkSafetyArea(canvas);
+                    canvas.requestRenderAll();
                 }
                 break;
             case 'download-selection':
@@ -451,8 +559,9 @@ export function FabricPreview({
                         });
                         selection.setCoords();
                     } else {
-                        const rect = activeObject.getBoundingRect(true);
-                        activeObject.set('left', activeObject.left! - rect.left);
+                        const rect = activeObject.getBoundingRect(true, true);
+                        const currentLeft = activeObject.left || 0;
+                        activeObject.set('left', currentLeft - rect.left + margin);
                         activeObject.setCoords();
                     }
                     saveHistory(canvas);
@@ -468,7 +577,9 @@ export function FabricPreview({
                         });
                         selection.setCoords();
                     } else {
-                        activeObject.centerH();
+                        const rect = activeObject.getBoundingRect(true, true);
+                        const currentLeft = activeObject.left || 0;
+                        activeObject.set('left', baseWidth / 2 - rect.width / 2 + (currentLeft - rect.left));
                         activeObject.setCoords();
                     }
                     saveHistory(canvas);
@@ -485,8 +596,9 @@ export function FabricPreview({
                         });
                         selection.setCoords();
                     } else {
-                        const rect = activeObject.getBoundingRect(true);
-                        activeObject.set('left', baseWidth - rect.width + (activeObject.left! - rect.left));
+                        const rect = activeObject.getBoundingRect(true, true);
+                        const currentLeft = activeObject.left || 0;
+                        activeObject.set('left', baseWidth - rect.width + (currentLeft - rect.left) - margin);
                         activeObject.setCoords();
                     }
                     saveHistory(canvas);
@@ -503,8 +615,9 @@ export function FabricPreview({
                         });
                         selection.setCoords();
                     } else {
-                        const rect = activeObject.getBoundingRect(true);
-                        activeObject.set('top', activeObject.top! - rect.top);
+                        const rect = activeObject.getBoundingRect(true, true);
+                        const currentTop = activeObject.top || 0;
+                        activeObject.set('top', currentTop - rect.top + margin);
                         activeObject.setCoords();
                     }
                     saveHistory(canvas);
@@ -520,7 +633,9 @@ export function FabricPreview({
                         });
                         selection.setCoords();
                     } else {
-                        activeObject.centerV();
+                        const rect = activeObject.getBoundingRect(true, true);
+                        const currentTop = activeObject.top || 0;
+                        activeObject.set('top', baseHeight / 2 - rect.height / 2 + (currentTop - rect.top));
                         activeObject.setCoords();
                     }
                     saveHistory(canvas);
@@ -537,8 +652,9 @@ export function FabricPreview({
                         });
                         selection.setCoords();
                     } else {
-                        const rect = activeObject.getBoundingRect(true);
-                        activeObject.set('top', baseHeight - rect.height + (activeObject.top! - rect.top));
+                        const rect = activeObject.getBoundingRect(true, true);
+                        const currentTop = activeObject.top || 0;
+                        activeObject.set('top', baseHeight - rect.height + (currentTop - rect.top) - margin);
                         activeObject.setCoords();
                     }
                     saveHistory(canvas);
@@ -546,38 +662,45 @@ export function FabricPreview({
                 break;
             case 'align-card-left':
                 if (activeObject) {
-                    const rect = activeObject.getBoundingRect(true);
-                    activeObject.set('left', activeObject.left! - rect.left);
+                    const rect = activeObject.getBoundingRect(true, true);
+                    const currentLeft = activeObject.left || 0;
+                    activeObject.set('left', currentLeft - rect.left + margin);
                     activeObject.setCoords();
                     saveHistory(canvas);
                 }
                 break;
             case 'align-card-center':
                 if (activeObject) {
-                    activeObject.centerH();
+                    const rect = activeObject.getBoundingRect(true, true);
+                    const currentLeft = activeObject.left || 0;
+                    activeObject.set('left', baseWidth / 2 - rect.width / 2 + (currentLeft - rect.left));
                     activeObject.setCoords();
                     saveHistory(canvas);
                 }
                 break;
             case 'align-card-right':
                 if (activeObject) {
-                    const rect = activeObject.getBoundingRect(true);
-                    activeObject.set('left', baseWidth - rect.width + (activeObject.left! - rect.left));
+                    const rect = activeObject.getBoundingRect(true, true);
+                    const currentLeft = activeObject.left || 0;
+                    activeObject.set('left', baseWidth - rect.width + (currentLeft - rect.left) - margin);
                     activeObject.setCoords();
                     saveHistory(canvas);
                 }
                 break;
             case 'align-card-top':
                 if (activeObject) {
-                    const rect = activeObject.getBoundingRect(true);
-                    activeObject.set('top', activeObject.top! - rect.top);
+                    const rect = activeObject.getBoundingRect(true, true);
+                    const currentTop = activeObject.top || 0;
+                    activeObject.set('top', currentTop - rect.top + margin);
                     activeObject.setCoords();
                     saveHistory(canvas);
                 }
                 break;
             case 'align-card-middle':
                 if (activeObject) {
-                    activeObject.centerV();
+                    const rect = activeObject.getBoundingRect(true, true);
+                    const currentTop = activeObject.top || 0;
+                    activeObject.set('top', baseHeight / 2 - rect.height / 2 + (currentTop - rect.top));
                     activeObject.setCoords();
                     saveHistory(canvas);
                 }
@@ -632,12 +755,62 @@ export function FabricPreview({
     // Apply Scaling to Canvas
     useEffect(() => {
         if (canvasInstance) {
-            canvasInstance.setDimensions({ width: baseWidth * scale, height: baseHeight * scale });
-            canvasInstance.setZoom(scale);
+            const cssWidth = baseWidth * scale;
+            const cssHeight = baseHeight * scale;
+
+            console.log(`[SCALING FIX] Setting dimensions. Logical: ${baseWidth}x${baseHeight}, CSS: ${cssWidth}x${cssHeight}`);
+
+            // 1. Set Backstore (Logical) Dimension to High Res
+            // This ensures the exported image is 1800px+
+            canvasInstance.setDimensions(
+                { width: baseWidth, height: baseHeight },
+                { backstoreOnly: true }
+            );
+
+            // 2. Set Visual (CSS) Dimension to Scaled Size
+            // We apply this via Fabric API first
+            canvasInstance.setDimensions(
+                { width: cssWidth, height: cssHeight },
+                { cssOnly: true }
+            );
+
+            // 3. MANUAL OVERRIDE: Force styles on all wrapper elements
+            // Fabric sometimes misses the wrapper or upper-canvas sync in React StrictMode
+            const lower = canvasInstance.getElement(); // <canvas>
+            const upper = canvasInstance.getSelectionElement(); // <canvas class="upper-canvas">
+            // @ts-ignore
+            const wrapper = canvasInstance.wrapperEl; // <div class="canvas-container">
+
+            if (lower) {
+                lower.style.width = `${cssWidth}px`;
+                lower.style.height = `${cssHeight}px`;
+            }
+            if (upper) {
+                upper.style.width = `${cssWidth}px`;
+                upper.style.height = `${cssHeight}px`;
+                upper.style.left = '0px';
+                upper.style.top = '0px';
+            }
+            if (wrapper) {
+                wrapper.style.width = `${cssWidth}px`;
+                wrapper.style.height = `${cssHeight}px`;
+            }
+
+            // Ensure Zoom is 1 (Natural 1:1 mapping of content to logical pixels)
+            canvasInstance.setZoom(1);
+
             canvasInstance.calcOffset();
             canvasInstance.requestRenderAll();
         }
     }, [canvasInstance, scale, baseWidth, baseHeight]);
+
+    // Sync Background Color
+    useEffect(() => {
+        if (canvasInstance) {
+            canvasInstance.backgroundColor = design.backgroundColor;
+            canvasInstance.requestRenderAll();
+        }
+    }, [canvasInstance, design.backgroundColor]);
 
     // Template Loading Flow
     useEffect(() => {
@@ -671,10 +844,114 @@ export function FabricPreview({
         if (templateConfig) {
             if (templateConfig.fabricConfig) {
                 canvas.loadFromJSON(templateConfig.fabricConfig, () => {
+                    // NEW SCALING LOGIC (100 DPI Standard) with Content Bounds Detection
+                    const canvasWidth = canvas.getWidth();
+                    const canvasHeight = canvas.getHeight();
+
+                    console.log(`[TEMPLATE DEBUG] Loading ${design.templateId}`);
+                    console.log(`[TEMPLATE DEBUG] Canvas: ${canvasWidth}x${canvasHeight}`);
+
+                    // 1. Calculate Content Bounding Box
+                    // Some templates have huge coordinates (e.g. 40,000px). We need to find the real bounds.
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    let hasObjects = false;
+
                     canvas.getObjects().forEach((obj: any) => {
-                        obj.set({ selectable: true, evented: true });
+                        if (obj.name === 'background' || obj.isBackground) return; // Skip background for bounds detection
+
+                        hasObjects = true;
+                        // Use getBoundingRect to find absolute bounds
+                        const br = obj.getBoundingRect(true, true);
+                        if (br.left < minX) minX = br.left;
+                        if (br.top < minY) minY = br.top;
+                        if (br.left + br.width > maxX) maxX = br.left + br.width;
+                        if (br.top + br.height > maxY) maxY = br.top + br.height;
                     });
-                    updateTemplateContent();
+
+                    // 2. Determine Template Source Size & Offsets
+                    let templateWidth = 1800;
+                    let templateHeight = 1200;
+                    let offsetX = 0;
+                    let offsetY = 0;
+
+                    if (hasObjects && minX !== Infinity) {
+                        const contentWidth = maxX - minX;
+                        const contentHeight = maxY - minY;
+
+                        // Heuristic: If content is massive (> 3000) or way off origin (> 1000), use bounds
+                        if (contentWidth > 3000 || contentHeight > 3000 || minX > 1000 || minY > 1000) {
+                            console.log(`[TEMPLATE DEBUG] Massive coordinates detected. Normalizing from bounds: ${minX},${minY} to ${maxX},${maxY}`);
+                            templateWidth = contentWidth;
+                            templateHeight = contentHeight;
+                            offsetX = -minX; // We need to shift objects back to 0
+                            offsetY = -minY;
+                        } else {
+                            // Fallback to standard background check if available
+                            const bg = templateConfig.fabricConfig.objects.find((o: any) => o.name === 'background' || o.isBackground);
+                            if (bg?.width && bg?.height) {
+                                templateWidth = bg.width * (bg.scaleX || 1);
+                                templateHeight = bg.height * (bg.scaleY || 1);
+                            }
+                        }
+                    }
+
+                    // 3. Calculate Scale Factor
+                    const scaleX = canvasWidth / templateWidth;
+                    const scaleY = canvasHeight / templateHeight;
+                    const scaleFactor = Math.min(scaleX, scaleY);
+
+                    console.log(`[TEMPLATE DEBUG] Source: ${templateWidth}x${templateHeight}, Offset: ${offsetX},${offsetY}, Scale: ${scaleFactor}`);
+
+                    // 4. Apply Scaling & Centering
+                    canvas.getObjects().forEach((obj: any, index) => {
+                        // Apply offset first (normalization), then scale
+                        const originalLeft = obj.left || 0;
+                        const originalTop = obj.top || 0;
+
+                        // If we are normalizing, we shift then scale.
+                        // If not, offsetX/Y is 0, so it works as before.
+                        obj.set({
+                            left: (originalLeft + offsetX) * scaleX,
+                            top: (originalTop + offsetY) * scaleY,
+                            scaleX: (obj.scaleX || 1) * scaleX,
+                            scaleY: (obj.scaleY || 1) * scaleY,
+                            selectable: true,
+                            evented: true
+                        });
+                        obj.setCoords();
+                    });
+
+
+                    // Sync Background to Design State
+                    const bgObj = canvas.getObjects().find(o => (o as any).name === 'background');
+                    if (bgObj && onDesignChange) {
+                        const fill = bgObj.fill;
+                        if (typeof fill === 'string') {
+                            // Solid Color
+                            onDesignChange({
+                                ...design,
+                                backgroundColor: fill,
+                                backgroundGradientEnabled: false
+                            });
+                        } else if (typeof fill === 'object' && (fill as any).type === 'linear') {
+                            // Gradient (Basic Sync)
+                            const grad = fill as any;
+                            if (grad.colorStops && grad.colorStops.length >= 2) {
+                                onDesignChange({
+                                    ...design,
+                                    backgroundGradientEnabled: true,
+                                    backgroundColor: grad.colorStops[0].color,
+                                    backgroundColor2: grad.colorStops[1].color,
+                                    // Angle calculation is complex from coords, skipping for valid defaults or preserving current
+                                });
+                            }
+                        }
+                    }
+
+
+                    // Don't call updateTemplateContent for fabricConfig templates
+                    // They already have their objects in the JSON
+                    canvas.requestRenderAll();
                     finalizeLoad();
                 });
             } else if (templateConfig.svgPath) {
@@ -755,37 +1032,56 @@ export function FabricPreview({
 
     return (
         <div className="flex-1 w-full h-full relative overflow-hidden bg-slate-50 flex flex-col min-h-0">
-            {/* Desktop Toolbar removed from here - now in Header */}
-
-            {/* Mobile Toolbar */}
-            {selectedObject && !isReadOnly && compact && (
-                <TextFormatToolbar
-                    selectedObject={selectedObject}
-                    compact={true}
-                    isLandscape={isLandscape}
-                    onUpdate={() => { canvasInstance?.requestRenderAll(); saveHistory(canvasInstance!); }}
-                    onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
-                    onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
-                    onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
-                    onDuplicate={() => handleAction('duplicate')}
-                    onDelete={() => handleAction('delete')}
-                    onLockToggle={() => handleAction('lock')}
-                    onAction={handleAction}
-                />
+            {/* Formatting Toolbar (Rendered in Header via Portal) */}
+            {selectedObject && !isReadOnly && typeof document !== 'undefined' && document.getElementById('toolbar-header-target') && (
+                createPortal(
+                    <TextFormatToolbar
+                        selectedObject={selectedObject}
+                        onUpdate={() => { canvasInstance?.requestRenderAll(); saveHistory(canvasInstance!); }}
+                        onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
+                        onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
+                        onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
+                        onDuplicate={() => handleAction('duplicate')}
+                        onDelete={() => handleAction('delete')}
+                        onLockToggle={() => handleAction('lock')}
+                        onAction={handleAction}
+                    />,
+                    document.getElementById('toolbar-header-target')!
+                )
             )}
 
             <div className="absolute inset-0 flex items-center justify-center p-4">
                 <div ref={containerRef} className="w-full h-full flex items-center justify-center relative overflow-hidden bg-transparent" onContextMenu={handleContextMenu}>
                     <div className="bg-white rounded-sm shadow-2xl relative flex items-center justify-center shrink-0" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
                         <canvas ref={canvasRef} />
+                        {selectedObject && floatingToolbarPos && !isReadOnly && (
+                            <FloatingSelectionToolbar
+                                x={floatingToolbarPos.x}
+                                y={floatingToolbarPos.y}
+                                isLocked={!!selectedObject.lockMovementX}
+                                onLockToggle={() => handleAction('lock')}
+                                onDuplicate={() => handleAction('duplicate')}
+                                onDelete={() => handleAction('delete')}
+                                onMore={() => {
+                                    setContextMenu({ x: floatingToolbarPos.x, y: floatingToolbarPos.y + 40 });
+                                }}
+                            />
+                        )}
                         {hasSafetyViolation && (
                             <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-1.5 px-3 py-1 bg-[#cc0000] rounded-full shadow-lg ring-1 ring-white/20">
                                 <span className="text-[11px] font-black text-white uppercase tracking-wider">Danger zone</span>
                             </div>
                         )}
-                        {rotationAngle !== null && (
-                            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[50] px-2.5 py-1.5 bg-[#3b82f6] rounded-md shadow-lg">
-                                <span className="text-sm font-semibold text-white">{rotationAngle}°</span>
+                        {rotationAngle !== null && selectedObject && (
+                            <div
+                                className="absolute z-[60] px-2 py-1 bg-[#3b82f6] rounded shadow-lg animate-in fade-in zoom-in-95 duration-200"
+                                style={{
+                                    left: (selectedObject.getCenterPoint().x) * scale,
+                                    top: (selectedObject.getBoundingRect().top * scale) - 40,
+                                    transform: 'translateX(-50%)'
+                                }}
+                            >
+                                <span className="text-xs font-bold text-white whitespace-nowrap">{rotationAngle}°</span>
                             </div>
                         )}
                     </div>
@@ -800,6 +1096,7 @@ export function FabricPreview({
                             isLocked={!!selectedObject?.lockMovementX}
                             isGroup={selectedObject?.type === 'group'}
                             isMultiple={selectedObject?.type === 'activeSelection'}
+                            isBackground={!!(selectedObject as any)?.isBackground}
                         />
                     )}
                 </div>

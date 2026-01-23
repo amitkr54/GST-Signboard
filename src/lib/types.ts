@@ -21,7 +21,7 @@ export interface DesignConfig {
     templateId: TemplateId;
     width: number;
     height: number;
-    unit: 'px' | 'in' | 'cm' | 'mm'; // Added unit
+    unit: 'px' | 'in' | 'cm' | 'mm' | 'ft'; // Added unit
     backgroundColor: string;
     backgroundGradientEnabled: boolean;
     backgroundColor2: string;

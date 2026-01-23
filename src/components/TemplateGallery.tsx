@@ -62,7 +62,7 @@ export default function TemplateGallery({ initialTemplates, categories }: Templa
                 <div className="columns-1 sm:columns-2 lg:columns-4 gap-8 space-y-8">
                     {filteredTemplates.map((template: any) => (
                         <Link
-                            href={`/design?template=${template.id}`}
+                            href={`/configure?template=${template.id}`}
                             key={template.id}
                             className="group flex flex-col bg-slate-900/50 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 break-inside-avoid mb-8 w-full"
                         >

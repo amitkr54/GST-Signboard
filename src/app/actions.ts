@@ -2,11 +2,12 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 import { createClient } from '@supabase/supabase-js';
 import { SignageData, DesignConfig } from '@/lib/types';
 import QRCode from 'qrcode';
-import { calculatePrice } from '@/lib/utils';
+import { calculateDynamicPrice } from '@/lib/utils';
 import {
     PHONEPE_MERCHANT_ID,
     PHONEPE_SALT_KEY,
@@ -15,12 +16,20 @@ import {
     generateChecksum,
     base64Encode
 } from '@/lib/phonepe';
+import { normalizeFabricConfig, getAspectRatio } from '@/lib/normalization';
+import { revalidatePath } from 'next/cache';
 
-// Note: In a real app, use createClient from @supabase/ssr for auth context
-// Here we use the admin client for simplicity in this demo, or just the regular client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Define Material Type matching DB
+export interface Material {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    price_per_sqft: number;
+    is_active: boolean;
+}
+
+import { supabase } from '@/lib/supabase';
 
 export async function createOrder(
     data: SignageData,
@@ -43,7 +52,21 @@ export async function createOrder(
     },
     userId?: string
 ) {
-    let totalAmount = options?.customBasePrice ?? calculatePrice(materialId);
+    // Fetch material rate from DB to ensure accurate pricing
+    const { data: materialData } = await supabase
+        .from('materials')
+        .select('price_per_sqft')
+        .or(`id.eq.${materialId},slug.eq.${materialId}`)
+        .single();
+
+    const pricePerSqFt = materialData?.price_per_sqft || 0;
+
+    let totalAmount = options?.customBasePrice ?? calculateDynamicPrice(
+        design.width,
+        design.height,
+        design.unit as any,
+        pricePerSqFt
+    );
 
     // Add Delivery & Installation costs
     if (options?.deliveryType === 'fast') totalAmount += 200;
@@ -98,7 +121,10 @@ export async function createOrder(
         });
 
     if (error) {
-        console.error('Error creating order:', error);
+        console.error('--- SUPABASE ORDER ERROR ---');
+        console.error('Code:', error.code);
+        console.error('Message:', error.message);
+        console.error('Details:', error.details);
         return { success: false, error: error.message };
     }
 
@@ -447,6 +473,7 @@ export async function uploadTemplate(formData: FormData) {
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const fabricConfigStr = formData.get('fabricConfig') as string;
+    const thumbnailDataUrl = formData.get('thumbnail') as string;
     const fabricConfig = fabricConfigStr ? JSON.parse(fabricConfigStr) : {};
 
     // Categorization
@@ -460,6 +487,14 @@ export async function uploadTemplate(formData: FormData) {
     }
 
     try {
+        let thumbnailUrl = undefined;
+        const templateId = `custom-${Date.now()}`;
+
+        // If thumbnail provided, upload it
+        if (thumbnailDataUrl) {
+            const thumbRes = await uploadThumbnail(thumbnailDataUrl, templateId);
+            if (thumbRes.success) thumbnailUrl = thumbRes.url;
+        }
 
         const buffer = Buffer.from(await file.arrayBuffer());
         // Detect extension
@@ -471,23 +506,39 @@ export async function uploadTemplate(formData: FormData) {
         // const filePath = path.join(publicDir, filename);
         // fs.writeFileSync(filePath, buffer);
 
-        // NEW: Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase
-            .storage
-            .from('templates')
-            .upload(filename, buffer, {
+        const body = new Uint8Array(buffer);
+        console.log('--- TEMPLATE STORAGE UPLOAD ATTEMPT ---');
+        console.log('Filename:', filename);
+
+        let workedBucket = 'TEMPLATES';
+        let { data: uploadData, error: uploadError } = await supabase.storage
+            .from(workedBucket)
+            .upload(filename, body, {
                 contentType: ext === 'svg' ? 'image/svg+xml' : 'application/pdf',
                 upsert: false
             });
+
+        if (uploadError) {
+            workedBucket = 'templates';
+            const retry = await supabase.storage
+                .from(workedBucket)
+                .upload(filename, body, {
+                    contentType: ext === 'svg' ? 'image/svg+xml' : 'application/pdf',
+                    upsert: false
+                });
+            uploadData = retry.data;
+            uploadError = retry.error;
+        }
 
         if (uploadError) {
             console.error('Supabase Storage Upload Error:', uploadError);
             return { success: false, error: 'Failed to upload image to cloud storage: ' + uploadError.message };
         }
 
-        // Get Public URL
-        const { data: publicUrlData } = supabase.storage.from('templates').getPublicUrl(filename);
+        const { data: publicUrlData } = supabase.storage.from(workedBucket).getPublicUrl(filename);
         const publicUrl = publicUrlData.publicUrl;
+
+
 
         // --- NEW: SVG Component Extraction ---
         let components: any = undefined;
@@ -794,10 +845,11 @@ export async function uploadTemplate(formData: FormData) {
 
         // Update Supabase Database
         const newTemplate = {
-            id: `custom-${Date.now()}`,
+            id: templateId,
             name,
             description,
             thumbnail_color: '#ffffff',
+            thumbnail: thumbnailUrl,
             layout_type: 'centered',
             svg_path: publicUrl, // Store full URL instead of relative path
             is_custom: true,
@@ -814,6 +866,21 @@ export async function uploadTemplate(formData: FormData) {
             }
         };
 
+        // --- NORMALIZE TEMPLATE ---
+        if (newTemplate.dimensions && newTemplate.fabric_config) {
+            const { width, height } = newTemplate.dimensions;
+
+            // Normalize fabricConfig to standard pixel size based on aspect ratio
+            newTemplate.fabric_config = normalizeFabricConfig(
+                newTemplate.fabric_config,
+                width,
+                height
+            );
+
+            // Calculate and store aspect ratio
+            (newTemplate as any).aspect_ratio = getAspectRatio(width, height);
+        }
+
         const { error: insertError } = await supabase
             .from('templates')
             .insert(newTemplate);
@@ -822,10 +889,60 @@ export async function uploadTemplate(formData: FormData) {
             throw new Error(insertError.message);
         }
 
+        revalidatePath('/templates');
+        revalidatePath('/admin');
         return { success: true };
 
     } catch (error: any) {
         console.error('Upload error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function uploadThumbnail(dataUrl: string, templateId: string) {
+    try {
+        const base64Data = dataUrl.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const filename = `thumb-${templateId}-${Date.now()}.png`;
+        const body = new Uint8Array(buffer);
+
+
+        console.log('--- THUMBNAIL UPLOAD ATTEMPT ---');
+        console.log('Filename:', filename);
+
+        // Try uppercase first as seen in your dashboard screenshot
+        let { data, error } = await supabase.storage
+            .from('TEMPLATES')
+            .upload(filename, body, {
+                contentType: 'image/png',
+                upsert: false
+            });
+
+        if (error) {
+            console.log('TEMPLATES thumbnail upload failed, trying lowercase "templates"...');
+            console.error('Error was:', error.message);
+
+            const retry = await supabase.storage
+                .from('templates')
+                .upload(filename, body, {
+                    contentType: 'image/png',
+                    upsert: false
+                });
+
+            if (retry.error) {
+                console.error('Lower-case "templates" also failed:', retry.error.message);
+                throw new Error(`Storage upload failed: ${retry.error.message}`);
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('templates').getPublicUrl(filename);
+            return { success: true, url: publicUrlData.publicUrl };
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('TEMPLATES').getPublicUrl(filename);
+        return { success: true, url: publicUrlData.publicUrl };
+
+    } catch (error: any) {
+        console.error('Thumbnail upload error:', error);
         return { success: false, error: error.message };
     }
 }
@@ -836,10 +953,34 @@ export async function updateTemplateConfig(templateId: string, fabricConfig: any
     }
 
     try {
+        // 1. Fetch current template to get old thumbnail if we're updating it
+        let oldThumbnailUrl = null;
+        if (thumbnailUrl) {
+            const { data: currentTemplate } = await supabase
+                .from('templates')
+                .select('thumbnail')
+                .eq('id', templateId)
+                .single();
+            oldThumbnailUrl = currentTemplate?.thumbnail;
+        }
+
+        let normalizedConfig = fabricConfig;
+        let aspectRatio = undefined;
+
+        // Normalize if dimensions provided
+        if (dimensions) {
+            normalizedConfig = normalizeFabricConfig(fabricConfig, dimensions.width, dimensions.height);
+            aspectRatio = getAspectRatio(dimensions.width, dimensions.height);
+        }
+
         const updateData: any = {
-            fabric_config: fabricConfig,
+            fabric_config: normalizedConfig,
             is_custom: false // Ensure it stays as a global template
         };
+
+        if (aspectRatio) {
+            updateData.aspect_ratio = aspectRatio;
+        }
 
         if (thumbnailUrl) {
             updateData.thumbnail = thumbnailUrl;
@@ -857,6 +998,19 @@ export async function updateTemplateConfig(templateId: string, fabricConfig: any
         if (error) {
             throw new Error(error.message);
         }
+
+        // 2. Clean up old thumbnail from storage if update was successful
+        if (thumbnailUrl && oldThumbnailUrl && oldThumbnailUrl.startsWith('http')) {
+            const parts = oldThumbnailUrl.split('/');
+            const filename = parts[parts.length - 1];
+            if (filename) {
+                await supabase.storage.from('TEMPLATES').remove([filename]);
+            }
+        }
+
+        revalidatePath('/templates');
+        revalidatePath('/admin');
+        revalidatePath(`/configure`); // Revalidate configure too as it shows previews
 
         return { success: true };
     } catch (error: any) {
@@ -893,7 +1047,7 @@ export async function deleteTemplate(templateId: string, pin: string) {
     try {
         const { data: template, error: fetchError } = await supabase
             .from('templates')
-            .select('svg_path')
+            .select('svg_path, thumbnail')
             .eq('id', templateId)
             .single();
 
@@ -906,26 +1060,40 @@ export async function deleteTemplate(templateId: string, pin: string) {
             return { success: false, error: deleteError.message };
         }
 
-        if (template?.svg_path) {
-            // Check if it's a storage URL or old local path
-            if (template.svg_path.startsWith('http')) {
-                // Extract filename from URL
-                const urlParts = template.svg_path.split('/');
-                const filename = urlParts[urlParts.length - 1];
+        // Helper to extract filename from Supabase Storage URL
+        const getFilenameFromUrl = (url: string) => {
+            if (!url || !url.startsWith('http')) return null;
+            const parts = url.split('/');
+            return parts[parts.length - 1];
+        };
 
-                await supabase.storage.from('templates').remove([filename]);
-            } else {
-                // Legacy support for cleaning up local files (optional, mostly relevant for dev)
+        const filesToDelete: string[] = [];
+
+        if (template?.svg_path) {
+            const filename = getFilenameFromUrl(template.svg_path);
+            if (filename) filesToDelete.push(filename);
+            else {
+                // Handle legacy local paths
                 const filePath = path.join(process.cwd(), 'public', template.svg_path);
                 if (fs.existsSync(filePath)) {
-                    try {
-                        fs.unlinkSync(filePath);
-                    } catch (e) {
-                        console.warn('Failed to delete local file:', e);
-                    }
+                    try { fs.unlinkSync(filePath); } catch (e) { console.warn('Failed to delete local file:', e); }
                 }
             }
         }
+
+        if (template?.thumbnail) {
+            const thumbFilename = getFilenameFromUrl(template.thumbnail);
+            if (thumbFilename) filesToDelete.push(thumbFilename);
+        }
+
+        if (filesToDelete.length > 0) {
+            // Try deleting from both potential bucket names just in case
+            await supabase.storage.from('TEMPLATES').remove(filesToDelete);
+            await supabase.storage.from('templates').remove(filesToDelete);
+        }
+
+        revalidatePath('/templates');
+        revalidatePath('/admin');
 
         return { success: true };
     } catch (error: any) {
@@ -1037,6 +1205,17 @@ export async function saveProductAction(product: any, pin: string) {
     }
 }
 
+export async function getProducts() {
+    const { db } = await import('@/lib/db');
+    try {
+        const products = await db.getProducts();
+        return products;
+    } catch (error: any) {
+        console.error('Error in getProducts action:', error);
+        return [];
+    }
+}
+
 export async function deleteProductAction(id: string, pin: string) {
     if (pin !== '1234') {
         return { success: false, error: 'Invalid Admin PIN' };
@@ -1060,22 +1239,51 @@ export async function uploadProductImages(formData: FormData) {
     }
 
     try {
-        const publicDir = path.join(process.cwd(), 'public', 'products');
-
-        if (!fs.existsSync(publicDir)) {
-            fs.mkdirSync(publicDir, { recursive: true });
-        }
+        // Check if buckets exist, or just rely on 'products' bucket existing or being auto-created if possible (usually manual)
+        // For now, assume a 'products' bucket or reuse 'templates' if we want to be lazy, but user asked "any where else", so 'products' is likely another bucket needed.
+        // Actually, to keep it simple for the user, I can put them in the same 'templates' bucket but under a subfolder 'products/', 
+        // OR ask the user to create a 'products' bucket. 
+        // Given the quick fix nature, subfolder in 'templates' is safest as we KNOW that bucket exists now.
+        // UPDATE: User asked about problems elsewhere. I should probably use the same bucket to avoid more setup steps for them.
 
         for (const file of files) {
             if (file.size === 0) continue;
 
             const buffer = Buffer.from(await file.arrayBuffer());
+            const body = new Uint8Array(buffer);
             const ext = path.extname(file.name) || '.jpg';
-            const filename = `${crypto.randomUUID()}${ext}`;
-            const filePath = path.join(publicDir, filename);
+            const filename = `products/${crypto.randomUUID()}${ext}`; // Store in products subfolder
 
-            fs.writeFileSync(filePath, buffer);
-            uploadedUrls.push(`/products/${filename}`);
+            console.log(`--- PRODUCT IMAGE UPLOAD ATTEMPT: ${file.name} ---`);
+            console.log('Filename:', filename);
+
+            let workedBucket = 'TEMPLATES';
+            let { error: uploadError } = await supabase.storage
+                .from(workedBucket)
+                .upload(filename, body, {
+                    contentType: 'image/' + ext.replace('.', ''),
+                    upsert: false
+                });
+
+            if (uploadError) {
+                console.log(`TEMPLATES upload failed for ${file.name}, trying lowercase "templates"...`);
+                console.error('Error was:', uploadError.message);
+                workedBucket = 'templates';
+                const retry = await supabase.storage
+                    .from(workedBucket)
+                    .upload(filename, body, {
+                        contentType: 'image/' + ext.replace('.', ''),
+                        upsert: false
+                    });
+
+                if (retry.error) {
+                    console.error('Supabase Product Upload Error:', retry.error.message);
+                    continue; // Skip failed uploads
+                }
+            }
+
+            const { data: publicUrlData } = supabase.storage.from(workedBucket).getPublicUrl(filename);
+            uploadedUrls.push(publicUrlData.publicUrl);
         }
 
         return { success: true, urls: uploadedUrls };
@@ -1186,6 +1394,113 @@ export async function updateAppSetting(key: string, value: any, pin: string) {
         return { success: true };
     } catch (error: any) {
         console.error(`Error updating setting ${key}:`, error);
+        return { success: false, error: error.message };
+    }
+}
+
+
+// ========== MATERIAL MANAGEMENT ==========
+
+export async function getMaterials() {
+    const { data, error } = await supabase
+        .from('materials')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching materials:', error);
+        return { success: false, error: error.message };
+    }
+
+    return { success: true, materials: data as Material[] };
+}
+
+export async function saveMaterial(material: Partial<Material>, pin: string) {
+    if (pin !== '1234') { // Basic PIN check, should use more robust auth in prod
+        return { success: false, error: 'Unauthorized' };
+    }
+
+    const { id, ...updates } = material;
+
+    // Validate
+    if (!updates.name || !updates.price_per_sqft || !updates.slug) {
+        return { success: false, error: 'Missing required fields' };
+    }
+
+    let query;
+    if (id) {
+        // Update
+        query = supabase
+            .from('materials')
+            .update(updates)
+            .eq('id', id);
+    } else {
+        // Insert
+        query = supabase
+            .from('materials')
+            .insert(updates);
+    }
+
+    const { data, error } = await query.select().single();
+
+    if (error) {
+        return { success: false, error: error.message };
+    }
+
+    return { success: true, material: data };
+}
+
+export async function deleteMaterial(id: string, pin: string) {
+    if (pin !== '1234') return { success: false, error: 'Unauthorized' };
+
+    const { error } = await supabase
+        .from('materials')
+        .delete()
+        .eq('id', id);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+export async function normalizeAllTemplates(pin: string) {
+    if (pin !== '1234') {
+        return { success: false, error: 'Invalid Admin PIN' };
+    }
+
+    try {
+        const { data: templates, error: fetchError } = await supabase
+            .from('templates')
+            .select('*');
+
+        if (fetchError) throw new Error(fetchError.message);
+
+        let count = 0;
+
+        for (const template of templates) {
+            // Skip if no dimensions
+            if (!template.dimensions || !template.fabric_config) continue;
+
+            const { width, height } = template.dimensions;
+
+            // Normalize
+            const normalizedConfig = normalizeFabricConfig(template.fabric_config, width, height);
+            const aspectRatio = getAspectRatio(width, height);
+
+            // Update
+            const { error: updateError } = await supabase
+                .from('templates')
+                .update({
+                    fabric_config: normalizedConfig,
+                    aspect_ratio: aspectRatio
+                })
+                .eq('id', template.id);
+
+            if (!updateError) count++;
+        }
+
+        return { success: true, count };
+    } catch (error: any) {
+        console.error('Normalization error:', error);
         return { success: false, error: error.message };
     }
 }

@@ -14,8 +14,8 @@ export function Header() {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const pathname = usePathname();
 
-    // Do not show the main floating header on the design page
-    if (pathname?.startsWith('/design')) return null;
+    // Do not show the main floating header on the design page or admin page
+    if (pathname?.startsWith('/design') || pathname?.startsWith('/admin')) return null;
 
     return (
         <header className="sticky top-0 z-50 backdrop-blur-md bg-slate-900/50 border-b border-white/10 transition-all duration-300">
@@ -86,7 +86,7 @@ export function Header() {
                                 >
                                     Sign In
                                 </button>
-                                <Link href="/design">
+                                <Link href="/configure">
                                     <Button variant="primary" size="md" className="rounded-full px-6 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 shadow-lg shadow-indigo-500/20 font-semibold text-sm h-10 transition-transform hover:scale-105 border-0 text-white">
                                         Get Started
                                     </Button>
@@ -139,7 +139,7 @@ export function Header() {
                                     >
                                         Sign In
                                     </button>
-                                    <Link href="/design" onClick={() => setIsMenuOpen(false)}>
+                                    <Link href="/configure" onClick={() => setIsMenuOpen(false)}>
                                         <Button className="w-full justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border-0 py-6 text-lg font-bold shadow-lg shadow-indigo-500/20">
                                             Get Started
                                         </Button>

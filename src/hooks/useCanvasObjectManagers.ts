@@ -23,11 +23,11 @@ export function useCanvasObjectManagers(
             name: 'user_added_text',
             editable: true,
             objectCaching: false,
-            borderColor: '#E53935',
-            cornerStrokeColor: '#E53935',
+            borderColor: '#FF3333',
+            cornerStrokeColor: '#FF3333',
             cornerColor: '#ffffff',
-            cornerSize: 8,
-            borderScaleFactor: 2.5,
+            cornerSize: 28,
+            borderScaleFactor: 4,
             transparentCorners: false,
             padding: 4,
             lineHeight: 1,
@@ -86,12 +86,14 @@ export function useCanvasObjectManagers(
             if (config.shape === 'roundedRect' && iconName === 'youtube') {
                 background = new fabric.Rect({
                     ...commonProps,
-                    width: 100, height: 70, rx: 15, ry: 15, fill: config.color
+                    width: 100, height: 70, rx: 15, ry: 15, fill: config.color,
+                    name: 'icon_bg'
                 });
             } else if (config.shape === 'roundedSquare') {
                 background = new fabric.Rect({
                     ...commonProps,
-                    width: 80, height: 80, rx: 18, ry: 18, fill: config.color
+                    width: 80, height: 80, rx: 18, ry: 18, fill: config.color,
+                    name: 'icon_bg'
                 });
                 if (config.useGradient && iconName === 'instagram') {
                     const gradient = new fabric.Gradient({
@@ -111,16 +113,18 @@ export function useCanvasObjectManagers(
                 background = new fabric.Path(iconPaths.whatsapp_bubble, {
                     ...commonProps,
                     fill: config.color,
-                    scaleX: 4, scaleY: 4
+                    scaleX: 4, scaleY: 4,
+                    name: 'icon_bg'
                 });
             } else {
-                background = new fabric.Circle({ ...commonProps, radius: 40, fill: config.color });
+                background = new fabric.Circle({ ...commonProps, radius: 40, fill: config.color, name: 'icon_bg' });
             }
 
             const logoPath = new fabric.Path(pathData, {
                 ...commonProps,
                 fill: '#ffffff',
                 stroke: 'transparent',
+                name: 'icon_logo',
                 scaleX: iconName === 'facebook' ? 2.8 : (iconName === 'whatsapp' ? 4 : (iconName === 'x' ? 1.8 : 2.2)),
                 scaleY: iconName === 'facebook' ? 2.8 : (iconName === 'whatsapp' ? 4 : (iconName === 'x' ? 1.8 : 2.2))
             });

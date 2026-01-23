@@ -9,19 +9,21 @@ interface TemplateSelectorProps {
     onSelect: (id: TemplateId) => void;
     currentProductId?: string;
     aspectRatio?: number; // width / height
+    templates?: Template[];
 }
 
-export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemplateId, onSelect, currentProductId, aspectRatio }) => {
-    const [templates, setTemplates] = useState<Template[]>(TEMPLATES);
-    const [isLoading, setIsLoading] = useState(true);
+export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemplateId, onSelect, currentProductId, aspectRatio, templates: externalTemplates }) => {
+    const [internalTemplates, setInternalTemplates] = useState<Template[]>(TEMPLATES);
+    const [isLoading, setIsLoading] = useState(!externalTemplates);
 
     useEffect(() => {
+        if (externalTemplates) return; // Skip fetch if provided externally
         const fetchTemplates = async () => {
             setIsLoading(true);
             try {
                 const data = await getTemplates();
                 if (data && data.length > 0) {
-                    setTemplates(data);
+                    setInternalTemplates(data);
                 }
             } catch (error) {
                 console.error('Error fetching templates:', error);
@@ -30,35 +32,46 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
             }
         };
         fetchTemplates();
-    }, []);
+    }, [externalTemplates]);
+
+    const templatesToUse = externalTemplates || internalTemplates;
 
     const getMatchQuality = (template: Template) => {
-        if (!currentProductId) return 'UNIVERSAL';
+        // ALWAYS show the currently selected template
+        if (selectedTemplateId && template.id === selectedTemplateId) {
+            return 'SMART_MATCH';
+        }
 
-        // 1. Exact Product Match
-        if (template.productIds && template.productIds.includes(currentProductId)) {
+        // 1. Exact Product Match (Legacy flow)
+        if (currentProductId && template.productIds && template.productIds.includes(currentProductId)) {
             return 'EXACT';
         }
 
-        // 2. Aspect Ratio Match for Universal
-        if (template.isUniversal) {
-            if (aspectRatio && template.dimensions) {
-                const tRatio = template.dimensions.width / template.dimensions.height;
-                const diff = Math.abs(tRatio - aspectRatio);
-                const tolerance = aspectRatio * 0.2; // 20% tolerance
+        // 2. Aspect Ratio Match (Primary for Material-First flow)
+        if (aspectRatio) {
+            // Default to landscape (3:1) for banners, or square (1:1) for others if dimensions missing
+            const tWidth = template.dimensions?.width || (template.layoutType === 'banner' ? 3 : 1);
+            const tHeight = template.dimensions?.height || 1;
+            const tRatio = tWidth / tHeight;
 
-                if (diff <= tolerance) {
-                    return 'SMART_MATCH';
-                }
-                return 'RATIO_MISMATCH';
+            const diff = Math.abs(tRatio - aspectRatio);
+            const tolerance = aspectRatio * 0.15; // Strict 15% tolerance
+
+            if (diff <= tolerance) {
+                return 'SMART_MATCH';
             }
+            return 'HIDDEN';
+        }
+
+        // 3. Fallback for universal templates
+        if (template.isUniversal || !template.productIds || template.productIds.length === 0) {
             return 'UNIVERSAL';
         }
 
         return 'HIDDEN';
     };
 
-    const categorizedTemplates = templates
+    const categorizedTemplates = templatesToUse
         .map(t => ({ ...t, matchQuality: getMatchQuality(t) }))
         .filter(t => t.matchQuality !== 'HIDDEN')
         .sort((a, b) => {

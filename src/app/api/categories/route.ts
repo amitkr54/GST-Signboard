@@ -5,5 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     const result = await getCategories();
-    return NextResponse.json(result);
+    return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' }
+    });
 }
