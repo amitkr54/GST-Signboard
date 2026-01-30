@@ -9,6 +9,8 @@ interface FloatingSelectionToolbarProps {
     onDuplicate: () => void;
     onDelete: () => void;
     onMore?: () => void;
+    fill?: string;
+    onColorChange?: (color: string) => void;
 }
 
 const DuplicateIcon = ({ className }: { className?: string }) => (
@@ -26,7 +28,9 @@ export function FloatingSelectionToolbar({
     onLockToggle,
     onDuplicate,
     onDelete,
-    onMore
+    onMore,
+    fill,
+    onColorChange
 }: FloatingSelectionToolbarProps) {
     return (
         <div
@@ -37,6 +41,22 @@ export function FloatingSelectionToolbar({
                 transform: 'translateX(-50%)'
             }}
         >
+            {onColorChange && (
+                <div className="relative group/color w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-all">
+                    <div
+                        className="w-5 h-5 rounded-full border border-slate-200 shadow-sm"
+                        style={{ backgroundColor: fill || '#000000' }}
+                    />
+                    <input
+                        type="color"
+                        value={fill || '#000000'}
+                        onChange={(e) => onColorChange(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        title="Change Color"
+                    />
+                </div>
+            )}
+
             <button
                 onClick={onLockToggle}
                 className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${isLocked ? 'bg-amber-100 text-amber-600' : 'text-slate-600 hover:bg-slate-100'}`}

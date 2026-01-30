@@ -15,7 +15,7 @@ interface CheckoutDetailsModalProps {
         shippingAddress: string;
     };
     onUpdateDetails: (details: any) => void;
-    onComplete: () => void;
+    onComplete: () => void | Promise<void>;
     isProcessing: boolean;
     designConfig?: any;
     signageData?: any;
@@ -34,17 +34,20 @@ export function CheckoutDetailsModal({
     const { user, signInWithGoogle } = useAuth();
     const [step, setStep] = useState<'auth' | 'details'>(user ? 'details' : 'auth');
 
+    const [hasPreFilled, setHasPreFilled] = useState(false);
+
     useEffect(() => {
-        if (user && step === 'auth') {
-            setStep('details');
+        if (user && !hasPreFilled) {
             // Pre-fill from user metadata
             onUpdateDetails({
                 ...contactDetails,
                 name: contactDetails.name || user.user_metadata?.full_name || '',
                 email: contactDetails.email || user.email || '',
             });
+            setHasPreFilled(true);
+            if (step === 'auth') setStep('details');
         }
-    }, [user, step]);
+    }, [user, hasPreFilled, onUpdateDetails, contactDetails, step]);
 
     const handleGoogleLogin = async () => {
         // Save current design state to localStorage so it survives the redirect

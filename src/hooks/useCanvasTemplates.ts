@@ -4,39 +4,38 @@ import { SignageData, DesignConfig } from '@/lib/types';
 import { LAYOUT } from '@/lib/layout-constants';
 
 export function useCanvasTemplates(
-    canvasRef: React.MutableRefObject<fabric.Canvas | null>,
+    canvas: fabric.Canvas | null,
     baseWidth: number,
     baseHeight: number,
     design: DesignConfig,
     data: SignageData,
     onSafetyCheck?: () => void,
-    isReadOnly?: boolean
+    isReadOnly?: boolean,
+    isAdmin?: boolean
 ) {
     const finalizeStandardLayout = useCallback(() => {
-        const canvas = canvasRef.current;
-        // ... (omitting existing finalizeStandardLayout body as it doesn't change, but need to be careful with range)
         if (!canvas) return;
         const { PADDING } = LAYOUT;
         let curY = PADDING + 50;
 
-        const logo = canvas.getObjects().find(o => (o as any).name === 'template_logo');
-        const comp = canvas.getObjects().find(o => (o as any).name === 'template_company');
-        const det = canvas.getObjects().filter(o => (o as any).name === 'template_details');
+        const logo = canvas.getObjects().find((o: fabric.Object) => (o as any).name === 'template_logo');
+        const comp = canvas.getObjects().find((o: fabric.Object) => (o as any).name === 'template_company');
+        const det = canvas.getObjects().filter((o: fabric.Object) => (o as any).name === 'template_details');
 
         [logo, comp, ...det].filter(Boolean).forEach((obj: any) => {
             obj.set({ left: baseWidth / 2, top: curY, originX: 'center', originY: 'top' });
             curY += obj.getScaledHeight() + 30;
             obj.setCoords();
         });
-    }, [canvasRef, baseWidth]);
+    }, [canvas, baseWidth]);
 
     const updateTemplateContent = useCallback(() => {
-        const canvas = canvasRef.current;
         if (!canvas) return;
+        console.log('[DEBUG] updateTemplateContent called');
         const existing = canvas.getObjects();
 
         // 0. Promote ANY static text components to Textboxes BEFORE sync
-        existing.forEach(obj => {
+        existing.forEach((obj: fabric.Object) => {
             const name = (obj as any).name;
             // Promote if it's a template text OR if it's a generic text object that should be editable
             const isTemplateText = name && (name === 'template_company' || name === 'template_svg_text' || name === 'template_details');
@@ -44,6 +43,8 @@ export function useCanvasTemplates(
 
             if (obj.type === 'text' && (isTemplateText || isGenericText) && canvas) {
                 const textObj = obj as fabric.Text;
+                const wasActive = canvas.getActiveObject() === obj;
+                console.log('[DEBUG] Promoting static text to textbox. wasActive:', wasActive, 'name:', name);
                 const oldScale = textObj.scaleX || 1;
                 const normalizedFontSize = (textObj.fontSize || 40) * oldScale;
 
@@ -59,16 +60,21 @@ export function useCanvasTemplates(
                 const index = canvas.getObjects().indexOf(obj);
                 canvas.insertAt(textbox, index, true);
                 canvas.remove(obj);
+                if (wasActive) {
+                    console.log('[DEBUG] Restoring active selection to new textbox');
+                    canvas.setActiveObject(textbox);
+                }
             }
         });
 
         // 1. Background
-        let bgRect = canvas.getObjects().find(obj => (obj as any).name === 'background' || (obj as any).isBackground) as fabric.Rect;
+        let bgRect = canvas.getObjects().find((obj: fabric.Object) => (obj as any).name === 'background' || (obj as any).isBackground) as fabric.Rect;
         if (!bgRect) {
             bgRect = new fabric.Rect({
                 width: baseWidth, height: baseHeight, left: baseWidth / 2, top: baseHeight / 2,
                 originX: 'center', originY: 'center', fill: design.backgroundColor,
                 selectable: false, evented: false, name: 'background',
+                scaleX: 1, scaleY: 1,
                 // @ts-ignore
                 isBackground: true
             });
@@ -79,7 +85,9 @@ export function useCanvasTemplates(
                 width: baseWidth,
                 height: baseHeight,
                 left: baseWidth / 2,
-                top: baseHeight / 2
+                top: baseHeight / 2,
+                scaleX: 1,
+                scaleY: 1
             });
             bgRect.setCoords();
             canvas.sendToBack(bgRect);
@@ -140,7 +148,7 @@ export function useCanvasTemplates(
                 });
                 safety.setCoords();
             }
-            canvas.moveTo(safety, 1);
+            safety.bringToFront();
 
             // 3. Bleed Rects
             if (bleedRects.length === 0) {
@@ -159,8 +167,8 @@ export function useCanvasTemplates(
                 const right = new fabric.Rect({ ...rectProps, left: baseWidth - margin, top: margin, width: margin, height: baseHeight - (margin * 2), originX: 'left', originY: 'top' });
 
                 canvas.add(top, bottom, left, right);
-                [top, bottom, left, right].forEach(r => canvas.moveTo(r, 1));
-                canvas.moveTo(safety, 5); // Ensure safety guide is above bleed rects
+                [top, bottom, left, right].forEach(r => r.bringToFront());
+                safety.bringToFront(); // Ensure safety guide is above bleed rects
             } else {
                 // Update positions on resize
                 bleedRects.forEach((r: any, i) => {
@@ -173,93 +181,216 @@ export function useCanvasTemplates(
             }
         }
 
-        // 4. Sync Text (Protecting Editing State)
-        const company = canvas.getObjects().find(obj => (obj as any).name === 'template_company') as fabric.Textbox | undefined;
-        if (company && !(company as any).isEditing) {
-            const newText = (data.companyName || '').toUpperCase();
-            company.set({
-                text: newText,
-                selectable: true,
-                evented: true,
-                editable: true,
-                lockScalingY: false,
-                objectCaching: false,
-                borderColor: '#FF3333',
-                cornerColor: '#ffffff',
-                cornerStrokeColor: '#FF3333',
-                cornerSize: 28,
-                transparentCorners: false,
-                padding: 0,
-                lineHeight: 1,
-                cornerStyle: 'circle',
-                borderScaleFactor: 4
-            });
-            // Only sync global styles if they've changed in the design prop (manual overrides in toolbar take precedence)
-            if (design.fontFamily && company.fontFamily !== design.fontFamily) company.set('fontFamily', design.fontFamily);
-            if (design.textColor && company.fill !== design.textColor) company.set('fill', design.textColor);
-            if (design.companyNameSize && company.fontSize !== design.companyNameSize) company.set('fontSize', design.companyNameSize);
+        // 4. Auto-Manage "Additional Detail" Objects (Create/Delete)
+        const additionalObjects = existing.filter(o => (o as any).name?.startsWith('template_additional_'));
+        const additionalTexts = data.additionalText || [];
 
-            // Auto-fit company text
-            const marginScale = 0.05;
-            const margin = Math.min(baseWidth, baseHeight) * marginScale;
-            const maxWidth = baseWidth - (margin * 2);
-
-            // Fast measurement using fabric.Text
-            const measurer = new fabric.Text(company.text || '', {
-                fontFamily: company.fontFamily,
-                fontSize: company.fontSize,
-                fontWeight: company.fontWeight,
-                fontStyle: company.fontStyle,
-                charSpacing: company.charSpacing
-            });
-            const targetWidth = Math.min((measurer.width || 0) + 15, maxWidth);
-            company.set({ width: targetWidth, padding: 4 });
-            company.setCoords();
-        }
-
-        const details = canvas.getObjects().filter(obj => (obj as any).name === 'template_details') as fabric.Textbox[];
-        details.forEach((det, idx) => {
-            if (idx === 0 && det && !(det as any).isEditing) {
-                const newText = data.address || '';
-                det.set({
-                    text: newText,
-                    selectable: true,
-                    evented: true,
-                    editable: true,
-                    lockScalingY: false,
-                    objectCaching: false,
-                    padding: 0,
-                    lineHeight: 1
-                });
-                if (design.fontFamily && det.fontFamily !== design.fontFamily) det.set('fontFamily', design.fontFamily);
-                if (design.textColor && det.fill !== design.textColor) det.set('fill', design.textColor);
-                if (design.fontSize && det.fontSize !== design.fontSize) det.set('fontSize', design.fontSize);
-
-                // Auto-fit details text
-                const marginScale = 0.05;
-                const margin = Math.min(baseWidth, baseHeight) * marginScale;
-                const maxWidth = baseWidth - (margin * 2);
-
-                const detMeasurer = new fabric.Text(det.text || '', {
-                    fontFamily: det.fontFamily,
-                    fontSize: det.fontSize,
-                    fontWeight: det.fontWeight,
-                    fontStyle: det.fontStyle,
-                    charSpacing: det.charSpacing
-                });
-                const targetWidth = Math.min((detMeasurer.width || 0) + 15, maxWidth);
-                det.set({ width: targetWidth, padding: 4 });
-                det.setCoords();
+        // cleanup: remove objects for deleted lines
+        additionalObjects.forEach(obj => {
+            const idx = parseInt((obj as any).name.split('_')[2]);
+            if (idx >= additionalTexts.length && !isAdmin) {
+                canvas.remove(obj);
             }
         });
 
-        finalizeStandardLayout();
+        // create: add missing objects
+        additionalTexts.forEach((text, i) => {
+            const name = `template_additional_${i}`;
+            const exists = canvas.getObjects().some(o => (o as any).name === name);
+
+            if (!exists && text && text.trim() !== '') {
+                console.log('[AutoGen] Creating additional detail:', { name, text, index: i });
+
+                // Find best position (try below address/details field)
+                const addressObj = canvas.getObjects().find(o => {
+                    const objName = (o as any).name;
+                    return objName === 'template_address' || objName === 'template_details';
+                });
+
+                let startTop = baseHeight * 0.5; // Default to middle
+                let refStyle: fabric.Textbox | null = null;
+
+                if (addressObj) {
+                    // Position below address with some spacing
+                    startTop = (addressObj.top || 0) + (addressObj.getScaledHeight() || 0) + (30 * (i + 1));
+                    if (addressObj instanceof fabric.Textbox) {
+                        refStyle = addressObj;
+                    }
+                } else {
+                    // Fallback: find lowest text and position below, but cap at 80% of canvas height
+                    const textObjects = canvas.getObjects().filter(o =>
+                        (o.type === 'textbox' || o.type === 'text' || o.type === 'i-text') &&
+                        !(o as any).name?.startsWith('template_additional_')
+                    );
+
+                    if (textObjects.length > 0) {
+                        const lowestObj = textObjects.reduce((lowest, current) => {
+                            const currentBottom = (current.top || 0) + (current.getScaledHeight() || 0);
+                            const lowestBottom = (lowest.top || 0) + (lowest.getScaledHeight() || 0);
+                            return currentBottom > lowestBottom ? current : lowest;
+                        }, textObjects[0]);
+
+                        startTop = (lowestObj.top || 0) + (lowestObj.getScaledHeight() || 0) + (30 * (i + 1));
+                        if (lowestObj instanceof fabric.Textbox) {
+                            refStyle = lowestObj;
+                        }
+                    }
+                }
+
+                // Ensure text stays within visible canvas (max 85% of height)
+                const maxTop = baseHeight * 0.85;
+                if (startTop > maxTop) {
+                    startTop = maxTop;
+                }
+
+                const newText = new fabric.Textbox(text, {
+                    left: baseWidth / 2,
+                    top: startTop,
+                    width: Math.min(baseWidth * 0.7, 500),
+                    fontSize: refStyle?.fontSize || 30,
+                    fontFamily: refStyle?.fontFamily || 'Inter',
+                    fill: refStyle?.fill || '#000000',
+                    textAlign: 'center',
+                    originX: 'center',
+                    originY: 'top',
+                    selectable: true,
+                    evented: true,
+                    editable: true,
+                    name: name
+                });
+                canvas.add(newText);
+                console.log('[AutoGen] Added to canvas:', name, 'at position:', { left: newText.left, top: newText.top });
+            }
+        });
+
+        // 5. Generic Smart Mapping Sync (Protecting Design & Formatting)
+        canvas.getObjects().forEach((obj: fabric.Object) => {
+            const name = (obj as any).name;
+            if (!name || !name.startsWith('template_')) return;
+            if ((obj as any).isEditing) return;
+
+            const key = name.replace('template_', '');
+
+            // Handle Text Synchronization
+            if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                const textObj = obj as fabric.Textbox;
+                let newValue = '';
+
+                // Build-in Field Mapping
+                if (key === 'company' || key === 'companyName') newValue = (data.companyName || (isAdmin ? 'BUSINESS NAME' : '')).toUpperCase();
+                else if (key === 'address' || key === 'details') newValue = data.address || (isAdmin ? 'OFFICE ADDRESS LINE' : '');
+                else if (key === 'gstin') newValue = data.gstin ? `GST: ${data.gstin}` : (isAdmin ? 'GST: 00XXXXX0000X0Z0' : '');
+                else if (key === 'cin') newValue = data.cin ? `CIN: ${data.cin}` : (isAdmin ? 'CIN: U00000XX0000XXX000000' : '');
+                else if (key === 'mobile') newValue = data.mobile || (isAdmin ? '+91 99999 99999' : '');
+                else if (key === 'email') newValue = data.email || (isAdmin ? 'hello@example.com' : '');
+                else if (key === 'website') newValue = data.website || (isAdmin ? 'www.example.com' : '');
+
+                // Additional Text Lines (0-9)
+                else if (key.startsWith('additional_')) {
+                    const idx = parseInt(key.split('_')[1]);
+                    newValue = data.additionalText?.[idx] || (isAdmin ? `ADDITIONAL LINE ${idx + 1}` : '');
+                }
+
+                // Custom Field Mapping
+                else if (data.customFields && data.customFields[key]) {
+                    newValue = data.customFields[key];
+                }
+                else if (isAdmin && !newValue) {
+                    // Fallback placeholder for any other template keys to help admin identify them
+                    newValue = key.replace(/_/g, ' ').toUpperCase();
+                }
+
+                // Apply update if value changed (or admin mode needs placeholder)
+                if (newValue !== undefined && (newValue !== '' || isAdmin)) {
+                    // PRESERVE: We do NOT reset padding, lineHeight, or fill here 
+                    // unless they are explicitly coming from the design prop as a global change.
+                    // For now, let's prioritize the template/object's own styles to fix the "goes to black" issue.
+                    textObj.set({
+                        text: newValue,
+                        objectCaching: false // Ensure crisp rendering after update
+                    });
+
+                    // Apply user's optional style preferences (font/size/color) from form controls
+                    const userStyles = data.styles?.[name];
+                    if (userStyles) {
+                        if (userStyles.font) textObj.set({ fontFamily: userStyles.font });
+                        if (userStyles.size) textObj.set({ fontSize: userStyles.size });
+                        if (userStyles.color) textObj.set({ fill: userStyles.color });
+                    }
+
+                    // Only apply global design colors if the layer doesn't seem to have a specific design-intent color
+                    // (Optional: we could add a flag to objects that should ignore global colors)
+                    // if (design.textColor && textObj.fill === '#000000') textObj.set('fill', design.textColor);
+
+                    textObj.setCoords();
+                }
+            }
+
+            // Handle Image/Logo Synchronization
+            if (name === 'template_logo') {
+                const logo = obj as fabric.Image | fabric.Rect;
+                if (data.logoUrl) {
+                    if (logo.type === 'image') {
+                        const img = logo as fabric.Image;
+                        if (img.getSrc() !== data.logoUrl) {
+                            img.setSrc(data.logoUrl, () => {
+                                canvas.requestRenderAll();
+                            }, { crossOrigin: 'anonymous' });
+                        }
+                    } else {
+                        // Replace placeholder Rect with actual image
+                        fabric.Image.fromURL(data.logoUrl, (img) => {
+                            img.set({
+                                left: logo.left,
+                                top: logo.top,
+                                scaleX: (logo.getScaledWidth() / img.width!),
+                                scaleY: (logo.getScaledHeight() / img.height!),
+                                name: 'template_logo',
+                                selectable: true,
+                                evented: true,
+                                originX: logo.originX,
+                                originY: logo.originY
+                            });
+                            canvas.remove(logo);
+                            canvas.add(img);
+                            img.setCoords();
+                            canvas.requestRenderAll();
+                        }, { crossOrigin: 'anonymous' });
+                    }
+                }
+            }
+        });
+
+        // 5. Heal & Fix Stretched Rectangles (Auto-recovery)
+        canvas.getObjects().forEach((obj: fabric.Object) => {
+            // Identify template rectangles that are stretched or lost names
+            const isStretchedRect = obj.type === 'rect' && (obj.width || 0) > 50000;
+            const isTemplateRect = (obj as any).name === 'template_svg_background_object' || (isStretchedRect && (obj.fill === '#FEFEFE' || obj.fill === '#ffffff' || (typeof obj.fill === 'string' && obj.fill.toLowerCase() === '#fefefe')));
+
+            if (isTemplateRect) {
+                const targetSafeWidth = baseWidth * 0.92; // 92% safe zone
+                const currentPixelWidth = (obj.width || 0) * (obj.scaleX || 1);
+                const threshold = baseWidth * 0.01; // 1% precision threshold (User requested)
+
+                // If off by more than threshold, snap it
+                if (Math.abs(currentPixelWidth - targetSafeWidth) > threshold) {
+                    const newScale = targetSafeWidth / (obj.width || 1);
+                    obj.set({
+                        scaleX: newScale,
+                        scaleY: newScale,
+                        name: 'template_svg_background_object'
+                    });
+                    obj.setCoords();
+                    console.log(`Auto-healed stretched separator to safe scale ${newScale}`);
+                }
+            }
+        });
+
         canvas.requestRenderAll();
         onSafetyCheck?.();
-    }, [canvasRef, baseWidth, baseHeight, design, data, finalizeStandardLayout, onSafetyCheck]);
+    }, [canvas, baseWidth, baseHeight, design, data, finalizeStandardLayout, onSafetyCheck, isAdmin]);
 
     const renderSVGTemplate = useCallback((comps: any, svgText?: string) => {
-        const canvas = canvasRef.current;
         if (!canvas) return;
 
         let vbX = 0, vbY = 0, vbW = baseWidth, vbH = baseHeight;
@@ -281,7 +412,9 @@ export function useCanvasTemplates(
                         left: (c.left - vbX) * sc + ox,
                         top: (c.top - vbY) * sc + oy,
                         fontSize: (c.fontSize || 40) * sc,
-                        fontFamily: c.fontFamily || 'Arial',
+                        fontFamily: (c.fontFamily || 'Arial').replace(/['"]/g, '').trim(),
+                        fontWeight: c.fontWeight || 'normal',
+                        fontStyle: c.fontStyle || 'normal',
                         textAlign: c.textAlign || 'left',
                         fill: c.fill || '#000',
                         width: (c.width || (vbW * 0.8)) * sc,
@@ -320,7 +453,7 @@ export function useCanvasTemplates(
         } else {
             addTextObjects();
         }
-    }, [canvasRef, baseWidth, baseHeight, updateTemplateContent]);
+    }, [canvas, baseWidth, baseHeight, updateTemplateContent]);
 
     return { updateTemplateContent, renderSVGTemplate };
 }

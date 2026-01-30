@@ -9,7 +9,7 @@ export default function ContactPage() {
         address: "F-713, Lado Sarai, New Delhi – 110030",
         phone: "9958657208",
         email: "pankaj_thakur87@yahoo.com",
-        website: "signageworks.in"
+        website: "studio.signageworks.in"
     };
 
     return (

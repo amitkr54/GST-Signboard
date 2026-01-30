@@ -4,8 +4,12 @@ export interface SignageData {
     gstin?: string;
     cin?: string;
     mobile?: string;
+    email?: string;
+    website?: string;
     logoUrl?: string;
     additionalText?: string[];
+    customFields?: Record<string, string>;
+    styles?: Record<string, { font?: string; size?: number; color?: string }>;
 }
 
 export interface OrderContactDetails {

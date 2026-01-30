@@ -33,50 +33,53 @@ export function DesignUpload({ onUpload, currentDesign }: DesignUploadProps) {
     };
 
     return (
-        <div className="space-y-4 p-4 bg-white rounded-xl shadow-sm border">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-800">
-                <FileImage className="w-5 h-5" />
+        <div className="space-y-4 p-6 bg-white/5 rounded-3xl border border-white/10 shadow-xl backdrop-blur-md">
+            <h2 className="text-xl font-black mb-4 flex items-center gap-2 text-white uppercase tracking-tight">
+                <FileImage className="w-5 h-5 text-indigo-400" />
                 Upload Pre-Designed Signage
             </h2>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-purple-400 transition-colors">
+            <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-indigo-500/50 hover:bg-white/5 transition-all">
                 {preview ? (
                     <div className="relative">
                         <img
                             src={preview}
                             alt="Uploaded design"
-                            className="max-h-48 mx-auto rounded-lg border shadow-sm"
+                            className="max-h-48 mx-auto rounded-lg border border-white/10 shadow-2xl"
                         />
                         <button
                             onClick={handleClear}
-                            className="absolute top-2 right-2 bg-gray-900/80 text-white p-1 rounded-full hover:bg-gray-900 transition-colors"
+                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors shadow-lg"
                         >
                             <X className="w-4 h-4" />
                         </button>
-                        <p className="text-sm text-gray-600 mt-2">Design uploaded successfully!</p>
+                        <p className="text-sm text-indigo-300 mt-4 font-bold">Design uploaded successfully!</p>
                     </div>
                 ) : (
-                    <label className="cursor-pointer">
+                    <label className="cursor-pointer group">
                         <input
                             type="file"
                             accept="image/*,.pdf"
                             onChange={handleFileChange}
                             className="hidden"
                         />
-                        <Upload className="w-12 h-12 mx-auto text-purple-400 mb-2" />
-                        <p className="text-sm font-medium text-gray-800">
+                        <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                            <Upload className="w-8 h-8 text-indigo-400" />
+                        </div>
+                        <p className="text-sm font-bold text-white">
                             Click to upload your design
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-indigo-300/50 mt-1 uppercase tracking-widest font-black">
                             PNG, JPG, SVG or PDF (max 10MB)
                         </p>
                     </label>
                 )}
             </div>
 
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                <p className="text-xs text-purple-800">
-                    <strong>Note:</strong> If you upload a pre-designed file, it will replace the custom design options below.
+            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
+                <p className="text-xs text-indigo-200 leading-relaxed font-medium">
+                    <strong className="text-indigo-400 mr-1 uppercase tracking-wider">Note:</strong>
+                    If you upload a pre-designed file, it will replace the custom design options below.
                 </p>
             </div>
         </div>

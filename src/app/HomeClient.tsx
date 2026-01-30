@@ -49,7 +49,7 @@ export default function HomeClient() {
                 </div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                    <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-purple-200">
+                    <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-purple-200">
                         Signage Made Simple
                     </h1>
                     <p className="text-xl text-indigo-100 max-w-2xl mx-auto mb-16 leading-relaxed">
@@ -122,10 +122,10 @@ export default function HomeClient() {
                         {/* Brand Column */}
                         <div className="col-span-2 md:col-span-1">
                             <div className="flex items-center gap-2 mb-4">
-                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg">
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
                                     S
                                 </div>
-                                <span className="font-black text-xl text-gray-900">SignagePro</span>
+                                <span className="font-bold text-xl text-gray-900" style={{ fontFamily: '"Playfair Display", serif' }}>SignagePro</span>
                             </div>
                             <p className="text-sm text-gray-600 leading-relaxed mb-4">
                                 Professional signage design made simple.
@@ -142,7 +142,7 @@ export default function HomeClient() {
                         </div>
 
                         <div>
-                            <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Product</h4>
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm uppercase tracking-wider">Product</h4>
                             <ul className="space-y-3">
                                 {['Features', 'Pricing', 'Templates', 'Gallery'].map(item => (
                                     <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
@@ -150,7 +150,7 @@ export default function HomeClient() {
                             </ul>
                         </div>
                         <div>
-                            <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Company</h4>
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm uppercase tracking-wider">Company</h4>
                             <ul className="space-y-3">
                                 {['About Us', 'Careers', 'Press', 'Blog'].map(item => (
                                     <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
@@ -158,7 +158,7 @@ export default function HomeClient() {
                             </ul>
                         </div>
                         <div>
-                            <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Support</h4>
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm uppercase tracking-wider">Support</h4>
                             <ul className="space-y-3">
                                 {['Help Center', 'Contact Us', 'Tutorials'].map(item => (
                                     <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
@@ -166,7 +166,7 @@ export default function HomeClient() {
                             </ul>
                         </div>
                         <div>
-                            <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">Legal</h4>
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm uppercase tracking-wider">Legal</h4>
                             <ul className="space-y-3">
                                 {['Privacy Policy', 'Terms of Service'].map(item => (
                                     <li key={item}><Link href="#" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors font-medium">{item}</Link></li>
@@ -201,6 +201,6 @@ export default function HomeClient() {
                 variant="floating"
                 message="Hi! I'm interested in SignagePro services."
             />
-        </div >
+        </div>
     );
 }

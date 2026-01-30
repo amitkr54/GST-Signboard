@@ -10,13 +10,11 @@ import { Button } from './ui/Button';
 // Reusing icons from DesignSidebar
 import { Phone, Mail, MapPin, Globe, Star, Heart, Clock, Calendar, User, Building, Facebook, Instagram, Twitter, Linkedin, Youtube, MessageCircle } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
-import { useEditorAssets } from '@/hooks/useEditorAssets';
-import { SOCIAL_ICONS, GENERIC_ICONS, EDITOR_SHAPES } from '@/lib/editor-constants';
 
 interface EditorSidebarProps {
     // Template Props
     selectedTemplateId: TemplateId | undefined;
-    onSelectTemplate: (id: TemplateId, skipResize?: boolean) => void;
+    onSelectTemplate: (id: TemplateId) => void;
 
     // Design Props
     onAddText: (type: 'heading' | 'subheading' | 'body') => void;
@@ -33,9 +31,27 @@ interface EditorSidebarProps {
 
 export type TabType = 'templates' | 'text' | 'elements' | 'uploads';
 
+const SOCIAL_ICONS = [
+    { name: 'facebook', icon: Facebook, label: 'Facebook', color: '#1877F2' },
+    { name: 'instagram', icon: Instagram, label: 'Instagram', color: '#E4405F' },
+    { name: 'x', icon: X, label: 'X', color: '#000000' },
+    { name: 'linkedin', icon: Linkedin, label: 'LinkedIn', color: '#0A66C2' },
+    { name: 'youtube', icon: Youtube, label: 'YouTube', color: '#FF0000' },
+    { name: 'whatsapp', icon: WhatsAppIcon, label: 'WhatsApp', color: '#25D366' },
+];
 
-
-
+const GENERIC_ICONS = [
+    { name: 'phone', icon: Phone, label: 'Phone' },
+    { name: 'mail', icon: Mail, label: 'Email' },
+    { name: 'location', icon: MapPin, label: 'Location' },
+    { name: 'globe', icon: Globe, label: 'Website' },
+    { name: 'star', icon: Star, label: 'Star' },
+    { name: 'heart', icon: Heart, label: 'Heart' },
+    { name: 'clock', icon: Clock, label: 'Clock' },
+    { name: 'calendar', icon: Calendar, label: 'Calendar' },
+    { name: 'user', icon: User, label: 'User' },
+    { name: 'building', icon: Building, label: 'Building' },
+];
 
 export function EditorSidebar({
     selectedTemplateId,
@@ -59,27 +75,24 @@ export function EditorSidebar({
         onTabChange?.(activeTab);
     }, [activeTab, onTabChange]);
 
-    // Asset Management Hook
-    const {
-        uploadedImages,
-        masterAssets,
-        isLoadingMaster,
-        fileInputRef,
-        iconFileInputRef,
-        svgFileInputRef,
-        handleFileUpload,
-        handleImageUploadCallback,
-        handleSvgUploadCallback,
-        handleSaveToLibrary
-    } = useEditorAssets(isAdmin);
+    const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+    const [masterAssets, setMasterAssets] = useState<string[]>([]);
+    const [isLoadingMaster, setIsLoadingMaster] = useState(false);
+    const [qrText, setQrText] = useState('');
+    const [isGeneratingQR, setIsGeneratingQR] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const iconFileInputRef = useRef<HTMLInputElement>(null);
+    const svgFileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        handleImageUploadCallback(e, onAddImage);
-    };
-
-    const handleSvgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        handleSvgUploadCallback(e, onAddShapeSVG);
-    };
+    useEffect(() => {
+        const fetchMaster = async () => {
+            setIsLoadingMaster(true);
+            const assets = await getMasterAssets();
+            setMasterAssets(assets);
+            setIsLoadingMaster(false);
+        };
+        fetchMaster();
+    }, []);
 
     const tabs = [
         { id: 'templates' as TabType, icon: Layout, label: 'Templates' },
@@ -88,7 +101,53 @@ export function EditorSidebar({
         { id: 'uploads' as TabType, icon: Upload, label: 'Uploads' },
     ];
 
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imageUrl = event.target?.result as string;
+                setUploadedImages(prev => [imageUrl, ...prev]);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
+    const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imageUrl = event.target?.result as string;
+                onAddImage(imageUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSvgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            onAddShapeSVG(url);
+        }
+    };
+
+    const handleSaveToLibrary = async (imageUrl: string) => {
+        if (!isAdmin) return;
+        try {
+            const res = await saveToLibrary(imageUrl, '1234');
+            if (res.success) {
+                alert('Saved to Master Library!');
+                const assets = await getMasterAssets();
+                setMasterAssets(assets);
+            } else {
+                alert('Failed to save: ' + res.error);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     return (
         <div className="flex h-full bg-slate-900 border-r border-white/10">
@@ -203,7 +262,8 @@ export function EditorSidebar({
 
                                 {/* BASIC SHAPES */}
                                 {(() => {
-                                    const filteredShapes = EDITOR_SHAPES.filter(s => s.replace('-', ' ').toLowerCase().includes(searchTerm.toLowerCase()));
+                                    const shapes = ['rect', 'rect-sharp', 'circle', 'triangle', 'pentagon', 'hexagon', 'star', 'line', 'arrow', 'arrow-left', 'arrow-up', 'arrow-down', 'chevron'];
+                                    const filteredShapes = shapes.filter(s => s.replace('-', ' ').toLowerCase().includes(searchTerm.toLowerCase()));
                                     if (filteredShapes.length === 0 && searchTerm !== '') return null;
                                     return (
                                         <div>

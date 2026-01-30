@@ -1,0 +1,28 @@
+    const [isEditingTextMobile, setIsEditingTextMobile] = useState(false);
+    const [mobileTextValue, setMobileTextValue] = useState('');
+    const [mobileInputPos, setMobileInputPos] = useState<{ top: number, left: number } | undefined>(undefined);
+    const mobileEditingObjectRef = useRef<fabric.IText | null>(null);
+
+    // Canvas size based on user's selected dimensions (for correct aspect ratio)
+    // We normalize this to a Safe View Size (max 1800px) to prevent browser crashes on large banners
+    // Export will handle the full 100 DPI scaling separately
+    const { width: baseWidth, height: baseHeight } = useMemo(() => {
+        return getNormalizedDimensions(design.width, design.height);
+    }, [design.width, design.height]);
+
+    // Use the new modular hooks for canvas management
+    const { fabricCanvasRef, canvasInstance, compactRef } = useFabricCanvas({
+        canvasRef,
+        baseWidth,
+        baseHeight,
+        design,
+        isReadOnly,
+        compact,
+        onMount
+    });
+
+    // History & Managers Hooks
+    const { saveHistory, undo, redo, setInitialHistory, setIsProcessing, canUndo, canRedo } = useCanvasHistory();
+    const { addText, addIcon, addShape, addImage, addShapeSVG } = useCanvasObjectManagers(
+        canvasInstance, baseWidth, baseHeight, onDesignChange, design, saveHistory
+    );

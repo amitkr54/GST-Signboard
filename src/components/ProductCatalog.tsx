@@ -61,20 +61,20 @@ export function ProductCatalog() {
     return (
         <section id="products" className="py-20 relative">
             <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-12">
+                <div className="mb-12 text-center">
                     <p className="text-sm font-bold text-indigo-400 mb-2 uppercase tracking-wider">Our Products</p>
-                    <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">Browse Signage Products</h2>
-                    <p className="text-lg text-indigo-100 max-w-3xl">Professional signage solutions for every business need</p>
+                    <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">Browse Signage Products</h2>
+                    <p className="text-lg text-indigo-100 max-w-3xl mx-auto">Professional signage solutions for every business need</p>
                 </div>
 
                 {/* Category Filter */}
-                <div className="flex flex-wrap gap-3 mb-10">
+                <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
                     {categories.map(category => (
                         <button
                             key={category.id}
                             onClick={() => setActiveCategory(category.id)}
                             className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all duration-300 ${activeCategory === category.id
-                                ? 'bg-white text-indigo-900 shadow-lg shadow-white/20 scale-105'
+                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 scale-105'
                                 : 'bg-white/10 text-indigo-100 hover:bg-white/20'
                                 }`}
                         >
@@ -122,7 +122,7 @@ export function ProductCatalog() {
                             <div className="p-6 mt-auto flex items-center justify-between gap-4">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Starting at</span>
-                                    <span className="text-2xl font-black text-white">₹{product.priceFrom}</span>
+                                    <span className="text-2xl font-bold text-white">₹{product.priceFrom}</span>
                                 </div>
                                 <div className="bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl transition-all duration-300 group-hover:shadow-lg group-hover:shadow-indigo-500/25 group-hover:scale-105">
                                     <div className="flex items-center gap-2 font-bold text-sm px-2">

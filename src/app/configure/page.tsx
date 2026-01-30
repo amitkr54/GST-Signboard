@@ -30,6 +30,12 @@ function ConfigureContent() {
     const STANDARD_SIZES = ALL_STANDARD_SIZES;
 
     React.useEffect(() => {
+        if (!isLoading) {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
+    }, [isLoading]);
+
+    React.useEffect(() => {
         const loadInitialData = async () => {
             setIsLoading(true);
             const { getMaterials, getTemplates } = await import('@/app/actions');
@@ -204,7 +210,7 @@ function ConfigureContent() {
                         <ArrowLeft className="w-6 h-6 text-indigo-300" />
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-black text-white">Configure Your Signage</h1>
+                        <h1 className="text-3xl font-bold text-white">Configure Your Signage</h1>
                         <p className="text-indigo-300">Choose the material and size for your design</p>
                     </div>
                 </div>
@@ -290,7 +296,7 @@ function ConfigureContent() {
                     <div className="lg:col-span-1">
                         <div className="sticky top-24 space-y-6">
                             <div className="bg-slate-900/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md">
-                                <h3 className="text-sm font-black text-indigo-400 uppercase tracking-widest mb-6 px-1">Order Summary</h3>
+                                <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-widest mb-6 px-1">Order Summary</h3>
 
                                 <div className="space-y-4 mb-8">
                                     {template && (
@@ -335,7 +341,7 @@ function ConfigureContent() {
                                 <Button
                                     onClick={handleProceed}
                                     disabled={!selectedMaterial || !selectedSize}
-                                    className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-lg rounded-2xl shadow-xl shadow-indigo-600/20 disabled:opacity-30 disabled:shadow-none transition-all group"
+                                    className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-lg rounded-2xl shadow-xl shadow-indigo-600/20 disabled:opacity-30 disabled:shadow-none transition-all group"
                                 >
                                     Start Designing
                                     <ChevronRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />

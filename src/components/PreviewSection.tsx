@@ -12,13 +12,18 @@ interface PreviewSectionProps {
     onAddText?: (fn: (type: 'heading' | 'subheading' | 'body') => void) => void;
     onAddIcon?: (fn: (iconName: string) => void) => void;
     onAddShape?: (fn: (type: 'rect' | 'circle' | 'line' | 'triangle') => void) => void;
+    onAddShapeSVG?: (fn: (url: string) => void) => void;
     onAddImage?: (fn: (url: string) => void) => void;
     onDataChange?: (data: Partial<SignageData>) => void;
     compact?: boolean;
     isLandscape?: boolean;
-    onObjectSelected?: (obj: fabric.Object | null) => void;
+    onObjectSelected?: (obj: any) => void;
     onToolbarAction?: (actionFn: (action: string) => void) => void;
+    onHistoryStateChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
+    onHistoryAction?: (actionFn: (action: 'undo' | 'redo') => void) => void;
+    onFontWarningChange?: (missingFonts: string[]) => void;
     initialJSON?: any;
+    isAdmin?: boolean;
 }
 
 export function PreviewSection({
@@ -30,13 +35,18 @@ export function PreviewSection({
     onAddText,
     onAddIcon,
     onAddShape,
+    onAddShapeSVG,
     onAddImage,
     onDataChange,
     compact = false,
     isLandscape = false,
     onObjectSelected,
     onToolbarAction,
-    initialJSON
+    onHistoryStateChange,
+    onHistoryAction,
+    onFontWarningChange,
+    initialJSON,
+    isAdmin = false
 }: PreviewSectionProps) {
 
     if (uploadedDesign) {
@@ -64,13 +74,18 @@ export function PreviewSection({
                 onAddText={onAddText}
                 onAddIcon={onAddIcon}
                 onAddShape={onAddShape}
+                onAddShapeSVG={onAddShapeSVG}
                 onAddImage={onAddImage}
                 onDataChange={onDataChange}
                 compact={compact}
                 isLandscape={isLandscape}
                 onObjectSelected={onObjectSelected}
                 onToolbarAction={onToolbarAction}
+                onHistoryStateChange={onHistoryStateChange}
+                onHistoryAction={onHistoryAction}
+                onFontWarningChange={onFontWarningChange}
                 initialJSON={initialJSON}
+                isAdmin={isAdmin}
             />
         </div>
     );

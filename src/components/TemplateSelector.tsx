@@ -6,7 +6,7 @@ import { getTemplates } from '@/app/actions';
 
 interface TemplateSelectorProps {
     selectedTemplateId: TemplateId | undefined;
-    onSelect: (id: TemplateId) => void;
+    onSelect: (id: TemplateId, skipResize?: boolean) => void;
     currentProductId?: string;
     aspectRatio?: number; // width / height
     templates?: Template[];
@@ -39,17 +39,19 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
     const getMatchQuality = (template: Template) => {
         // ALWAYS show the currently selected template
         if (selectedTemplateId && template.id === selectedTemplateId) {
-            return 'SMART_MATCH';
-        }
-
-        // 1. Exact Product Match (Legacy flow)
-        if (currentProductId && template.productIds && template.productIds.includes(currentProductId)) {
             return 'EXACT';
         }
 
-        // 2. Aspect Ratio Match (Primary for Material-First flow)
+        // 1. Compatibility Check (Production Constraints)
+        // A template is compatible if it's marked as Universal OR specifically mapped to this Product
+        const isCompatible = template.isUniversal || (currentProductId && template.productIds && template.productIds.includes(currentProductId));
+
+        if (!isCompatible) {
+            return 'HIDDEN';
+        }
+
+        // 2. Aspect Ratio Match (Secondary quality filter)
         if (aspectRatio) {
-            // Default to landscape (3:1) for banners, or square (1:1) for others if dimensions missing
             const tWidth = template.dimensions?.width || (template.layoutType === 'banner' ? 3 : 1);
             const tHeight = template.dimensions?.height || 1;
             const tRatio = tWidth / tHeight;
@@ -58,17 +60,17 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selectedTemp
             const tolerance = aspectRatio * 0.15; // Strict 15% tolerance
 
             if (diff <= tolerance) {
+                // If ID matches, it's EXACT. If only Universal but ratio fits, it's SMART_MATCH
+                if (currentProductId && template.productIds?.includes(currentProductId)) return 'EXACT';
                 return 'SMART_MATCH';
             }
+
+            // If it's for this product but ratio differs, we might still show it or hide it.
+            // Given the user wants it to match the "Choose" page, let's hide ratio mismatches too.
             return 'HIDDEN';
         }
 
-        // 3. Fallback for universal templates
-        if (template.isUniversal || !template.productIds || template.productIds.length === 0) {
-            return 'UNIVERSAL';
-        }
-
-        return 'HIDDEN';
+        return template.isUniversal ? 'UNIVERSAL' : 'HIDDEN';
     };
 
     const categorizedTemplates = templatesToUse

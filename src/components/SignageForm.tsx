@@ -1,18 +1,52 @@
 import React from 'react';
 import { SignageData } from '@/lib/types';
+import { Type, Plus, X, Upload, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SignageFormProps {
     data: SignageData;
     onChange: (data: SignageData) => void;
-    onLogoUpload: (file: File, tempUrl: string) => void;
+    onLogoUpload?: (file: File, tempUrl: string) => void;
+    className?: string;
 }
 
-export function SignageForm({ data, onChange, onLogoUpload }: SignageFormProps) {
+const InputField = ({ label, icon: Icon, name, value, type = "text", placeholder, isTextArea = false, onChange }: any) => (
+    <div className="relative group">
+        {isTextArea ? (
+            <textarea
+                name={name}
+                value={value || ''}
+                onChange={onChange}
+                rows={2}
+                className={cn(
+                    "w-full bg-white/5 border border-white/5 rounded-xl pr-4 py-2.5 pl-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none font-medium text-sm transition-all resize-none shadow-inner"
+                )}
+                placeholder={placeholder || label}
+            />
+        ) : (
+            <input
+                type={type}
+                name={name}
+                value={value || ''}
+                onChange={onChange}
+                className={cn(
+                    "w-full bg-white/5 border border-white/5 rounded-xl pr-4 py-2.5 pl-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none font-medium text-sm transition-all shadow-inner"
+                )}
+                placeholder={placeholder || label}
+            />
+        )}
+    </div>
+);
+
+export function SignageForm({ data, onChange, onLogoUpload, className = "" }: SignageFormProps) {
+    const [focusedIndex, setFocusedIndex] = React.useState<number | null>(null);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         onChange({ ...data, [name]: value });
     };
 
+    // ... (keep processImage and handleFileChange exactly as is, just skipping lines for brevity in this tool)
     const processImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -26,24 +60,17 @@ export function SignageForm({ data, onChange, onLogoUpload }: SignageFormProps) 
                     return;
                 }
                 ctx.drawImage(img, 0, 0);
-
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-
-                // Threshold for "white"
+                const pixels = imageData.data;
                 const threshold = 240;
-
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-
-                    // If pixel is white or very light gray, make it transparent
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const r = pixels[i];
+                    const g = pixels[i + 1];
+                    const b = pixels[i + 2];
                     if (r > threshold && g > threshold && b > threshold) {
-                        data[i + 3] = 0; // Set alpha to 0
+                        pixels[i + 3] = 0;
                     }
                 }
-
                 ctx.putImageData(imageData, 0, 0);
                 resolve(canvas.toDataURL('image/png'));
             };
@@ -52,127 +79,142 @@ export function SignageForm({ data, onChange, onLogoUpload }: SignageFormProps) 
     };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
+        if (e.target.files && e.target.files[0] && onLogoUpload) {
             const file = e.target.files[0];
-            // Process image to remove white background
             const processedUrl = await processImage(file);
             onLogoUpload(file, processedUrl);
         }
     };
 
     return (
-        <div className="space-y-4 p-4 bg-white rounded-lg shadow-md border">
-            <h2 className="text-xl font-semibold mb-4">Company Details</h2>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input
-                    type="text"
+        <div className={`space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500 ${className}`}>
+            <div className="space-y-2">
+                <InputField
+                    label="Company Name"
                     name="companyName"
                     value={data.companyName}
+                    placeholder="Company Name"
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
-                    placeholder="Enter Company Name"
                 />
-            </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Address</label>
-                <textarea
+                <InputField
+                    label="Address"
                     name="address"
                     value={data.address}
+                    placeholder="Address"
+                    isTextArea={true}
                     onChange={handleChange}
-                    rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
-                    placeholder="Enter Full Address"
                 />
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">GSTIN (Optional)</label>
-                    <input
-                        type="text"
+                <div className="grid grid-cols-2 gap-4">
+                    <InputField
+                        label="GSTIN"
                         name="gstin"
-                        value={data.gstin || ''}
+                        value={data.gstin}
+                        placeholder="GSTIN"
                         onChange={handleChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                     />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">CIN (Optional)</label>
-                    <input
-                        type="text"
+                    <InputField
+                        label="CIN"
                         name="cin"
-                        value={data.cin || ''}
+                        value={data.cin}
+                        placeholder="CIN"
                         onChange={handleChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                     />
                 </div>
-            </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Mobile Number (Optional)</label>
-                <input
-                    type="text"
+                <InputField
+                    label="Phone"
                     name="mobile"
-                    value={data.mobile || ''}
+                    value={data.mobile}
+                    placeholder="Phone"
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                 />
-            </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Company Logo (Optional)</label>
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-            </div>
-
-            {/* Additional Text Fields */}
-            <div>
-                <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700">Additional Text (Optional)</label>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const newText = [...(data.additionalText || []), ''];
-                            onChange({ ...data, additionalText: newText });
-                        }}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                        + Add Line
-                    </button>
+                <div className="grid grid-cols-2 gap-4">
+                    <InputField
+                        label="Email"
+                        name="email"
+                        value={data.email}
+                        placeholder="Email"
+                        onChange={handleChange}
+                    />
+                    <InputField
+                        label="Website"
+                        name="website"
+                        value={data.website}
+                        placeholder="Website"
+                        onChange={handleChange}
+                    />
                 </div>
-                <div className="space-y-2">
-                    {(data.additionalText || []).map((text, index) => (
-                        <div key={index} className="flex gap-2">
-                            <input
-                                type="text"
-                                value={text}
-                                onChange={(e) => {
-                                    const newText = [...(data.additionalText || [])];
-                                    newText[index] = e.target.value;
-                                    onChange({ ...data, additionalText: newText });
-                                }}
-                                placeholder="e.g. Email, Website, Hindi Text"
-                                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const newText = (data.additionalText || []).filter((_, i) => i !== index);
-                                    onChange({ ...data, additionalText: newText });
-                                }}
-                                className="text-red-500 hover:text-red-700 px-2"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    ))}
+
+                <div className="pt-1">
+                    <div className="space-y-2">
+                        {(data.additionalText || []).map((text, index) => (
+                            <div key={index} className="flex gap-2 animate-in slide-in-from-right-4 duration-300">
+                                <div className="relative flex-1 group">
+                                    <input
+                                        type="text"
+                                        value={text}
+                                        onFocus={() => setFocusedIndex(index)}
+                                        onBlur={() => setTimeout(() => setFocusedIndex(null), 200)}
+                                        onChange={(e) => {
+                                            const newText = [...(data.additionalText || [])];
+                                            newText[index] = e.target.value;
+                                            onChange({ ...data, additionalText: newText });
+                                        }}
+                                        placeholder="Enter details..."
+                                        className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-white placeholder-slate-600 focus:border-indigo-500 outline-none font-medium text-sm transition-all shadow-inner"
+                                    />
+                                </div>
+                                {focusedIndex === index && (
+                                    <button
+                                        type="button"
+                                        onMouseDown={(e) => e.preventDefault()} // Prevent blur before click
+                                        onClick={() => {
+                                            if (document.activeElement instanceof HTMLElement) {
+                                                document.activeElement.blur();
+                                            }
+                                            setFocusedIndex(null);
+                                        }}
+                                        className="p-2.5 text-slate-500 hover:text-emerald-400 transition-colors animate-in fade-in zoom-in duration-200"
+                                    >
+                                        <Check className="w-4 h-4" />
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const newText = (data.additionalText || []).filter((_, i) => i !== index);
+                                        onChange({ ...data, additionalText: newText });
+                                    }}
+                                    className="p-2.5 text-slate-500 hover:text-rose-400 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const newText = [...(data.additionalText || []), ''];
+                                onChange({ ...data, additionalText: newText });
+                            }}
+                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 text-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Additional Detail
+                        </button>
+                    </div>
+                </div>
+
+                <div className="pt-2 px-1">
+                    <label className="flex items-center justify-center w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/10 cursor-pointer gap-2 text-sm">
+                        <Upload className="w-4 h-4" />
+                        Upload Business Logo
+                        <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                    </label>
                 </div>
             </div>
         </div>

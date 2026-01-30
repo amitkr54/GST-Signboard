@@ -245,22 +245,16 @@ export function MobileTextFormatToolbar({
             <div className="flex-1 overflow-y-auto no-scrollbar">
                 {activeTool === 'font' && (
                     <div className="flex flex-col gap-0.5">
-                        {(() => {
-                            const options = [...fontOptions];
-                            if (fontFamily && !options.includes(fontFamily)) {
-                                options.unshift(fontFamily);
-                            }
-                            return options.map(font => (
-                                <button
-                                    key={font}
-                                    onClick={() => handleFontFamilyChange(font)}
-                                    className={`px-4 py-2 text-left rounded-xl text-xs transition-colors ${fontFamily === font ? 'bg-indigo-600/20 text-indigo-400 font-bold border border-indigo-500/20' : 'text-slate-300 hover:bg-white/5'}`}
-                                    style={{ fontFamily: font }}
-                                >
-                                    {font}
-                                </button>
-                            ));
-                        })()}
+                        {fontOptions.map(font => (
+                            <button
+                                key={font}
+                                onClick={() => handleFontFamilyChange(font)}
+                                className={`px-4 py-2 text-left rounded-xl text-xs transition-colors ${fontFamily === font ? 'bg-indigo-600/20 text-indigo-400 font-bold border border-indigo-500/20' : 'text-slate-300 hover:bg-white/5'}`}
+                                style={{ fontFamily: font }}
+                            >
+                                {font}
+                            </button>
+                        ))}
                     </div>
                 )}
 

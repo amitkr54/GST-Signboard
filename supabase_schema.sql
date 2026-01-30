@@ -2,7 +2,7 @@
 create table public.materials (
   id uuid default gen_random_uuid() primary key,
   name text not null,
-  price_per_sqft numeric not null,
+  price_per_sqin numeric not null,
   description text,
   slug text unique not null,
   is_active boolean default true,

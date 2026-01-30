@@ -18,6 +18,7 @@ import {
 } from '@/lib/phonepe';
 import { normalizeFabricConfig, getAspectRatio } from '@/lib/normalization';
 import { revalidatePath } from 'next/cache';
+import { SUPPORTED_FONTS } from '@/lib/font-utils';
 
 // Define Material Type matching DB
 export interface Material {
@@ -53,11 +54,16 @@ export async function createOrder(
     userId?: string
 ) {
     // Fetch material rate from DB to ensure accurate pricing
-    const { data: materialData } = await supabase
-        .from('materials')
-        .select('price_per_sqin')
-        .or(`id.eq.${materialId},slug.eq.${materialId}`)
-        .single();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(materialId);
+    const query = supabase.from('materials').select('price_per_sqin');
+
+    if (isUuid) {
+        query.or(`id.eq.${materialId},slug.eq.${materialId}`);
+    } else {
+        query.eq('slug', materialId);
+    }
+
+    const { data: materialData } = await query.single();
 
     const pricePerSqIn = materialData?.price_per_sqin || 0;
 
@@ -468,6 +474,49 @@ export async function getReferrerByEmail(email: string) {
     return { success: true, referrer: data };
 }
 
+// --- FONT NORMALIZATION HELPERS ---
+const FONT_MAP_LOWER = new Map(SUPPORTED_FONTS.map(f => [f.toLowerCase().replace(/\s+/g, ''), f]));
+
+function normalizeFontFamily(name: string) {
+    if (!name) return { family: 'Arial', weight: 'normal', style: 'normal' };
+
+    let clean = name.replace(/['"]/g, '').replace(/\\/g, '').trim();
+    let low = clean.toLowerCase().replace(/\s+/g, '');
+
+    let weight = 'normal';
+    let style = 'normal';
+
+    // Detect Weight/Style from name before stripping
+    if (low.includes('bold') || low.endsWith('b') || low.includes('700') || low.includes('900')) weight = 'bold';
+    if (low.includes('italic') || low.endsWith('oblique')) style = 'italic';
+    if (low.endsWith('i') && !low.endsWith('multi')) style = 'italic'; // Avoid matching multi
+
+    // Generic / Fallback Mapping
+    if (low === 'sans-serif') low = 'arial';
+    if (low === 'serif') low = 'timesnewroman';
+
+    // CorelDraw / Common Variations
+    if (low.includes('arialmt') || low.includes('arialpsmt') || low.startsWith('arial')) low = 'arial';
+    if (low.includes('timesnewroman') || low.includes('times')) low = 'timesnewroman';
+    if (low.includes('couriernew') || low.includes('courier')) low = 'couriernew';
+    if (low.startsWith('georgia')) low = 'georgia';
+
+    // Direct Lookup
+    const matchedFamily = FONT_MAP_LOWER.get(low);
+    if (matchedFamily) {
+        return { family: matchedFamily, weight, style };
+    }
+
+    // Secondary Check: Strip common suffixes and try again
+    const suffixStrip = low.replace(/(bold|italic|regular|mt|psmt|b|i|700|900|bd|psmt|mt)$/g, '');
+    const matchedBase = FONT_MAP_LOWER.get(suffixStrip);
+    if (matchedBase) {
+        return { family: matchedBase, weight, style };
+    }
+
+    return { family: clean, weight, style };
+}
+
 export async function uploadTemplate(formData: FormData) {
     const file = formData.get('file') as File;
     const name = formData.get('name') as string;
@@ -538,6 +587,9 @@ export async function uploadTemplate(formData: FormData) {
         const { data: publicUrlData } = supabase.storage.from(workedBucket).getPublicUrl(filename);
         const publicUrl = publicUrlData.publicUrl;
 
+        // Support case-insensitive check in components loop
+        const supportedLowerSet = new Set(SUPPORTED_FONTS.map(f => f.toLowerCase()));
+
 
 
         // --- NEW: SVG Component Extraction ---
@@ -553,7 +605,10 @@ export async function uploadTemplate(formData: FormData) {
                 text: [],
                 logo: null,
                 backgroundObjects: [], // For paths, rects, etc.
-                originalViewBox: viewBox // Always store viewBox for scaling
+                originalViewBox: viewBox, // Always store viewBox for scaling
+                warnings: {
+                    missingFonts: []
+                }
             };
 
             // --- 1b. Extract CSS Styles from <style> blocks ---
@@ -595,7 +650,7 @@ export async function uploadTemplate(formData: FormData) {
                 }
                 ['font-size', 'font-family', 'font-weight', 'font-style', 'text-anchor', 'fill', 'x', 'y', 'width', 'height', 'cx', 'cy', 'r', 'rx', 'ry', 'points', 'd'].forEach(a => {
                     const m = attrStr.match(new RegExp(`\\b${a}=["']([^"']+)["']`, 'i'));
-                    if (m) s[a] = m[1];
+                    if (m) s[a] = m[1].replace(/['"]/g, '').trim();
                 });
                 return s;
             };
@@ -745,15 +800,29 @@ export async function uploadTemplate(formData: FormData) {
                     if (anchor === 'middle') textAlign = 'center';
                     else if (anchor === 'end') textAlign = 'right';
 
+                    const fontFamAttr = (mergedStyles['font-family'] || 'Arial').split(',')[0].replace(/['"]/g, '').replace(/\\/g, '').trim();
+                    const { family: normalizedFont, weight: inferredWeight, style: inferredStyle } = normalizeFontFamily(fontFamAttr);
+
+                    // Track missing fonts (using the set we created earlier)
+                    if (!supportedLowerSet.has(normalizedFont.toLowerCase())) {
+                        if (!components.warnings.missingFonts.includes(normalizedFont)) {
+                            components.warnings.missingFonts.push(normalizedFont);
+                        }
+                    }
+
+                    // Styles: User specified > Inferred from font name > Default normal
+                    const finalWeight = (mergedStyles['font-weight'] || inferredWeight || 'normal').toLowerCase();
+                    const finalStyle = (mergedStyles['font-style'] || inferredStyle || 'normal').toLowerCase();
+
                     components.text.push({
                         text: content,
                         left: parseFloat(mergedStyles['x']?.toString().replace(/[a-z]/g, '') || '0'),
                         top: correctedTop,
                         fontSize: fontSize,
                         lineHeight: lineHeight,
-                        fontFamily: (mergedStyles['font-family'] || 'Arial').split(',')[0].replace(/['"]/g, '').trim(),
-                        fontWeight: (mergedStyles['font-weight'] || 'normal').toLowerCase(),
-                        fontStyle: (mergedStyles['font-style'] || 'normal').toLowerCase(),
+                        fontFamily: normalizedFont,
+                        fontWeight: finalWeight === 'bold' || finalWeight === '700' ? 'bold' : 'normal',
+                        fontStyle: finalStyle === 'italic' || finalStyle === 'oblique' ? 'italic' : 'normal',
                         textAlign: textAlign,
                         fill: mergedStyles['fill'] || '#000000',
                         originalViewBox: viewBox
@@ -1619,5 +1688,58 @@ export async function normalizeAllTemplates(pin: string) {
     } catch (error: any) {
         console.error('Normalization error:', error);
         return { success: false, error: error.message };
+    }
+}
+
+export async function saveToLibrary(dataUrl: string, pin: string) {
+    if (pin !== '1234') return { success: false, error: 'Unauthorized' };
+    try {
+        const base64Data = dataUrl.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const filename = `library/asset-${Date.now()}.png`;
+        const body = new Uint8Array(buffer);
+
+        let { error } = await supabase.storage
+            .from('TEMPLATES')
+            .upload(filename, body, { contentType: 'image/png' });
+
+        if (error) {
+            const retry = await supabase.storage
+                .from('templates')
+                .upload(filename, body, { contentType: 'image/png' });
+            if (retry.error) throw retry.error;
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error('Save to library error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getMasterAssets() {
+    try {
+        // Try uppercase first as per previous patterns
+        let { data, error } = await supabase.storage
+            .from('TEMPLATES')
+            .list('library');
+
+        let bucket = 'TEMPLATES';
+        if (error) {
+            const retry = await supabase.storage
+                .from('templates')
+                .list('library');
+            if (retry.error) throw retry.error;
+            data = retry.data;
+            bucket = 'templates';
+        }
+
+        if (!data) return [];
+
+        return data
+            .filter(file => file.name !== '.emptyFolderPlaceholder')
+            .map(file => supabase.storage.from(bucket).getPublicUrl(`library/${file.name}`).data.publicUrl);
+    } catch (error) {
+        console.error('Error fetching master assets:', error);
+        return [];
     }
 }

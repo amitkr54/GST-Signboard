@@ -26,7 +26,7 @@ export function Header() {
                         <div className="flex items-center justify-center text-indigo-400 group-hover:text-white transition-colors">
                             <Sparkles className="w-6 h-6 fill-current" />
                         </div>
-                        <span className="text-2xl font-black text-white tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
+                        <span className="text-xl md:text-2xl font-bold text-white tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
                             SignagePro
                         </span>
                     </Link>

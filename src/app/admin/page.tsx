@@ -198,7 +198,7 @@ export default function AdminPage() {
             id: editingMaterial?.id || formData.get('id') as string,
             name: formData.get('name') as string,
             description: formData.get('description') as string,
-            price_per_sqft: parseFloat(formData.get('price_per_sqft') as string),
+            price_per_sqin: parseFloat(formData.get('price_per_sqin') as string),
             slug: (formData.get('name') as string).toLowerCase().replace(/\s+/g, '-'),
             is_active: true
         };

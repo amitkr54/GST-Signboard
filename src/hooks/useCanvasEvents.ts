@@ -1,6 +1,18 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { fabric } from 'fabric';
 
+// Throttle helper for performance optimization
+function throttle<T extends (...args: any[]) => void>(func: T, delay: number): T {
+    let lastCall = 0;
+    return ((...args: Parameters<T>) => {
+        const now = Date.now();
+        if (now - lastCall >= delay) {
+            lastCall = now;
+            func(...args);
+        }
+    }) as T;
+}
+
 interface UseCanvasEventsProps {
     canvasInstance: fabric.Canvas | null;
     setSelectedObject: (obj: fabric.Object | null) => void;
@@ -101,6 +113,8 @@ export function useCanvasEvents({
         }
     }, [canvasInstance, baseWidth, baseHeight]);
 
+    const lastViolationState = useRef<boolean | null>(null);
+
     const checkSafetyArea = useCallback((canvas: fabric.Canvas) => {
         if (!onSafetyChange) return;
 
@@ -170,7 +184,11 @@ export function useCanvasEvents({
             }
         });
 
-        onSafetyChange(violation);
+        // Only trigger state change if violation status actually changed
+        if (lastViolationState.current !== violation) {
+            onSafetyChange(violation);
+            lastViolationState.current = violation;
+        }
 
         // Toggle bleed rects visibility
         objects.filter(o => o.name === 'safety_bleed_rect').forEach(r => {
@@ -247,8 +265,40 @@ export function useCanvasEvents({
                 canvas.requestRenderAll();
                 saveHistory(canvas);
             });
+            return;
         }
-    }, [canvasInstance, undo, redo, saveHistory, clipboard]);
+
+        const moveStep = e.shiftKey ? 10 : 1;
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            activeObject.set('left', (activeObject.left || 0) - moveStep);
+            activeObject.setCoords();
+            canvas.requestRenderAll();
+            saveHistory(canvas);
+            checkSafetyArea(canvas);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            activeObject.set('left', (activeObject.left || 0) + moveStep);
+            activeObject.setCoords();
+            canvas.requestRenderAll();
+            saveHistory(canvas);
+            checkSafetyArea(canvas);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeObject.set('top', (activeObject.top || 0) - moveStep);
+            activeObject.setCoords();
+            canvas.requestRenderAll();
+            saveHistory(canvas);
+            checkSafetyArea(canvas);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeObject.set('top', (activeObject.top || 0) + moveStep);
+            activeObject.setCoords();
+            canvas.requestRenderAll();
+            saveHistory(canvas);
+            checkSafetyArea(canvas);
+        }
+    }, [canvasInstance, undo, redo, saveHistory, clipboard, checkSafetyArea]);
 
     useEffect(() => {
         window.addEventListener('keydown', handleKeyDown);
@@ -261,22 +311,27 @@ export function useCanvasEvents({
         let selectionTimeout: NodeJS.Timeout | null = null;
 
         const handleSelection = (e?: any) => {
+            console.log('[DEBUG] handleSelection triggered', { type: e?.target?.type, name: e?.target?.name });
             if (selectionTimeout) {
+                console.log('[DEBUG] Clearing pending selection timeout');
                 clearTimeout(selectionTimeout);
                 selectionTimeout = null;
             }
             const active = canvasInstance.getActiveObject();
             const result = active || null;
+            console.log('[DEBUG] Setting selected object:', result?.type);
             setSelectedObject(result);
             onSelectionChange?.(result);
         };
 
         const handleCleared = (e?: any) => {
+            console.log('[DEBUG] handleCleared triggered');
             // Debounce the cleared event to avoid transient resets during double-clicks
             if (selectionTimeout) clearTimeout(selectionTimeout);
 
             selectionTimeout = setTimeout(() => {
                 const actuallyHasActive = !!canvasInstance.getActiveObject();
+                console.log('[DEBUG] selectionTimeout fired. actuallyHasActive:', actuallyHasActive);
                 if (!actuallyHasActive) {
                     setSelectedObject(null);
                     onSelectionChange?.(null);
@@ -335,20 +390,24 @@ export function useCanvasEvents({
         canvasInstance.on('text:selection:changed', handleSelection);
 
 
+        // Create throttled versions for better mobile performance
+        const throttledSafetyCheck = throttle((canvas: fabric.Canvas) => checkSafetyArea(canvas), 32); // ~30fps
+        const throttledSnapping = throttle((obj: fabric.Object) => handleBackgroundSnapping(obj), 16); // ~60fps
+
         canvasInstance.on('object:modified', (e) => {
             if (e.target) (e.target as any).__isScaling = false;
             saveHistory(canvasInstance);
-            checkSafetyArea(canvasInstance);
+            checkSafetyArea(canvasInstance); // Full check on completion
         });
         canvasInstance.on('object:moving', (e) => {
-            checkSafetyArea(canvasInstance);
-            if (e.target) handleBackgroundSnapping(e.target);
+            throttledSafetyCheck(canvasInstance); // Throttled during movement
+            if (e.target) throttledSnapping(e.target);
         });
         canvasInstance.on('object:scaling', (e) => {
-            checkSafetyArea(canvasInstance);
+            throttledSafetyCheck(canvasInstance); // Throttled during scaling
             if (e.target) {
                 (e.target as any).__isScaling = true;
-                handleBackgroundSnapping(e.target);
+                throttledSnapping(e.target);
             }
         });
         canvasInstance.on('object:added', () => {

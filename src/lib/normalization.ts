@@ -69,15 +69,22 @@ export function normalizeFabricConfig(fabricConfig: any, width: number, height: 
     // If we assume the incoming fabricConfig matches the `width/height` passed in (which should be the 
     // current canvas dimensions at save time), we use that.
 
-    // However, usually we can rely on the background object for the "source" dimensions
-    let currentWidth = bgObj ? bgObj.width : width;
-    let currentHeight = bgObj ? bgObj.height : height;
+    // Use background visual size if available, otherwise use provided pixels
+    // We want the CURRENT visual pixel size of the canvas objects to scale them.
+    let currentWidth = bgObj ? (bgObj.width * (bgObj.scaleX || 1)) : width;
+    let currentHeight = bgObj ? (bgObj.height * (bgObj.scaleY || 1)) : height;
 
     if (!bgObj) {
-        // If no background, we might be normalizing a config that doesn't have explicit bounds.
-        // In that case, we can try to infer from objects or just use the target directly if we can't scale.
-        // But usually there is a background.
         console.warn("No background object found in fabric config during normalization");
+        // If we only have inches (width/height passed in), we need to know the SOURCE pixel density.
+        // Usually, the canvas size (width/height) passed from updateTemplateConfig is already pixels if normalized.
+        // But let's assume if it's small (<100) it's inches, and map it to a base resolution.
+        if (currentWidth < 100) {
+            // Map 24in -> 1800px approx
+            const baseScale = 1800 / currentWidth;
+            currentWidth *= baseScale;
+            currentHeight *= baseScale;
+        }
     }
 
     const scaleX = targetSize.width / currentWidth;
@@ -87,29 +94,46 @@ export function normalizeFabricConfig(fabricConfig: any, width: number, height: 
 
     // Scale all objects
     newConfig.objects.forEach((obj: any) => {
+        // Heal logic: Identify template rectangles that lost their name and are stretched
+        if (!obj.name && obj.type === 'rect' && (obj.fill === '#FEFEFE' || obj.fill === '#ffffff' || (obj.fill && typeof obj.fill === 'string' && obj.fill.toLowerCase() === '#fefefe'))) {
+            if (obj.width > 50000) {
+                obj.name = 'template_svg_background_object';
+                console.log("Healed stretched rectangle: Assigned name 'template_svg_background_object'");
+            }
+        }
+
         obj.left = (obj.left || 0) * scaleX;
         obj.top = (obj.top || 0) * scaleY;
         obj.scaleX = (obj.scaleX || 1) * scaleX;
         obj.scaleY = (obj.scaleY || 1) * scaleY;
 
-        // Some objects might store width/height directly (like images/rects)
-        // Fabric objects generally scale via scaleX/scaleY, but if specific width/height needed:
-        if (obj.width && obj.type === 'b-rect') {
-            // custom types might behave differently, but standard fabric uses scale
+        // Ensure we reset background scales if they were scaled
+        if (obj.name === 'background' || obj.isBackground) {
+            obj.width = targetSize.width;
+            obj.height = targetSize.height;
+            obj.scaleX = 1;
+            obj.scaleY = 1;
+        }
+
+        // Clamp background-related template objects to prevent stretching (Unify logic)
+        const isStretchedRect = obj.type === 'rect' && (obj.width || 0) > 50000;
+        const isSeparator = obj.name === 'template_svg_background_object' || (isStretchedRect && (obj.fill === '#FEFEFE' || obj.fill === '#ffffff' || (typeof obj.fill === 'string' && obj.fill.toLowerCase() === '#fefefe')));
+
+        if (isSeparator) {
+            const targetSafeWidth = targetSize.width * 0.92; // 92% safe zone
+            const currentPixelWidth = (obj.width || 0) * (obj.scaleX || 1);
+            const threshold = targetSize.width * 0.01; // 1% precision threshold (User requested)
+
+            if (Math.abs(currentPixelWidth - targetSafeWidth) > threshold) {
+                const newScale = targetSafeWidth / (obj.width || 1);
+                obj.scaleX = newScale;
+                obj.scaleY = newScale;
+                // Force name for persistence if it was missing
+                if (!obj.name) obj.name = 'template_svg_background_object';
+                console.log(`Normalized stretched separator: ${obj.name} to safe scale ${newScale}`);
+            }
         }
     });
-
-    // Update background object dimensions if it exists (it's also scaled above, but for bg we often want exact bounds)
-    if (bgObj) {
-        // Validating the background is exactly the target size
-        // If we scaled via scaleX/scaleY it should be correct.
-        // Sometimes valid to reset scale and set new width/height for background
-        // bgObj.width = targetSize.width;
-        // bgObj.height = targetSize.height;
-        // bgObj.scaleX = 1;
-        // bgObj.scaleY = 1;
-        // But let's stick to uniform scaling for now to be safe with images
-    }
 
     return newConfig;
 }

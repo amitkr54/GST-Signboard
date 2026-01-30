@@ -4,9 +4,9 @@
  */
 
 // System fonts that should NOT be fetched (only generic fallbacks)
-const SYSTEM_FONTS = new Set<string>([
+export const SYSTEM_FONTS = new Set<string>([
     'Helvetica', 'Times', 'Courier',
-    'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'
+    'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'Arial', 'Times New Roman'
 ]);
 
 // Fonts that jsPDF's internal parser can't handle
@@ -15,6 +15,15 @@ const JSPDF_INCOMPATIBLE_FONTS = new Set<string>([
     // Previously: 'Dancing Script', 'Oswald', 'Bebas Neue', 'Lobster', 'Abril Fatface'
     // testing if fixed files work now
 ]);
+
+export const SUPPORTED_FONTS = [
+    "Inter", "Arial", "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway",
+    "PT Sans", "Merriweather", "Nunito", "Playfair Display", "Poppins",
+    "Source Sans Pro", "Ubuntu", "Roboto Slab", "Lora", "Pacifico",
+    "Dancing Script", "Bebas Neue", "Lobster", "Abril Fatface",
+    "Times New Roman", "Courier New", "Georgia", "Verdana",
+    "Comic Sans MS", "Impact"
+];
 
 //Map font names to local file paths
 const LOCAL_FONTS_MAP: Record<string, string> = {

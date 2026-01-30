@@ -294,7 +294,7 @@ const TemplatesTab = ({
                                         <td className="px-8 py-4 text-right align-middle">
                                             <div className="flex gap-2 justify-end">
                                                 <a
-                                                    href={`/design?template=${template.id}&mode=admin&pin=${pin}`}
+                                                    href={`/design?template=${template.id}&mode=admin&pin=${pin}&width=${template.dimensions?.width}&height=${template.dimensions?.height}&unit=${template.dimensions?.unit || 'in'}`}
                                                     target="_blank"
                                                     className="p-3 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-xl text-indigo-500 transition-all border border-indigo-500/10"
                                                     title="Open in Master Editor"

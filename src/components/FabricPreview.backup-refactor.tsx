@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { fabric } from 'fabric';
 import { SignageData, DesignConfig } from '@/lib/types';
-import { MaterialId, getNormalizedDimensions, cn } from '@/lib/utils';
+import { MaterialId, getNormalizedDimensions } from '@/lib/utils';
 import { TEMPLATES } from '@/lib/templates';
 import { getTemplates } from '@/app/actions';
 import { TextFormatToolbar } from './TextFormatToolbar';
@@ -13,15 +13,12 @@ import { initAligningGuidelines } from '@/lib/fabric-aligning-guidelines';
 import { FloatingSelectionToolbar } from './FloatingSelectionToolbar';
 import { MobileTextInputOverlay } from './MobileTextInputOverlay';
 import { Undo2, Redo2 } from 'lucide-react';
-import { SUPPORTED_FONTS, SYSTEM_FONTS } from '@/lib/font-utils';
 
 // Modular Hooks & Components
 import { useCanvasHistory } from '@/hooks/useCanvasHistory';
 import { useCanvasObjectManagers } from '@/hooks/useCanvasObjectManagers';
 import { useCanvasEvents } from '@/hooks/useCanvasEvents';
 import { useCanvasTemplates } from '@/hooks/useCanvasTemplates';
-import { useFabricCanvas } from '@/hooks/useFabricCanvas';
-import { useCanvasGestures } from '@/hooks/useCanvasGestures';
 
 interface FabricPreviewProps {
     data: SignageData;
@@ -44,9 +41,6 @@ interface FabricPreviewProps {
     onToolbarAction?: (actionFn: (action: string) => void) => void;
     onHistoryStateChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
     onHistoryAction?: (actionFn: (action: 'undo' | 'redo') => void) => void;
-    onFontWarningChange?: (missingFonts: string[]) => void;
-    isAdmin?: boolean;
-    registerGlobal?: boolean;
 }
 
 export function FabricPreview({
@@ -69,16 +63,14 @@ export function FabricPreview({
     onObjectSelected,
     onToolbarAction,
     onHistoryStateChange,
-    onHistoryAction,
-    onFontWarningChange,
-    isAdmin = false,
-    registerGlobal = false
+    onHistoryAction
 }: FabricPreviewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const clipboard = useRef<fabric.Object | null>(null);
     const [scale, setScale] = useState(0.1);
-
+    const [canvasInstance, setCanvasInstance] = useState<fabric.Canvas | null>(null);
     const lastScaleRef = useRef<number>(0.1);
     const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
     const [dynamicTemplates, setDynamicTemplates] = useState<typeof TEMPLATES>(TEMPLATES);
@@ -95,6 +87,46 @@ export function FabricPreview({
     const [mobileInputPos, setMobileInputPos] = useState<{ top: number, left: number } | undefined>(undefined);
     const mobileEditingObjectRef = useRef<fabric.IText | null>(null);
     const hasInitialLoadRef = useRef(false);
+    const compactRef = useRef(compact);
+
+    useEffect(() => {
+        compactRef.current = compact;
+
+        // Dynamic update of prototypes based on compact mode
+        fabric.Textbox.prototype.set({
+            borderColor: '#FF3333',
+            cornerColor: '#ffffff',
+            cornerStrokeColor: '#FF3333',
+            cornerSize: 20,
+            transparentCorners: false,
+            padding: 8,
+            cornerStyle: 'circle',
+            borderScaleFactor: 4,
+            editable: !compact
+        });
+
+        fabric.IText.prototype.set({
+            borderColor: '#FF3333',
+            cornerColor: '#ffffff',
+            cornerStrokeColor: '#FF3333',
+            cornerSize: 20,
+            transparentCorners: false,
+            padding: 8,
+            cornerStyle: 'circle',
+            borderScaleFactor: 4,
+            editable: !compact
+        });
+
+        // Also update all existing objects on canvas
+        if (canvasInstance) {
+            canvasInstance.getObjects().forEach(obj => {
+                if (obj.type === 'i-text' || obj.type === 'textbox') {
+                    (obj as fabric.IText).set('editable', !compact);
+                }
+            });
+            canvasInstance.requestRenderAll();
+        }
+    }, [compact, canvasInstance]);
 
     // Canvas size based on user's selected dimensions (for correct aspect ratio)
     // We normalize this to a Safe View Size (max 1800px) to prevent browser crashes on large banners
@@ -103,24 +135,11 @@ export function FabricPreview({
         return getNormalizedDimensions(design.width, design.height);
     }, [design.width, design.height]);
 
-    // Use the new modular hooks for canvas management
-    const { fabricCanvasRef, canvasInstance, compactRef } = useFabricCanvas({
-        canvasRef,
-        baseWidth,
-        baseHeight,
-        design,
-        isReadOnly,
-        compact,
-        onMount,
-        registerGlobal
-    });
-
     // History & Managers Hooks
     const { saveHistory, undo, redo, setInitialHistory, setIsProcessing, canUndo, canRedo } = useCanvasHistory();
     const { addText, addIcon, addShape, addImage, addShapeSVG } = useCanvasObjectManagers(
         canvasInstance, baseWidth, baseHeight, onDesignChange, design, saveHistory
     );
-
 
     // Sync history state to parent
     useEffect(() => {
@@ -154,16 +173,10 @@ export function FabricPreview({
     });
 
     // Template Mapping Hook
-    // Memoize safety check callback to prevent unstable updateTemplateContent
-    const handleSafetyCheck = useCallback(() => {
-        if (canvasInstance) checkSafetyArea(canvasInstance);
-    }, [canvasInstance, checkSafetyArea]);
-
     const { updateTemplateContent, renderSVGTemplate } = useCanvasTemplates(
         canvasInstance, baseWidth, baseHeight, design, data,
-        handleSafetyCheck,
-        isReadOnly,
-        isAdmin
+        () => canvasInstance && checkSafetyArea(canvasInstance),
+        isReadOnly
     );
 
     // Initial load for templates
@@ -175,18 +188,127 @@ export function FabricPreview({
         fetchTemplates();
     }, []);
 
-    // Gesture handling hook
-    useCanvasGestures({
-        canvasInstance,
-        compact,
-        scale,
-        setRotationAngle,
-        setIsEditingTextMobile,
-        setMobileTextValue,
-        setMobileInputPos,
-        mobileEditingObjectRef
-    });
+    // Canvas Initialization
+    useEffect(() => {
+        if (!canvasRef.current || fabricCanvasRef.current) return;
 
+        const canvas = new fabric.Canvas(canvasRef.current, {
+            width: baseWidth,
+            height: baseHeight,
+            backgroundColor: design.backgroundColor,
+            selection: !isReadOnly,
+            renderOnAddRemove: true,
+            preserveObjectStacking: true
+        });
+
+
+
+
+        // Apply global styles
+        fabric.Object.prototype.set({
+            borderColor: '#FF3333', // Vibrant red
+            cornerColor: '#ffffff', // White handles
+            cornerStrokeColor: '#FF3333', // Red stroke for corners
+            cornerSize: 28, // Scaled for 1800px normalization
+            transparentCorners: false,
+            padding: 8,
+            cornerStyle: 'circle',
+            borderScaleFactor: 4 // Thicker selection lines
+        });
+
+
+        // Rotation indicator
+        canvas.on('object:rotating', (e) => {
+            const obj = e.target;
+            if (obj) {
+                const angle = Math.round(obj.angle || 0);
+                setRotationAngle(angle);
+            }
+        });
+
+        canvas.on('object:modified', () => {
+            setRotationAngle(null);
+        });
+
+        canvas.on('selection:cleared', () => {
+            setRotationAngle(null);
+        });
+
+        // Double-tap detection for mobile (more reliable than dblclick on touch devices)
+        let lastTapTime = 0;
+        let lastTapTarget: any = null;
+        const DOUBLE_TAP_DELAY = 300; // milliseconds
+
+        canvas.on('mouse:down', (e) => {
+            if (!compactRef.current) return;
+            if (!e.target || (e.target.type !== 'i-text' && e.target.type !== 'textbox')) return;
+
+            const now = Date.now();
+            const timeSinceLastTap = now - lastTapTime;
+
+            if (timeSinceLastTap < DOUBLE_TAP_DELAY && lastTapTarget === e.target) {
+                // Double-tap detected!
+                const textObj = e.target as fabric.IText;
+                mobileEditingObjectRef.current = textObj;
+                setMobileTextValue(textObj.text || '');
+
+                // Calculate screen position
+                const rect = canvas.getElement().getBoundingClientRect();
+                const center = textObj.getBoundingRect();
+                setMobileInputPos({
+                    top: rect.top + (center.top * scale),
+                    left: rect.left + (center.left * scale)
+                });
+
+                setIsEditingTextMobile(true);
+                lastTapTime = 0; // Reset
+                lastTapTarget = null;
+            } else {
+                // First tap
+                lastTapTime = now;
+                lastTapTarget = e.target;
+            }
+        });
+
+        // Also keep dblclick as fallback for desktop testing
+        canvas.on('mouse:dblclick', (e) => {
+            if (compactRef.current && e.target && (e.target.type === 'i-text' || e.target.type === 'textbox')) {
+                const textObj = e.target as fabric.IText;
+                mobileEditingObjectRef.current = textObj;
+                setMobileTextValue(textObj.text || '');
+
+                const rect = canvas.getElement().getBoundingClientRect();
+                const center = textObj.getBoundingRect();
+                setMobileInputPos({
+                    top: rect.top + (center.top * scale),
+                    left: rect.left + (center.left * scale)
+                });
+
+                setIsEditingTextMobile(true);
+            }
+        });
+
+        fabricCanvasRef.current = canvas;
+        setCanvasInstance(canvas);
+
+        if (!isReadOnly) {
+            (window as any).fabricCanvas = canvas;
+        }
+
+        const disposeGuidelines = initAligningGuidelines(canvas);
+
+        if (onMount) onMount(canvas);
+
+        return () => {
+            if (disposeGuidelines) disposeGuidelines();
+            canvas.dispose();
+            fabricCanvasRef.current = null;
+            setCanvasInstance(null);
+            if (!isReadOnly && (window as any).fabricCanvas === canvas) {
+                delete (window as any).fabricCanvas;
+            }
+        };
+    }, []);
     // Load Initial JSON (Snapshot)
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
@@ -220,94 +342,29 @@ export function FabricPreview({
         setFloatingToolbarPos({ x, y });
     }, [scale]);
 
-    const checkMissingFonts = useCallback(() => {
-        if (!canvasInstance || !onFontWarningChange) return;
-
-        const supportedLower = new Set(SUPPORTED_FONTS.map(f => f.toLowerCase()));
-        const systemLower = new Set(Array.from(SYSTEM_FONTS).map(f => f.toLowerCase()));
-
-        const missing = new Set<string>();
-        const objects = canvasInstance.getObjects();
-
-        console.log(`[DEBUG] checkMissingFonts scanning ${objects.length} objects`);
-
-        objects.forEach((obj, idx) => {
-            if (obj.type?.includes('text') || obj.type === 'textbox') {
-                const font = (obj as fabric.IText).fontFamily?.replace(/['"]/g, '').trim() || 'Arial';
-                const fontLow = font.toLowerCase();
-
-                const isSupported = supportedLower.has(fontLow);
-                const isSystem = systemLower.has(fontLow);
-
-                if (!isSupported && !isSystem) {
-                    console.warn(`[DEBUG] Object ${idx} (${obj.type}) uses unsupported font: "${font}"`, {
-                        name: (obj as any).name,
-                        text: (obj as any).text?.substring(0, 10)
-                    });
-                    missing.add(font);
-                }
-            }
-        });
-
-        const missingArr = Array.from(missing);
-        console.log(`[DEBUG] Final missing fonts:`, missingArr);
-        onFontWarningChange(missingArr);
-    }, [canvasInstance, onFontWarningChange]);
-
     useEffect(() => {
         const canvas = canvasInstance;
         if (!canvas) return;
 
-        // Selection Handlers (Lower Frequency)
-        const selectionHandler = () => {
-            updateFloatingToolbar(canvas.getActiveObject());
-            checkMissingFonts();
-        };
+        const handler = () => updateFloatingToolbar(canvas.getActiveObject());
+        const clearHandler = () => setFloatingToolbarPos(null);
 
-        const clearHandler = () => {
-            setFloatingToolbarPos(null);
-            checkMissingFonts();
-        };
-
-        // Modification Handlers (Only after user action finished)
-        const modificationHandler = () => {
-            checkMissingFonts();
-        };
-
-        // Real-time Visual Handlers (High Frequency - NO FONT CHECKING HERE)
-        const visualHandler = () => {
-            updateFloatingToolbar(canvas.getActiveObject());
-        };
-
-        canvas.on('selection:created', selectionHandler);
-        canvas.on('selection:updated', selectionHandler);
+        canvas.on('selection:created', handler);
+        canvas.on('selection:updated', handler);
         canvas.on('selection:cleared', clearHandler);
-
-        canvas.on('object:moving', visualHandler);
-        canvas.on('object:scaling', visualHandler);
-        canvas.on('object:rotating', visualHandler);
-
-        canvas.on('object:modified', modificationHandler);
-        canvas.on('object:added', modificationHandler);
-        canvas.on('object:removed', modificationHandler);
-
-        // Initial check
-        checkMissingFonts();
+        canvas.on('object:moving', handler);
+        canvas.on('object:scaling', handler);
+        canvas.on('object:rotating', handler);
 
         return () => {
-            canvas.off('selection:created', selectionHandler);
-            canvas.off('selection:updated', selectionHandler);
+            canvas.off('selection:created', handler);
+            canvas.off('selection:updated', handler);
             canvas.off('selection:cleared', clearHandler);
-
-            canvas.off('object:moving', visualHandler);
-            canvas.off('object:scaling', visualHandler);
-            canvas.off('object:rotating', visualHandler);
-
-            canvas.off('object:modified', modificationHandler);
-            canvas.off('object:added', modificationHandler);
-            canvas.off('object:removed', modificationHandler);
+            canvas.off('object:moving', handler);
+            canvas.off('object:scaling', handler);
+            canvas.off('object:rotating', handler);
         };
-    }, [canvasInstance, updateFloatingToolbar, checkMissingFonts]);
+    }, [canvasInstance, updateFloatingToolbar]);
 
     const handleAction = useCallback((action: string, value?: any) => {
         const canvas = fabricCanvasRef.current;
@@ -837,8 +894,7 @@ export function FabricPreview({
             const targetWidth = container.clientWidth;
             const targetHeight = container.clientHeight;
             if (targetWidth === 0 || targetHeight === 0) return;
-            const paddingFactor = isReadOnly ? 1.0 : 0.95;
-            const sc = Math.max(0.1, Math.min(1.0, (targetWidth * paddingFactor) / baseWidth, (targetHeight * paddingFactor) / baseHeight));
+            const sc = Math.max(0.1, Math.min(1.0, (targetWidth * 0.95) / baseWidth, (targetHeight * 0.95) / baseHeight));
             if (Math.abs(sc - lastScaleRef.current) > 0.0001) {
                 lastScaleRef.current = sc;
                 setScale(sc);
@@ -933,13 +989,11 @@ export function FabricPreview({
         const canvas = fabricCanvasRef.current;
         if (!canvas || initialJSON) return;
 
-        console.log('[DEBUG] Template loading effect triggered. templateId:', design.templateId);
         setIsProcessing(true);
         const templateConfig = dynamicTemplates.find(t => t.id === design.templateId);
 
         const savedJSON = !isReadOnly ? localStorage.getItem('signage_canvas_json') : null;
         if (!hasInitialLoadRef.current && savedJSON) {
-            console.log('[DEBUG] Found saved JSON, skipping template reload');
             hasInitialLoadRef.current = true;
             setIsProcessing(false);
             return;
@@ -947,7 +1001,6 @@ export function FabricPreview({
         hasInitialLoadRef.current = true;
 
         const finalizeLoad = () => {
-            console.log('[DEBUG] finalizeLoad called');
             setIsProcessing(false);
             saveHistory(canvas);
         };
@@ -962,7 +1015,6 @@ export function FabricPreview({
 
         if (templateConfig) {
             if (templateConfig.fabricConfig) {
-                console.log('[DEBUG] Loading from fabricConfig');
                 canvas.loadFromJSON(templateConfig.fabricConfig, () => {
                     // NEW SCALING LOGIC (100 DPI Standard) with Content Bounds Detection
                     const canvasWidth = canvas.getWidth();
@@ -1068,15 +1120,13 @@ export function FabricPreview({
                         }
                     }
 
-                    // CRITICAL: Call updateTemplateContent even for fabricConfig templates
-                    // to ensure user data (company name, address) is synced into the master objects
-                    updateTemplateContent();
 
+                    // Don't call updateTemplateContent for fabricConfig templates
+                    // They already have their objects in the JSON
                     canvas.requestRenderAll();
                     finalizeLoad();
                 });
             } else if (templateConfig.svgPath) {
-                console.log('[DEBUG] Fetching SVG path');
                 fetch(templateConfig.svgPath).then(r => r.text()).then(svgText => {
                     renderSVGTemplate(templateConfig.components, svgText);
                     finalizeLoad();
@@ -1092,10 +1142,7 @@ export function FabricPreview({
     }, [design.templateId, dynamicTemplates, setIsProcessing, saveHistory, initialJSON, baseWidth, baseHeight]);
 
     // Prop sync
-    useEffect(() => {
-        console.log('[DEBUG] Prop sync triggered (data/design changed)');
-        updateTemplateContent();
-    }, [data, design]);
+    useEffect(() => { updateTemplateContent(); }, [data, design]);
 
     // Prop Registration
     useEffect(() => {
@@ -1158,14 +1205,11 @@ export function FabricPreview({
     };
 
     return (
-        <div className={cn(
-            "flex-1 w-full h-full relative overflow-hidden flex flex-col min-h-0",
-            !isReadOnly ? "bg-slate-50" : "bg-transparent"
-        )}>
+        <div className="flex-1 w-full h-full relative overflow-hidden bg-slate-50 flex flex-col min-h-0">
             {/* Formatting Toolbar (Rendered in Header via Portal) */}
-            {selectedObject && !isReadOnly && !compact && (
-                (typeof document !== 'undefined' && document.getElementById('toolbar-header-target')) ? (
-                    createPortal(
+            {selectedObject && !isReadOnly && (
+                (compact || (typeof document !== 'undefined' && document.getElementById('toolbar-header-target'))) ? (
+                    compact ? (
                         <TextFormatToolbar
                             selectedObject={selectedObject}
                             onUpdate={() => { canvasInstance?.requestRenderAll(); saveHistory(canvasInstance!); }}
@@ -1176,21 +1220,31 @@ export function FabricPreview({
                             onDelete={() => handleAction('delete')}
                             onLockToggle={() => handleAction('lock')}
                             onAction={handleAction}
-                        />,
-                        document.getElementById('toolbar-header-target')!
+                            compact={true}
+                            isLandscape={isLandscape}
+                        />
+                    ) : (
+                        createPortal(
+                            <TextFormatToolbar
+                                selectedObject={selectedObject}
+                                onUpdate={() => { canvasInstance?.requestRenderAll(); saveHistory(canvasInstance!); }}
+                                onFontSizeChange={(size) => onDesignChange?.({ ...design, companyNameSize: size })}
+                                onFontFamilyChange={(font) => onDesignChange?.({ ...design, fontFamily: font })}
+                                onColorChange={(color) => onDesignChange?.({ ...design, textColor: color })}
+                                onDuplicate={() => handleAction('duplicate')}
+                                onDelete={() => handleAction('delete')}
+                                onLockToggle={() => handleAction('lock')}
+                                onAction={handleAction}
+                            />,
+                            document.getElementById('toolbar-header-target')!
+                        )
                     )
                 ) : null
             )}
 
-            <div className={`absolute inset-0 flex ${compact && !isLandscape ? 'items-start pt-10' : 'items-center'} justify-center`}>
-                <div ref={containerRef} className={`w-full h-full flex ${compact && !isLandscape ? 'items-start pt-2' : 'items-center'} justify-center relative overflow-hidden bg-transparent`} onContextMenu={handleContextMenu}>
-                    <div
-                        className={cn(
-                            "relative flex items-center justify-center shrink-0",
-                            !isReadOnly ? "bg-white rounded-sm shadow-2xl" : "bg-transparent"
-                        )}
-                        style={{ width: baseWidth * scale, height: baseHeight * scale }}
-                    >
+            <div className={`absolute inset-0 flex ${compact && !isLandscape ? 'items-start pt-16' : 'items-center'} justify-center p-4`}>
+                <div ref={containerRef} className={`w-full h-full flex ${compact && !isLandscape ? 'items-start pt-4' : 'items-center'} justify-center relative overflow-hidden bg-transparent`} onContextMenu={handleContextMenu}>
+                    <div className="bg-white rounded-sm shadow-2xl relative flex items-center justify-center shrink-0" style={{ width: baseWidth * scale, height: baseHeight * scale }}>
                         <canvas ref={canvasRef} />
                         {selectedObject && floatingToolbarPos && !isReadOnly && !compact && (
                             <FloatingSelectionToolbar
