@@ -79,7 +79,7 @@ const CanvasPresetsTab = ({
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
                     <div className="bg-slate-900 rounded-[2.5rem] p-10 max-w-lg w-full shadow-2xl border border-white/10 relative">
                         <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-3xl font-black text-white">
+                            <h3 className="text-3xl font-bold text-white">
                                 {editingIndex !== null ? 'Edit Preset' : 'Add New Preset'}
                             </h3>
                             <button onClick={() => setShowForm(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
@@ -89,7 +89,7 @@ const CanvasPresetsTab = ({
 
                         <form onSubmit={handleSavePreset} className="space-y-6">
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Preset Name</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Preset Name</label>
                                 <input
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -101,7 +101,7 @@ const CanvasPresetsTab = ({
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Width</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Width</label>
                                     <input
                                         type="number"
                                         value={formData.width}
@@ -111,7 +111,7 @@ const CanvasPresetsTab = ({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Height</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Height</label>
                                     <input
                                         type="number"
                                         value={formData.height}
@@ -123,7 +123,7 @@ const CanvasPresetsTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Unit</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Unit</label>
                                 <select
                                     value={formData.unit}
                                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
@@ -137,7 +137,7 @@ const CanvasPresetsTab = ({
                             </div>
 
                             <div className="flex gap-4 pt-6">
-                                <Button type="submit" className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-xl shadow-xl shadow-indigo-500/20 text-white">
+                                <Button type="submit" className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-bold text-xl shadow-xl shadow-indigo-500/20 text-white">
                                     <Save className="w-6 h-6 mr-2" />
                                     {editingIndex !== null ? 'Update Preset' : 'Create Preset'}
                                 </Button>
@@ -145,7 +145,7 @@ const CanvasPresetsTab = ({
                                     type="button"
                                     variant="outline"
                                     onClick={() => setShowForm(false)}
-                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-black text-xl hover:bg-white/10 text-white"
+                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-bold text-xl hover:bg-white/10 text-white"
                                 >
                                     Cancel
                                 </Button>
@@ -160,11 +160,11 @@ const CanvasPresetsTab = ({
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-white/10">
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Name</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Width</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Height</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Unit</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Name</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-center">Width</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-center">Height</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-center">Unit</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
@@ -189,7 +189,7 @@ const CanvasPresetsTab = ({
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className="text-[9px] px-2.5 py-1 bg-indigo-500/10 text-indigo-300 rounded-full font-black uppercase tracking-widest border border-indigo-500/20 shadow-sm">
+                                        <span className="text-[9px] px-2.5 py-1 bg-indigo-500/10 text-indigo-300 rounded-full font-bold uppercase tracking-widest border border-indigo-500/20 shadow-sm">
                                             {preset.unit}
                                         </span>
                                     </td>
@@ -229,7 +229,7 @@ const CanvasPresetsTab = ({
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
+                        <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
                             <Minimize2 className="w-3 h-3" /> Min Width
                         </label>
                         <input
@@ -240,7 +240,7 @@ const CanvasPresetsTab = ({
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
+                        <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
                             <Maximize2 className="w-3 h-3" /> Max Width
                         </label>
                         <input
@@ -251,7 +251,7 @@ const CanvasPresetsTab = ({
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
+                        <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
                             <Minimize2 className="w-3 h-3" /> Min Height
                         </label>
                         <input
@@ -262,7 +262,7 @@ const CanvasPresetsTab = ({
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
+                        <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1 flex items-center gap-2">
                             <Maximize2 className="w-3 h-3" /> Max Height
                         </label>
                         <input
@@ -278,7 +278,7 @@ const CanvasPresetsTab = ({
                     <Button
                         onClick={handleSaveCanvasSettings}
                         disabled={isLoading}
-                        className="w-full py-8 bg-indigo-600 hover:bg-indigo-500 font-black text-xl rounded-2xl shadow-xl shadow-indigo-500/20 text-white"
+                        className="w-full py-8 bg-indigo-600 hover:bg-indigo-500 font-bold text-xl rounded-2xl shadow-xl shadow-indigo-500/20 text-white"
                     >
                         {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Save className="w-6 h-6 mr-2" />}
                         Save All Configurations

@@ -8,6 +8,7 @@ interface SignageFormProps {
     onChange: (data: SignageData) => void;
     onLogoUpload?: (file: File, tempUrl: string) => void;
     className?: string;
+    usedTemplateKeys?: string[];
 }
 
 const InputField = ({ label, icon: Icon, name, value, type = "text", placeholder, isTextArea = false, onChange }: any) => (
@@ -19,7 +20,7 @@ const InputField = ({ label, icon: Icon, name, value, type = "text", placeholder
                 onChange={onChange}
                 rows={2}
                 className={cn(
-                    "w-full bg-white/5 border border-white/5 rounded-xl pr-4 py-2.5 pl-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none font-medium text-sm transition-all resize-none shadow-inner"
+                    "w-full bg-white/5 border border-white/5 rounded-lg pr-4 py-2.5 pl-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none font-medium text-sm transition-all resize-none shadow-inner"
                 )}
                 placeholder={placeholder || label}
             />
@@ -30,7 +31,7 @@ const InputField = ({ label, icon: Icon, name, value, type = "text", placeholder
                 value={value || ''}
                 onChange={onChange}
                 className={cn(
-                    "w-full bg-white/5 border border-white/5 rounded-xl pr-4 py-2.5 pl-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none font-medium text-sm transition-all shadow-inner"
+                    "w-full bg-white/5 border border-white/5 rounded-lg pr-4 py-2.5 pl-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none font-medium text-sm transition-all shadow-inner"
                 )}
                 placeholder={placeholder || label}
             />
@@ -38,15 +39,21 @@ const InputField = ({ label, icon: Icon, name, value, type = "text", placeholder
     </div>
 );
 
-export function SignageForm({ data, onChange, onLogoUpload, className = "" }: SignageFormProps) {
+export function SignageForm({ data, onChange, onLogoUpload, className = "", usedTemplateKeys = [] }: SignageFormProps) {
     const [focusedIndex, setFocusedIndex] = React.useState<number | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        onChange({ ...data, [name]: value });
+        if (name.startsWith('custom_')) {
+            const fieldKey = name.replace('custom_', '');
+            const newCustom = { ...(data.customFields || {}), [fieldKey]: value };
+            onChange({ ...data, customFields: newCustom });
+        } else {
+            onChange({ ...data, [name]: value });
+        }
     };
 
-    // ... (keep processImage and handleFileChange exactly as is, just skipping lines for brevity in this tool)
+    // ... (keep processImage and handleFileChange exactly as is)
     const processImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -86,136 +93,165 @@ export function SignageForm({ data, onChange, onLogoUpload, className = "" }: Si
         }
     };
 
+    // Filter custom keys that aren't standard
+    const standardKeys = ['template_company', 'template_address', 'template_details', 'template_gstin', 'template_cin', 'template_mobile', 'template_email', 'template_website'];
+    const customKeys = usedTemplateKeys
+        .filter(k => k.startsWith('template_') && !standardKeys.includes(k) && !k.startsWith('template_additional_'))
+        .map(k => k.replace('template_', ''));
+
+    const isUsed = (key: string) => usedTemplateKeys.includes(key);
+
     return (
-        <div className={`space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500 ${className}`}>
-            <div className="space-y-2">
-                <InputField
-                    label="Company Name"
-                    name="companyName"
-                    value={data.companyName}
-                    placeholder="Company Name"
-                    onChange={handleChange}
-                />
-
-                <InputField
-                    label="Address"
-                    name="address"
-                    value={data.address}
-                    placeholder="Address"
-                    isTextArea={true}
-                    onChange={handleChange}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                    <InputField
-                        label="GSTIN"
-                        name="gstin"
-                        value={data.gstin}
-                        placeholder="GSTIN"
-                        onChange={handleChange}
-                    />
-                    <InputField
-                        label="CIN"
-                        name="cin"
-                        value={data.cin}
-                        placeholder="CIN"
-                        onChange={handleChange}
-                    />
-                </div>
-
-                <InputField
-                    label="Phone"
-                    name="mobile"
-                    value={data.mobile}
-                    placeholder="Phone"
-                    onChange={handleChange}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                    <InputField
-                        label="Email"
-                        name="email"
-                        value={data.email}
-                        placeholder="Email"
-                        onChange={handleChange}
-                    />
-                    <InputField
-                        label="Website"
-                        name="website"
-                        value={data.website}
-                        placeholder="Website"
-                        onChange={handleChange}
-                    />
-                </div>
-
-                <div className="pt-1">
-                    <div className="space-y-2">
-                        {(data.additionalText || []).map((text, index) => (
-                            <div key={index} className="flex gap-2 animate-in slide-in-from-right-4 duration-300">
-                                <div className="relative flex-1 group">
-                                    <input
-                                        type="text"
-                                        value={text}
-                                        onFocus={() => setFocusedIndex(index)}
-                                        onBlur={() => setTimeout(() => setFocusedIndex(null), 200)}
-                                        onChange={(e) => {
-                                            const newText = [...(data.additionalText || [])];
-                                            newText[index] = e.target.value;
-                                            onChange({ ...data, additionalText: newText });
-                                        }}
-                                        placeholder="Enter details..."
-                                        className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-white placeholder-slate-600 focus:border-indigo-500 outline-none font-medium text-sm transition-all shadow-inner"
-                                    />
-                                </div>
-                                {focusedIndex === index && (
+        <div className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ${className}`}>
+            <div className="flex flex-col gap-2">
+                {[
+                    isUsed('template_company') && (
+                        <InputField
+                            key="company"
+                            label="Company Name"
+                            name="companyName"
+                            value={data.companyName}
+                            placeholder="Company Name"
+                            onChange={handleChange}
+                        />
+                    ),
+                    isUsed('template_address') && (
+                        <InputField
+                            key="address"
+                            label="Address"
+                            name="address"
+                            value={data.address}
+                            placeholder="Address"
+                            isTextArea={true}
+                            onChange={handleChange}
+                        />
+                    ),
+                    ...customKeys.map(key => (
+                        <InputField
+                            key={key}
+                            label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            name={`custom_${key}`}
+                            value={data.customFields?.[key]}
+                            onChange={handleChange}
+                        />
+                    )),
+                    isUsed('template_gstin') && (
+                        <InputField
+                            key="gstin"
+                            label="GSTIN"
+                            name="gstin"
+                            value={data.gstin}
+                            placeholder="GSTIN"
+                            onChange={handleChange}
+                        />
+                    ),
+                    isUsed('template_cin') && (
+                        <InputField
+                            key="cin"
+                            label="CIN"
+                            name="cin"
+                            value={data.cin}
+                            placeholder="CIN"
+                            onChange={handleChange}
+                        />
+                    ),
+                    isUsed('template_mobile') && (
+                        <InputField
+                            key="mobile"
+                            label="Phone"
+                            name="mobile"
+                            value={data.mobile}
+                            placeholder="Phone"
+                            onChange={handleChange}
+                        />
+                    ),
+                    isUsed('template_email') && (
+                        <InputField
+                            key="email"
+                            label="Email"
+                            name="email"
+                            value={data.email}
+                            placeholder="Email"
+                            onChange={handleChange}
+                        />
+                    ),
+                    isUsed('template_website') && (
+                        <InputField
+                            key="website"
+                            label="Website"
+                            name="website"
+                            value={data.website}
+                            placeholder="Website"
+                            onChange={handleChange}
+                        />
+                    ),
+                    (isUsed('template_details') || usedTemplateKeys.some(k => k.startsWith('template_additional_'))) && (
+                        <React.Fragment key="additional-details-container">
+                            {(data.additionalText || []).map((text, index) => (
+                                <div key={`additional-${index}`} className="flex gap-2 animate-in slide-in-from-right-4 duration-300">
+                                    <div className="relative flex-1 group">
+                                        <input
+                                            type="text"
+                                            value={text}
+                                            onFocus={() => setFocusedIndex(index)}
+                                            onBlur={() => setTimeout(() => setFocusedIndex(null), 200)}
+                                            onChange={(e) => {
+                                                const newText = [...(data.additionalText || [])];
+                                                newText[index] = e.target.value;
+                                                onChange({ ...data, additionalText: newText });
+                                            }}
+                                            placeholder="Enter details..."
+                                            className="w-full bg-white/5 border border-white/5 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:border-indigo-500 outline-none font-medium text-sm transition-all shadow-inner"
+                                        />
+                                    </div>
+                                    {focusedIndex === index && (
+                                        <button
+                                            type="button"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => {
+                                                if (document.activeElement instanceof HTMLElement) {
+                                                    document.activeElement.blur();
+                                                }
+                                                setFocusedIndex(null);
+                                            }}
+                                            className="p-2.5 text-slate-500 hover:text-emerald-400 transition-colors animate-in fade-in zoom-in duration-200"
+                                        >
+                                            <Check className="w-4 h-4" />
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
-                                        onMouseDown={(e) => e.preventDefault()} // Prevent blur before click
                                         onClick={() => {
-                                            if (document.activeElement instanceof HTMLElement) {
-                                                document.activeElement.blur();
-                                            }
-                                            setFocusedIndex(null);
+                                            const newText = (data.additionalText || []).filter((_, i) => i !== index);
+                                            onChange({ ...data, additionalText: newText });
                                         }}
-                                        className="p-2.5 text-slate-500 hover:text-emerald-400 transition-colors animate-in fade-in zoom-in duration-200"
+                                        className="p-2.5 text-slate-500 hover:text-rose-400 transition-colors"
                                     >
-                                        <Check className="w-4 h-4" />
+                                        <X className="w-4 h-4" />
                                     </button>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const newText = (data.additionalText || []).filter((_, i) => i !== index);
-                                        onChange({ ...data, additionalText: newText });
-                                    }}
-                                    className="p-2.5 text-slate-500 hover:text-rose-400 transition-colors"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ))}
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const newText = [...(data.additionalText || []), ''];
-                                onChange({ ...data, additionalText: newText });
-                            }}
-                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 text-sm"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Additional Detail
-                        </button>
-                    </div>
-                </div>
-
-                <div className="pt-2 px-1">
-                    <label className="flex items-center justify-center w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/10 cursor-pointer gap-2 text-sm">
-                        <Upload className="w-4 h-4" />
-                        Upload Business Logo
-                        <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                    </label>
-                </div>
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const newText = [...(data.additionalText || []), ''];
+                                    onChange({ ...data, additionalText: newText });
+                                }}
+                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold rounded-lg transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 text-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Additional Detail
+                            </button>
+                        </React.Fragment>
+                    ),
+                    isUsed('template_logo') && (
+                        <label key="logo-upload" className="flex items-center justify-center w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold rounded-lg transition-all shadow-lg shadow-indigo-600/10 cursor-pointer gap-2 text-sm mt-1">
+                            <Upload className="w-4 h-4" />
+                            Upload Business Logo
+                            <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                        </label>
+                    )
+                ].filter(Boolean)}
             </div>
         </div>
     );

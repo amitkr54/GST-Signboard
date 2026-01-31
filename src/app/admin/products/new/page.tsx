@@ -56,7 +56,7 @@ export default function NewProductPage() {
                 </Link>
 
                 <div className="bg-white rounded-2xl p-8 shadow-lg">
-                    <h1 className="text-3xl font-black text-gray-900 mb-6">Add New Product</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-6">Add New Product</h1>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>

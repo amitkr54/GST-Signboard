@@ -9,7 +9,7 @@ export function useCanvasHistory() {
     const saveHistory = useCallback((canvas: fabric.Canvas | null) => {
         if (!canvas || historyProcessing.current) return;
 
-        const currentState = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'editable', 'id', 'data']));
+        const currentState = JSON.stringify(canvas.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'editable', 'id', 'data', 'isBackground', 'ignoreSafety']));
         const lastState = historyRef.current[historyIndexRef.current];
 
         if (lastState && currentState === lastState) return;

@@ -146,11 +146,11 @@ const OrdersTab = ({
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-white/10">
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Order Info</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Customer</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Amount</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Status</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Order Info</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Customer</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Amount</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Status</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
@@ -170,13 +170,13 @@ const OrdersTab = ({
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="font-black text-emerald-400">₹{order.amount}</span>
+                                            <span className="font-bold text-emerald-400">₹{order.amount}</span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <select
                                                 value={order.status}
                                                 onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                                                className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-black/20 border transition-all ${order.status === 'paid' ? 'text-emerald-400 border-emerald-500/30' : 'text-amber-400 border-amber-500/30'}`}
+                                                className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-black/20 border transition-all ${order.status === 'paid' ? 'text-emerald-400 border-emerald-500/30' : 'text-amber-400 border-amber-500/30'}`}
                                             >
                                                 <option value="pending">Pending</option>
                                                 <option value="paid">Paid</option>
@@ -202,7 +202,7 @@ const OrdersTab = ({
                                                 <div className="grid md:grid-cols-2 gap-8">
                                                     <div className="space-y-4">
                                                         <div>
-                                                            <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Customer Info & Shipping</h4>
+                                                            <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2">Customer Info & Shipping</h4>
                                                             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200 space-y-2">
                                                                 <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Name:</span> {order.customer_name}</p>
                                                                 <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Email:</span> {order.customer_email}</p>
@@ -214,14 +214,14 @@ const OrdersTab = ({
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Company Details</h4>
+                                                            <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2">Company Details</h4>
                                                             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200">
                                                                 <p className="font-bold">{order.company_details?.companyName}</p>
                                                                 <p className="opacity-70">{order.company_details?.address}</p>
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Service Options</h4>
+                                                            <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2">Service Options</h4>
                                                             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-sm text-slate-200 space-y-2">
                                                                 <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Delivery:</span> {order.design_config?.deliveryType === 'fast' ? 'Express (24-48h)' : 'Standard (3-5 days)'}</p>
                                                                 <p><span className="text-slate-500 font-bold uppercase text-[9px] mr-2">Installation:</span> {order.design_config?.includeInstallation ? 'Required' : 'Not Required'}</p>
@@ -230,7 +230,7 @@ const OrdersTab = ({
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Design Proof</h4>
+                                                        <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2">Design Proof</h4>
                                                         <div className="aspect-[16/10] bg-white rounded-2xl border-4 border-slate-800 overflow-hidden flex items-center justify-center p-2">
                                                             {order.visual_proof ? (
                                                                 <div className="w-full h-full relative group/proof">

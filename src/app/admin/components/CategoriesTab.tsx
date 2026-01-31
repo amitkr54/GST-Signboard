@@ -43,7 +43,7 @@ const CategoriesTab = ({
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
                     <div className="bg-slate-900 rounded-[2.5rem] p-10 max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/10 relative">
                         <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-3xl font-black text-white">
+                            <h3 className="text-3xl font-bold text-white">
                                 {editingCategory ? 'Edit Category' : 'Add New Category'}
                             </h3>
                             <button onClick={() => setShowCategoryForm(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
@@ -54,7 +54,7 @@ const CategoriesTab = ({
                         <form onSubmit={handleSaveCategory} className="space-y-6">
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Category ID</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Category ID</label>
                                     <input
                                         name="id"
                                         defaultValue={editingCategory?.id}
@@ -65,7 +65,7 @@ const CategoriesTab = ({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Display Order</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Display Order</label>
                                     <input
                                         name="display_order"
                                         type="number"
@@ -76,7 +76,7 @@ const CategoriesTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Category Name</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Category Name</label>
                                 <input
                                     name="name"
                                     defaultValue={editingCategory?.name}
@@ -87,7 +87,7 @@ const CategoriesTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Description</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Description</label>
                                 <textarea
                                     name="description"
                                     defaultValue={editingCategory?.description}
@@ -97,7 +97,7 @@ const CategoriesTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Icon (Optional)</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Icon (Optional)</label>
                                 <input
                                     name="icon"
                                     defaultValue={editingCategory?.icon}
@@ -107,7 +107,7 @@ const CategoriesTab = ({
                             </div>
 
                             <div className="flex gap-4 pt-6">
-                                <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-xl shadow-xl shadow-indigo-500/20 text-white">
+                                <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-bold text-xl shadow-xl shadow-indigo-500/20 text-white">
                                     {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Save className="w-6 h-6 mr-2" />}
                                     {editingCategory ? 'Update Category' : 'Create Category'}
                                 </Button>
@@ -115,7 +115,7 @@ const CategoriesTab = ({
                                     type="button"
                                     variant="outline"
                                     onClick={() => setShowCategoryForm(false)}
-                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-black text-xl hover:bg-white/10 text-white"
+                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-bold text-xl hover:bg-white/10 text-white"
                                 >
                                     Cancel
                                 </Button>
@@ -130,11 +130,11 @@ const CategoriesTab = ({
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-white/10">
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">ID</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Name</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Description</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Order</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">ID</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Name</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Description</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-center">Order</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">

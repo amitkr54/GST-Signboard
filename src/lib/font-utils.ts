@@ -22,7 +22,7 @@ export const SUPPORTED_FONTS = [
     "Source Sans Pro", "Ubuntu", "Roboto Slab", "Lora", "Pacifico",
     "Dancing Script", "Bebas Neue", "Lobster", "Abril Fatface",
     "Times New Roman", "Courier New", "Georgia", "Verdana",
-    "Comic Sans MS", "Impact"
+    "Comic Sans MS", "Impact", "Garamond"
 ];
 
 //Map font names to local file paths
@@ -113,7 +113,11 @@ const LOCAL_FONTS_MAP: Record<string, string> = {
     'Comic Sans MS-Bold': '/fonts/ComicSansMS-Bold.ttf',
     'Comic Sans MS-Italic': '/fonts/ComicSansMS-Italic.ttf',
     'Comic Sans MS-BoldItalic': '/fonts/ComicSansMS-BoldItalic.ttf',
-    'Impact': '/fonts/Impact.ttf'
+    'Impact': '/fonts/Impact.ttf',
+    'Garamond': '/fonts/Garamond.ttf',
+    'Garamond-Bold': '/fonts/Garamond-Bold.ttf',
+    'Garamond-Italic': '/fonts/Garamond-Italic.ttf',
+    'Garamond-BoldItalic': '/fonts/Garamond-BoldItalic.ttf'
 };
 
 export interface FontVariantSupport {
@@ -149,7 +153,8 @@ export const FONT_VARIANTS_METADATA: Record<string, FontVariantSupport> = {
     'Georgia': { bold: true, italic: true, boldItalic: true },
     'Verdana': { bold: true, italic: true, boldItalic: true },
     'Comic Sans MS': { bold: true, italic: true, boldItalic: true },
-    'Impact': { bold: false, italic: false, boldItalic: false }
+    'Impact': { bold: false, italic: false, boldItalic: false },
+    'Garamond': { bold: true, italic: true, boldItalic: true }
 };
 
 // Cache for loaded fonts (in-memory, per session)

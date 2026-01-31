@@ -49,7 +49,7 @@ export function useCanvasTemplates(
                 const normalizedFontSize = (textObj.fontSize || 40) * oldScale;
 
                 const textbox = new fabric.Textbox(textObj.text || '', {
-                    ...(textObj.toObject(['name', 'selectable', 'evented', 'editable', 'id', 'fontFamily', 'fontWeight', 'fontStyle', 'fill', 'textAlign', 'angle', 'opacity', 'left', 'top', 'originX', 'originY'])),
+                    ...(textObj.toObject(['name', 'templateKey', 'selectable', 'evented', 'editable', 'id', 'fontFamily', 'fontWeight', 'fontStyle', 'fill', 'textAlign', 'angle', 'opacity', 'left', 'top', 'originX', 'originY'])),
                     fontSize: normalizedFontSize,
                     width: (textObj.width || 200) * oldScale,
                     scaleX: 1,
@@ -68,7 +68,19 @@ export function useCanvasTemplates(
         });
 
         // 1. Background
-        let bgRect = canvas.getObjects().find((obj: fabric.Object) => (obj as any).name === 'background' || (obj as any).isBackground) as fabric.Rect;
+        // FIX: Detect and remove duplicate background objects to prevent "ghost" backgrounds
+        const backgroundObjects = canvas.getObjects().filter((obj: fabric.Object) => (obj as any).name === 'background' || (obj as any).isBackground);
+
+        if (backgroundObjects.length > 1) {
+            console.log('[Fix] Found multiple background objects, removing extras:', backgroundObjects.length);
+            // Keep the first one, remove the rest
+            for (let i = 1; i < backgroundObjects.length; i++) {
+                canvas.remove(backgroundObjects[i]);
+            }
+        }
+
+        let bgRect = backgroundObjects[0] as fabric.Rect;
+
         if (!bgRect) {
             bgRect = new fabric.Rect({
                 width: baseWidth, height: baseHeight, left: baseWidth / 2, top: baseHeight / 2,
@@ -87,7 +99,9 @@ export function useCanvasTemplates(
                 left: baseWidth / 2,
                 top: baseHeight / 2,
                 scaleX: 1,
-                scaleY: 1
+                scaleY: 1,
+                selectable: false, // Ensure it's locked
+                evented: false
             });
             bgRect.setCoords();
             canvas.sendToBack(bgRect);
@@ -274,39 +288,83 @@ export function useCanvasTemplates(
             // Handle Text Synchronization
             if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
                 const textObj = obj as fabric.Textbox;
-                let newValue = '';
+                let newValue: string | undefined = '';
+                let hasValue = false;
+                let placeholder = '';
 
                 // Build-in Field Mapping
-                if (key === 'company' || key === 'companyName') newValue = (data.companyName || (isAdmin ? 'BUSINESS NAME' : '')).toUpperCase();
-                else if (key === 'address' || key === 'details') newValue = data.address || (isAdmin ? 'OFFICE ADDRESS LINE' : '');
-                else if (key === 'gstin') newValue = data.gstin ? `GST: ${data.gstin}` : (isAdmin ? 'GST: 00XXXXX0000X0Z0' : '');
-                else if (key === 'cin') newValue = data.cin ? `CIN: ${data.cin}` : (isAdmin ? 'CIN: U00000XX0000XXX000000' : '');
-                else if (key === 'mobile') newValue = data.mobile || (isAdmin ? '+91 99999 99999' : '');
-                else if (key === 'email') newValue = data.email || (isAdmin ? 'hello@example.com' : '');
-                else if (key === 'website') newValue = data.website || (isAdmin ? 'www.example.com' : '');
+                if (key === 'company' || key === 'companyName') {
+                    newValue = data.companyName;
+                    placeholder = 'Business Name';
+                    hasValue = !!data.companyName;
+                }
+                else if (key === 'address' || key === 'details') {
+                    newValue = data.address;
+                    placeholder = 'Office Address';
+                    hasValue = !!data.address;
+                }
+                else if (key === 'gstin') {
+                    newValue = data.gstin;
+                    placeholder = 'Gst Number';
+                    hasValue = !!data.gstin;
+                }
+                else if (key === 'cin') {
+                    newValue = data.cin;
+                    placeholder = 'Cin Number';
+                    hasValue = !!data.cin;
+                }
+                else if (key === 'mobile') {
+                    newValue = data.mobile;
+                    placeholder = 'Contact Number';
+                    hasValue = !!data.mobile;
+                }
+                else if (key === 'email') {
+                    newValue = data.email;
+                    placeholder = 'Email Address';
+                    hasValue = !!data.email;
+                }
+                else if (key === 'website') {
+                    newValue = data.website;
+                    placeholder = 'Website Url';
+                    hasValue = !!data.website;
+                }
 
                 // Additional Text Lines (0-9)
                 else if (key.startsWith('additional_')) {
                     const idx = parseInt(key.split('_')[1]);
-                    newValue = data.additionalText?.[idx] || (isAdmin ? `ADDITIONAL LINE ${idx + 1}` : '');
+                    newValue = data.additionalText?.[idx];
+                    placeholder = `Additional Line ${idx + 1}`;
+                    hasValue = !!newValue;
                 }
 
                 // Custom Field Mapping
                 else if (data.customFields && data.customFields[key]) {
                     newValue = data.customFields[key];
+                    hasValue = true;
                 }
-                else if (isAdmin && !newValue) {
-                    // Fallback placeholder for any other template keys to help admin identify them
-                    newValue = key.replace(/_/g, ' ').toUpperCase();
+                else if (isAdmin) {
+                    // Fallback placeholder formatting
+                    placeholder = key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
                 }
 
-                // Apply update if value changed (or admin mode needs placeholder)
-                if (newValue !== undefined && (newValue !== '' || isAdmin)) {
-                    // PRESERVE: We do NOT reset padding, lineHeight, or fill here 
-                    // unless they are explicitly coming from the design prop as a global change.
-                    // For now, let's prioritize the template/object's own styles to fix the "goes to black" issue.
+                // Apply update: 
+                // 1. If we have actual mapped data, use it.
+                // 2. If no data, and we are Admin, only show placeholder if current text is generic/empty.
+                // 3. Otherwise (User mode or has custom text), LEAVE IT ALONE.
+
+                const currentText = (textObj.text || '').trim();
+                const isGeneric = !currentText || currentText === 'Text' || currentText.toLowerCase().includes('double click') || currentText.toLowerCase().includes('placeholder') || currentText === placeholder;
+
+                let textToSet = '';
+                if (hasValue) {
+                    textToSet = newValue!;
+                } else if (isAdmin && isGeneric) {
+                    textToSet = placeholder;
+                }
+
+                if (textToSet !== '' && textToSet !== currentText) {
                     textObj.set({
-                        text: newValue,
+                        text: textToSet,
                         objectCaching: false // Ensure crisp rendering after update
                     });
 
@@ -317,10 +375,6 @@ export function useCanvasTemplates(
                         if (userStyles.size) textObj.set({ fontSize: userStyles.size });
                         if (userStyles.color) textObj.set({ fill: userStyles.color });
                     }
-
-                    // Only apply global design colors if the layer doesn't seem to have a specific design-intent color
-                    // (Optional: we could add a flag to objects that should ignore global colors)
-                    // if (design.textColor && textObj.fill === '#000000') textObj.set('fill', design.textColor);
 
                     textObj.setCoords();
                 }
@@ -368,9 +422,36 @@ export function useCanvasTemplates(
             const isTemplateRect = (obj as any).name === 'template_svg_background_object' || (isStretchedRect && (obj.fill === '#FEFEFE' || obj.fill === '#ffffff' || (typeof obj.fill === 'string' && obj.fill.toLowerCase() === '#fefefe')));
 
             if (isTemplateRect) {
+                // FIX: Skip "healing" for objects that look like full background blocks (height > 15% of canvas)
+                // This prevents the main background card from being shrunk like a separator line
+                const currentPixelHeight = (obj.height || 0) * (obj.scaleY || 1);
+
+                console.log('[HEALER DEBUG] Checking object:', {
+                    name: (obj as any).name,
+                    type: obj.type,
+                    height: obj.height,
+                    scaleY: obj.scaleY,
+                    currentPixelHeight,
+                    baseHeight,
+                    threshold: baseHeight * 0.15,
+                    shouldSkip: currentPixelHeight > baseHeight * 0.15
+                });
+
+                if (currentPixelHeight > baseHeight * 0.15) {
+                    console.log('[HEALER DEBUG] Skipping healing for tall object (background candidate)');
+                    return;
+                }
+
                 const targetSafeWidth = baseWidth * 0.92; // 92% safe zone
                 const currentPixelWidth = (obj.width || 0) * (obj.scaleX || 1);
                 const threshold = baseWidth * 0.01; // 1% precision threshold (User requested)
+
+                console.log('[HEALER DEBUG] Width check:', {
+                    currentPixelWidth,
+                    targetSafeWidth,
+                    diff: Math.abs(currentPixelWidth - targetSafeWidth),
+                    threshold
+                });
 
                 // If off by more than threshold, snap it
                 if (Math.abs(currentPixelWidth - targetSafeWidth) > threshold) {

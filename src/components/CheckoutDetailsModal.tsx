@@ -72,7 +72,7 @@ export function CheckoutDetailsModal({
             <div className="bg-slate-900 rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(79,70,229,0.3)] max-w-xl w-full overflow-hidden border border-white/10 flex flex-col animate-in fade-in zoom-in-95 duration-300">
                 <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-black text-white uppercase tracking-widest">
+                        <h2 className="text-xl font-bold text-white uppercase tracking-widest">
                             {step === 'auth' ? 'Step 1: Identity' : 'Step 2: Delivery Details'}
                         </h2>
                     </div>
@@ -88,14 +88,14 @@ export function CheckoutDetailsModal({
                                 <div className="w-16 h-16 bg-indigo-500/10 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/20">
                                     <Sparkles className="w-8 h-8 text-indigo-400" />
                                 </div>
-                                <h3 className="text-2xl font-black text-white tracking-tight">How would you like to continue?</h3>
+                                <h3 className="text-2xl font-bold text-white tracking-tight">How would you like to continue?</h3>
                                 <p className="text-slate-400 text-sm font-medium">Log in to track your orders or continue as a guest.</p>
                             </div>
 
                             <div className="grid gap-4">
                                 <Button
                                     onClick={handleGoogleLogin}
-                                    className="w-full py-7 bg-white text-slate-900 hover:bg-slate-100 font-black text-lg rounded-2xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
+                                    className="w-full py-7 bg-white text-slate-900 hover:bg-slate-100 font-bold text-lg rounded-2xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
                                 >
                                     <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
                                     Continue with Google
@@ -103,13 +103,13 @@ export function CheckoutDetailsModal({
 
                                 <div className="relative flex items-center justify-center my-4">
                                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-                                    <span className="relative px-4 bg-slate-900 text-[10px] font-black text-slate-500 uppercase tracking-widest">OR</span>
+                                    <span className="relative px-4 bg-slate-900 text-[10px] font-bold text-slate-500 uppercase tracking-widest">OR</span>
                                 </div>
 
                                 <Button
                                     variant="outline"
                                     onClick={() => setStep('details')}
-                                    className="w-full py-7 border-white/10 bg-white/5 text-white hover:bg-white/10 font-black text-lg rounded-2xl flex items-center justify-center gap-3"
+                                    className="w-full py-7 border-white/10 bg-white/5 text-white hover:bg-white/10 font-bold text-lg rounded-2xl flex items-center justify-center gap-3"
                                 >
                                     Continue as Guest
                                 </Button>
@@ -119,20 +119,20 @@ export function CheckoutDetailsModal({
                         <form onSubmit={(e) => { e.preventDefault(); onComplete(); }} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Full Name</label>
+                                    <label className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Full Name</label>
                                     <div className="relative">
                                         <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                         <input
                                             required
                                             value={contactDetails.name}
                                             onChange={e => onUpdateDetails({ ...contactDetails, name: e.target.value })}
-                                            className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white focus:border-indigo-500 outline-none font-bold"
+                                            className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white focus:border-indigo-500 outline-none font-semibold"
                                             placeholder="John Doe"
                                         />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Email Address</label>
+                                    <label className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Email Address</label>
                                     <div className="relative">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                         <input
@@ -140,7 +140,7 @@ export function CheckoutDetailsModal({
                                             type="email"
                                             value={contactDetails.email}
                                             onChange={e => onUpdateDetails({ ...contactDetails, email: e.target.value })}
-                                            className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white focus:border-indigo-500 outline-none font-bold"
+                                            className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white focus:border-indigo-500 outline-none font-semibold"
                                             placeholder="john@example.com"
                                         />
                                     </div>
@@ -148,7 +148,7 @@ export function CheckoutDetailsModal({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Mobile Number</label>
+                                <label className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Mobile Number</label>
                                 <div className="relative">
                                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                     <input
@@ -184,7 +184,7 @@ export function CheckoutDetailsModal({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Shipping Address</label>
+                                <label className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Shipping Address</label>
                                 <div className="relative">
                                     <MapPin className="absolute left-4 top-4 w-4 h-4 text-slate-500" />
                                     <textarea
@@ -202,14 +202,14 @@ export function CheckoutDetailsModal({
                                     <button
                                         type="button"
                                         onClick={() => setStep('auth')}
-                                        className="px-6 py-4 bg-white/5 text-slate-300 font-bold rounded-xl hover:bg-white/10 transition-colors"
+                                        className="px-6 py-4 bg-white/5 text-slate-300 font-semibold rounded-xl hover:bg-white/10 transition-colors"
                                     >
                                         Back
                                     </button>
                                 )}
                                 <Button
                                     disabled={!isDetailsComplete || isProcessing}
-                                    className="flex-1 py-7 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xl rounded-2xl shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3"
+                                    className="flex-1 py-7 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xl rounded-2xl shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3"
                                 >
                                     {isProcessing ? (
                                         <div className="flex items-center gap-2">

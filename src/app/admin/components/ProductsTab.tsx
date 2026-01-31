@@ -87,7 +87,7 @@ const ProductsTab = ({
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
                     <div className="bg-slate-900 rounded-[2.5rem] p-10 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/10 relative">
                         <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-3xl font-black text-white">
+                            <h3 className="text-3xl font-bold text-white">
                                 {editingProduct ? 'Edit Product' : 'Add New Product'}
                             </h3>
                             <button onClick={() => setShowProductForm(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
@@ -106,7 +106,7 @@ const ProductsTab = ({
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Product Name</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Product Name</label>
                                     <input
                                         name="name"
                                         defaultValue={editingProduct?.name}
@@ -115,7 +115,7 @@ const ProductsTab = ({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Category</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Category</label>
                                     <select
                                         name="category"
                                         defaultValue={editingProduct?.category || 'business'}
@@ -130,7 +130,7 @@ const ProductsTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Description</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Description</label>
                                 <FormattingToolbar targetId="prod-desc" onFormat={(tag) => handleFormat('prod-desc', tag)} />
                                 <textarea
                                     id="prod-desc"
@@ -143,17 +143,17 @@ const ProductsTab = ({
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Starting Price (₹)</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Starting Price (₹)</label>
                                     <input
                                         name="priceFrom"
                                         type="number"
                                         defaultValue={editingProduct?.priceFrom}
-                                        className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-emerald-400 font-black text-xl"
+                                        className="w-full px-6 py-4 bg-black/20 border border-white/10 rounded-2xl focus:border-indigo-500 outline-none transition-all text-emerald-400 font-bold text-xl"
                                         required
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Materials (comma separated)</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Materials (comma separated)</label>
                                     <input
                                         name="materials"
                                         defaultValue={editingProduct?.materials?.join(', ')}
@@ -164,7 +164,7 @@ const ProductsTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Features (one per line)</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Features (one per line)</label>
                                 <textarea
                                     name="features"
                                     defaultValue={editingProduct?.features?.join('\n')}
@@ -174,11 +174,11 @@ const ProductsTab = ({
                             </div>
 
                             <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10 space-y-6">
-                                <h4 className="text-sm font-black text-indigo-400 uppercase tracking-widest border-b border-white/5 pb-2">SEO Configuration</h4>
+                                <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-widest border-b border-white/5 pb-2">SEO Configuration</h4>
 
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Meta Title</label>
+                                        <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Meta Title</label>
                                         <input
                                             name="metaTitle"
                                             defaultValue={editingProduct?.seo?.metaTitle}
@@ -187,7 +187,7 @@ const ProductsTab = ({
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">URL Slug</label>
+                                        <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">URL Slug</label>
                                         <input
                                             name="slug"
                                             defaultValue={editingProduct?.seo?.slug}
@@ -198,7 +198,7 @@ const ProductsTab = ({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Meta Keywords (comma separated)</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Meta Keywords (comma separated)</label>
                                     <input
                                         name="keywords"
                                         defaultValue={editingProduct?.seo?.keywords?.join(', ')}
@@ -208,7 +208,7 @@ const ProductsTab = ({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Meta Description</label>
+                                    <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Meta Description</label>
                                     <textarea
                                         name="metaDescription"
                                         defaultValue={editingProduct?.seo?.metaDescription}
@@ -219,12 +219,12 @@ const ProductsTab = ({
                             </div>
 
                             <div className="space-y-4">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Product Dimensions (Sizes)</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Product Dimensions (Sizes)</label>
                                 <DynamicSizeForm sizes={sizes} onChange={setSizes} />
                             </div>
 
                             <div className="space-y-4">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Visual Gallery</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Visual Gallery</label>
                                 <div className="grid grid-cols-4 gap-4">
                                     {existingImages.map((url, idx) => (
                                         <div key={`existing-${idx}`} className="aspect-square rounded-2xl border-2 border-white/5 relative group p-1">
@@ -253,13 +253,13 @@ const ProductsTab = ({
                                                 <X size={14} />
                                             </button>
                                             <div className="absolute bottom-1 right-1 bg-indigo-600 rounded-lg px-1.5 py-0.5 shadow-lg">
-                                                <span className="text-[8px] font-black text-white uppercase">New</span>
+                                                <span className="text-[8px] font-bold text-white uppercase">New</span>
                                             </div>
                                         </div>
                                     ))}
                                     <label className="aspect-square rounded-2xl border-2 border-dashed border-white/10 hover:border-indigo-500 hover:bg-white/5 transition-all cursor-pointer flex flex-col items-center justify-center p-4">
                                         <Upload size={20} className="text-white/40 mb-2" />
-                                        <span className="text-[10px] font-black text-white/40 uppercase">Upload</span>
+                                        <span className="text-[10px] font-bold text-white/40 uppercase">Upload</span>
                                         <input
                                             type="file"
                                             multiple
@@ -274,7 +274,7 @@ const ProductsTab = ({
                             </div>
 
                             <div className="flex gap-4 pt-6">
-                                <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-xl shadow-xl shadow-indigo-500/20 text-white">
+                                <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-bold text-xl shadow-xl shadow-indigo-500/20 text-white">
                                     {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Save className="w-6 h-6 mr-2" />}
                                     {editingProduct ? 'Update Product' : 'Create Product'}
                                 </Button>
@@ -282,7 +282,7 @@ const ProductsTab = ({
                                     type="button"
                                     variant="outline"
                                     onClick={() => setShowProductForm(false)}
-                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-black text-xl hover:bg-white/10 text-white"
+                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-bold text-xl hover:bg-white/10 text-white"
                                 >
                                     Cancel
                                 </Button>
@@ -297,7 +297,7 @@ const ProductsTab = ({
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-white/10">
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest w-12">
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest w-12">
                                     <input
                                         type="checkbox"
                                         checked={selectedProductsForDelete.length === products.length && products.length > 0}
@@ -305,11 +305,11 @@ const ProductsTab = ({
                                         className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-600 focus:ring-indigo-500"
                                     />
                                 </th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Product</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Category</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">Sizes</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Price</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Product</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Category</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-center">Sizes</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Price</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
@@ -335,7 +335,7 @@ const ProductsTab = ({
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="text-[9px] px-2.5 py-1 bg-indigo-500/10 text-indigo-300 rounded-full font-black uppercase tracking-widest border border-indigo-500/20 shadow-sm">
+                                        <span className="text-[9px] px-2.5 py-1 bg-indigo-500/10 text-indigo-300 rounded-full font-bold uppercase tracking-widest border border-indigo-500/20 shadow-sm">
                                             {product.category}
                                         </span>
                                     </td>
@@ -347,7 +347,7 @@ const ProductsTab = ({
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-black text-emerald-400">₹{product.priceFrom}</span>
+                                            <span className="text-xs font-bold text-emerald-400">₹{product.priceFrom}</span>
                                             <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Starting</span>
                                         </div>
                                     </td>

@@ -43,7 +43,7 @@ const MaterialsTab = ({
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
                     <div className="bg-slate-900 rounded-[2.5rem] p-10 max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/10 relative">
                         <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-3xl font-black text-white">
+                            <h3 className="text-3xl font-bold text-white">
                                 {editingMaterial ? 'Edit Material' : 'Add New Material'}
                             </h3>
                             <button onClick={() => setShowMaterialForm(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
@@ -53,7 +53,7 @@ const MaterialsTab = ({
 
                         <form onSubmit={handleSaveMaterial} className="space-y-6">
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Material ID (Slug)</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Material ID (Slug)</label>
                                 <input
                                     name="id"
                                     defaultValue={editingMaterial?.id}
@@ -65,7 +65,7 @@ const MaterialsTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Material Name</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Material Name</label>
                                 <input
                                     name="name"
                                     defaultValue={editingMaterial?.name}
@@ -76,7 +76,7 @@ const MaterialsTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Description</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Description</label>
                                 <textarea
                                     name="description"
                                     defaultValue={editingMaterial?.description}
@@ -86,7 +86,7 @@ const MaterialsTab = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Price per Sq. Inch (₹)</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest ml-1">Price per Sq. Inch (₹)</label>
                                 <input
                                     name="price_per_sqin"
                                     type="number"
@@ -99,7 +99,7 @@ const MaterialsTab = ({
                             </div>
 
                             <div className="flex gap-4 pt-6">
-                                <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-xl shadow-xl shadow-indigo-500/20 text-white">
+                                <Button type="submit" disabled={isLoading} className="flex-[2] py-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-bold text-xl shadow-xl shadow-indigo-500/20 text-white">
                                     {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Save className="w-6 h-6 mr-2" />}
                                     {editingMaterial ? 'Update Material' : 'Create Material'}
                                 </Button>
@@ -107,7 +107,7 @@ const MaterialsTab = ({
                                     type="button"
                                     variant="outline"
                                     onClick={() => setShowMaterialForm(false)}
-                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-black text-xl hover:bg-white/10 text-white"
+                                    className="flex-1 py-8 border-2 border-white/10 bg-white/5 rounded-2xl font-bold text-xl hover:bg-white/10 text-white"
                                 >
                                     Cancel
                                 </Button>
@@ -122,11 +122,11 @@ const MaterialsTab = ({
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-white/10">
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">ID</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Name</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Description</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Price (₹/sqin)</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">ID</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Name</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Description</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Price (₹/sqin)</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
@@ -142,7 +142,7 @@ const MaterialsTab = ({
                                         <span className="text-xs text-slate-400 line-clamp-1">{mat.description}</span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="font-black text-emerald-400">₹{mat.price_per_sqin}</span>
+                                        <span className="font-bold text-emerald-400">₹{mat.price_per_sqin}</span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex gap-2 justify-end">

@@ -89,14 +89,14 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border h-full flex overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border h-full flex overflow-hidden">
             {/* Tab Icons */}
-            <div className="w-16 bg-gray-50 border-r flex flex-col items-center py-4 gap-3 rounded-l-xl">
+            <div className="w-16 bg-gray-50 border-r flex flex-col items-center py-4 gap-3 rounded-l-lg">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`w-11 h-11 flex flex-col items-center justify-center rounded-lg transition-all ${activeTab === tab.id
+                        className={`w-11 h-11 flex flex-col items-center justify-center rounded-md transition-all ${activeTab === tab.id
                             ? 'bg-purple-100 text-purple-600'
                             : 'text-gray-500 hover:bg-gray-100'
                             }`}
@@ -116,7 +116,7 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
 
                         <button
                             onClick={() => onAddText('heading')}
-                            className="w-full bg-purple-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                            className="w-full bg-purple-600 text-white py-2.5 px-4 rounded-md font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
                         >
                             <Type className="w-5 h-5" />
                             Add a text box
@@ -127,21 +127,21 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
 
                             <button
                                 onClick={() => onAddText('heading')}
-                                className="w-full text-left p-2.5 hover:bg-gray-50 rounded-lg transition-colors group"
+                                className="w-full text-left p-2.5 hover:bg-gray-50 rounded-md transition-colors group"
                             >
                                 <span className="text-2xl font-bold text-gray-800 group-hover:text-purple-600">Add a heading</span>
                             </button>
 
                             <button
                                 onClick={() => onAddText('subheading')}
-                                className="w-full text-left p-2.5 hover:bg-gray-50 rounded-lg transition-colors group"
+                                className="w-full text-left p-2.5 hover:bg-gray-50 rounded-md transition-colors group"
                             >
                                 <span className="text-lg font-semibold text-gray-700 group-hover:text-purple-600">Add a subheading</span>
                             </button>
 
                             <button
                                 onClick={() => onAddText('body')}
-                                className="w-full text-left p-2.5 hover:bg-gray-50 rounded-lg transition-colors group"
+                                className="w-full text-left p-2.5 hover:bg-gray-50 rounded-md transition-colors group"
                             >
                                 <span className="text-base text-gray-600 group-hover:text-purple-600">Add a little bit of body text</span>
                             </button>
@@ -157,7 +157,7 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
                             <input
                                 type="text"
                                 placeholder="Search elements"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                             />
                         </div>
 
@@ -168,7 +168,7 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
                                     <button
                                         key={iconItem.name}
                                         onClick={() => onAddIcon(iconItem.name)}
-                                        className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center hover:bg-purple-100 hover:text-purple-600 transition-colors group"
+                                        className="aspect-square bg-gray-100 rounded-md flex items-center justify-center hover:bg-purple-100 hover:text-purple-600 transition-colors group"
                                         title={iconItem.label}
                                     >
                                         <iconItem.icon className="w-5 h-5" />
@@ -188,28 +188,28 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
                             <div className="grid grid-cols-4 gap-2">
                                 <button
                                     onClick={() => onAddShape('rect')}
-                                    className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center hover:bg-purple-100 transition-colors"
+                                    className="aspect-square bg-gray-100 rounded-md flex items-center justify-center hover:bg-purple-100 transition-colors"
                                     title="Rectangle"
                                 >
                                     <div className="w-8 h-6 bg-gray-600 rounded-sm"></div>
                                 </button>
                                 <button
                                     onClick={() => onAddShape('circle')}
-                                    className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center hover:bg-purple-100 transition-colors"
+                                    className="aspect-square bg-gray-100 rounded-md flex items-center justify-center hover:bg-purple-100 transition-colors"
                                     title="Circle"
                                 >
                                     <div className="w-6 h-6 bg-gray-600 rounded-full"></div>
                                 </button>
                                 <button
                                     onClick={() => onAddShape('triangle')}
-                                    className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center hover:bg-purple-100 transition-colors"
+                                    className="aspect-square bg-gray-100 rounded-md flex items-center justify-center hover:bg-purple-100 transition-colors"
                                     title="Triangle"
                                 >
                                     <div className="w-0 h-0 border-l-[14px] border-r-[14px] border-b-[24px] border-l-transparent border-r-transparent border-b-gray-600"></div>
                                 </button>
                                 <button
                                     onClick={() => onAddShape('line')}
-                                    className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center hover:bg-purple-100 transition-colors"
+                                    className="aspect-square bg-gray-100 rounded-md flex items-center justify-center hover:bg-purple-100 transition-colors"
                                     title="Line"
                                 >
                                     <div className="w-8 h-1 bg-gray-600 rounded-full"></div>
@@ -233,7 +233,7 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
 
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="w-full bg-purple-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                            className="w-full bg-purple-600 text-white py-2.5 px-4 rounded-md font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
                         >
                             <Upload className="w-5 h-5" />
                             Upload an image
@@ -247,7 +247,7 @@ export function DesignSidebar({ onAddText, onAddIcon, onAddShape, onAddImage }: 
                                         <button
                                             key={index}
                                             onClick={() => onAddImage(img)}
-                                            className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-purple-500 transition-all"
+                                            className="aspect-square bg-gray-100 rounded-md overflow-hidden hover:ring-2 hover:ring-purple-500 transition-all"
                                         >
                                             <img src={img} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
                                         </button>

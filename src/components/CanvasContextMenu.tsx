@@ -26,7 +26,8 @@ import {
     Paintbrush,
     Columns,
     Rows,
-    Menu
+    Menu,
+    ShieldAlert
 } from 'lucide-react';
 
 // Custom Canva-style "Space Evenly" Icons
@@ -72,9 +73,10 @@ interface ContextMenuProps {
     isGroup?: boolean;
     isMultiple?: boolean;
     isBackground?: boolean;
+    isSafetyIgnored?: boolean;
 }
 
-export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelection, isGroup, isMultiple, isBackground }: ContextMenuProps) {
+export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelection, isGroup, isMultiple, isBackground, isSafetyIgnored }: ContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
     const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
 
@@ -201,6 +203,13 @@ export function CanvasContextMenu({ x, y, onClose, onAction, isLocked, hasSelect
                 icon={Layout}
                 label={isBackground ? "Unmark Background" : "Mark as Background"}
                 action="markAsBackground"
+                disabled={!hasSelection || isLocked}
+            />
+
+            <MenuItem
+                icon={ShieldAlert}
+                label={isSafetyIgnored ? "Enable Safety Warning" : "Ignore Safety Warning"}
+                action="toggle-safety-ignore"
                 disabled={!hasSelection || isLocked}
             />
 

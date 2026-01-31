@@ -26,9 +26,9 @@ const AdminTabs = ({ activeTab, setActiveTab, isMenubar = false }: AdminTabsProp
                 <button
                     key={id}
                     onClick={() => setActiveTab(id as AdminTab)}
-                    className={`px-4 py-2 text-sm font-bold transition-all relative rounded-xl flex items-center gap-2 ${activeTab === id
-                            ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5'
-                            : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                    className={`px-4 py-2 text-sm font-semibold transition-all relative rounded-xl flex items-center gap-2 ${activeTab === id
+                        ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
                         }`}
                 >
                     <Icon className={`w-4 h-4 ${activeTab === id ? 'text-indigo-400' : 'text-slate-500'}`} />

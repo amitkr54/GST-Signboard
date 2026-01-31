@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Download, ArrowRight, Loader2, Settings, Info, Tag } from 'lucide-react';
+import { Download, ArrowRight, Loader2, Settings, Info, Tag, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { MaterialSelector } from '@/components/MaterialSelector';
-import { DesignConfig } from '@/lib/types';
+import { DesignConfig, SignageData } from '@/lib/types';
 import { MaterialId } from '@/lib/utils';
 
 interface ConfigurationPanelProps {
+    data?: SignageData;
     design: DesignConfig;
     setDesign: (design: DesignConfig) => void;
     material: MaterialId;
@@ -31,7 +32,9 @@ interface ConfigurationPanelProps {
     INSTALLATION_COST: number;
     selectedObject?: any;
     isAdmin?: boolean;
+    usedTemplateKeys?: string[];
     onUpdateObject?: (props: any) => void;
+    onAddText?: (type: 'heading' | 'subheading' | 'body', options?: { name?: string; text?: string }) => void;
 }
 
 export function ConfigurationPanel({
@@ -58,7 +61,10 @@ export function ConfigurationPanel({
     INSTALLATION_COST,
     selectedObject,
     isAdmin,
-    onUpdateObject
+    usedTemplateKeys = [],
+    onUpdateObject,
+    onAddText,
+    data
 }: ConfigurationPanelProps) {
     const [layerName, setLayerName] = useState('');
 
@@ -85,10 +91,10 @@ export function ConfigurationPanel({
                     {/* ADMIN LAYER MANAGEMENT */}
                     {isAdmin && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <div className="p-5 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-4">
+                            <div className="p-5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl space-y-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Tag className="w-4 h-4 text-indigo-400" />
-                                    <h4 className="text-sm font-black text-white uppercase tracking-wider">Smart Mapping</h4>
+                                    <h4 className="text-sm font-bold text-white uppercase tracking-wider">Smart Mapping</h4>
                                 </div>
 
                                 <div className="space-y-2">
@@ -97,17 +103,51 @@ export function ConfigurationPanel({
                                         <input
                                             type="text"
                                             value={layerName}
-                                            disabled={!selectedObject}
+                                            disabled={!selectedObject && !isAdmin}
                                             onChange={(e) => setLayerName(e.target.value)}
-                                            placeholder={selectedObject ? "e.g. template_company" : "Select an object..."}
-                                            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all disabled:opacity-30"
+                                            onBlur={(e) => {
+                                                const val = e.target.value.trim();
+                                                if (selectedObject && val) {
+                                                    const finalKey = val.startsWith('template_') ? val : `template_${val}`;
+                                                    setLayerName(finalKey);
+                                                    onUpdateObject?.({ name: finalKey });
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const val = (e.target as HTMLInputElement).value.trim();
+                                                    if (val) {
+                                                        const finalKey = val.startsWith('template_') ? val : `template_${val}`;
+                                                        setLayerName(finalKey);
+                                                        if (selectedObject) {
+                                                            onUpdateObject?.({ name: finalKey });
+                                                        } else if (isAdmin) {
+                                                            onAddText?.('body', { name: finalKey });
+                                                        }
+                                                        (e.target as HTMLInputElement).blur();
+                                                    }
+                                                }
+                                            }}
+                                            placeholder={isAdmin ? "e.g. template_hours" : (selectedObject ? "e.g. template_company" : "Select an object...")}
+                                            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all disabled:opacity-30"
                                         />
                                         <button
-                                            onClick={() => onUpdateObject?.({ name: layerName })}
-                                            disabled={!selectedObject}
-                                            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 px-4 rounded-xl text-xs font-bold text-white transition-all shadow-lg shadow-indigo-600/20"
+                                            onClick={() => {
+                                                const val = layerName.trim();
+                                                if (val) {
+                                                    const finalKey = val.startsWith('template_') ? val : `template_${val}`;
+                                                    setLayerName(finalKey);
+                                                    if (selectedObject) {
+                                                        onUpdateObject?.({ name: finalKey });
+                                                    } else if (isAdmin) {
+                                                        onAddText?.('body', { name: finalKey });
+                                                    }
+                                                }
+                                            }}
+                                            disabled={!selectedObject && !isAdmin}
+                                            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 px-4 rounded-lg text-xs font-bold text-white transition-all shadow-lg shadow-indigo-600/20"
                                         >
-                                            Set
+                                            {selectedObject ? 'Set' : 'Add'}
                                         </button>
                                     </div>
                                     {!selectedObject && (
@@ -118,42 +158,64 @@ export function ConfigurationPanel({
                                 </div>
 
                                 <div className="pt-2">
-                                    <h5 className="text-[9px] font-black text-indigo-300 uppercase tracking-widest mb-3 border-b border-indigo-500/10 pb-2">Valid Smart Keys</h5>
+                                    <h5 className="text-[9px] font-bold text-indigo-300 uppercase tracking-widest mb-3 border-b border-indigo-500/10 pb-2">Valid Smart Keys</h5>
                                     <div className="grid grid-cols-1 gap-1.5">
-                                        {[
-                                            { key: 'template_company', label: 'Business Name' },
-                                            { key: 'template_address', label: 'Office Address' },
-                                            { key: 'template_logo', label: 'Company Logo' },
-                                            { key: 'template_gstin', label: 'GST Number' },
-                                            { key: 'template_cin', label: 'CIN Number' },
-                                            { key: 'template_mobile', label: 'Contact/WhatsApp' },
-                                            { key: 'template_email', label: 'Company Email' },
-                                            { key: 'template_website', label: 'Website' }
-                                        ].map(item => (
-                                            <div
-                                                key={item.key}
-                                                onClick={() => selectedObject && setLayerName(item.key)}
-                                                className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${layerName === item.key ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900/50 border-slate-700 text-gray-400 hover:border-indigo-500/50 hover:text-white'}`}
-                                            >
-                                                <code className="text-[10px] font-mono">{item.key}</code>
-                                                <span className="text-[10px] font-bold opacity-60">→ {item.label}</span>
-                                            </div>
-                                        ))}
+                                        {(() => {
+                                            const predefined = [
+                                                { key: 'template_company', label: 'Business Name' },
+                                                { key: 'template_address', label: 'Office Address' },
+                                                { key: 'template_logo', label: 'Company Logo' },
+                                                { key: 'template_gstin', label: 'GST Number' },
+                                                { key: 'template_cin', label: 'CIN Number' },
+                                                { key: 'template_mobile', label: 'Contact/WhatsApp' },
+                                                { key: 'template_email', label: 'Company Email' },
+                                                { key: 'template_website', label: 'Website' }
+                                            ];
 
-                                        <div className="mt-2 pt-2 border-t border-indigo-500/10">
-                                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 block px-1">Or enter custom mapping key</label>
-                                            <input
-                                                type="text"
-                                                placeholder="e.g. template_hours"
-                                                defaultValue={layerName?.startsWith('template_') ? layerName : ''}
-                                                onBlur={(e) => {
-                                                    if (e.target.value.startsWith('template_') && selectedObject) {
-                                                        setLayerName(e.target.value);
-                                                    }
-                                                }}
-                                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-[10px] text-white focus:border-indigo-500 outline-none transition-all"
-                                            />
-                                        </div>
+                                            // Find any keys used on canvas OR in data state that aren't predefined
+                                            const combinedKeys = Array.from(new Set([
+                                                ...usedTemplateKeys,
+                                                ...Object.keys(data?.customFields || {}).map(k => `template_${k}`)
+                                            ]));
+
+                                            const customOnCanvas = combinedKeys
+                                                .filter(k => !predefined.some(p => p.key === k))
+                                                .map(k => ({
+                                                    key: k,
+                                                    label: k.replace('template_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                                                    isCustom: true
+                                                }));
+
+                                            const allKeys = [...predefined, ...customOnCanvas];
+
+                                            return allKeys.map(item => {
+                                                const isSelected = layerName === item.key;
+                                                const isUsed = usedTemplateKeys.includes(item.key);
+
+                                                return (
+                                                    <div
+                                                        key={item.key}
+                                                        onClick={() => {
+                                                            if (selectedObject) {
+                                                                setLayerName(item.key);
+                                                                onUpdateObject?.({ name: item.key });
+                                                            }
+                                                        }}
+                                                        className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-indigo-600 border-indigo-500 text-white' : (isUsed ? 'bg-green-500/20 border-green-500/50 text-green-100 shadow-[0_0_10px_rgba(34,197,94,0.1)]' : 'bg-slate-900/50 border-slate-700 text-gray-400 hover:border-indigo-500/50 hover:text-white')}`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            {isUsed && (
+                                                                <div className={`flex items-center justify-center w-4 h-4 rounded-full ${isSelected ? 'bg-white/20' : 'bg-green-500'}`}>
+                                                                    <Check className={`w-2.5 h-2.5 ${isSelected ? 'text-white' : 'text-slate-900'}`} />
+                                                                </div>
+                                                            )}
+                                                            <code className={`text-[10px] font-mono ${isUsed && !isSelected ? 'text-green-300' : ''}`}>{item.key}</code>
+                                                        </div>
+                                                        <span className={`text-[10px] font-bold ${isSelected ? 'opacity-100' : 'opacity-60'}`}>→ {item.label}</span>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
                                     </div>
                                 </div>
                             </div>
@@ -177,7 +239,7 @@ export function ConfigurationPanel({
                     <div className="pt-6 border-t border-slate-800 space-y-5">
                         <div className="space-y-3">
                             <label className="text-sm font-bold text-white block">Background</label>
-                            <div className="grid grid-cols-2 p-1 bg-slate-900/50 rounded-xl border border-slate-700">
+                            <div className="grid grid-cols-2 p-1 bg-slate-900/50 rounded-lg border border-slate-700">
                                 <button
                                     onClick={() => setDesign({ ...design, backgroundGradientEnabled: false })}
                                     className={`py-2 text-xs font-bold rounded-lg transition-all ${!design.backgroundGradientEnabled ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
@@ -291,7 +353,7 @@ export function ConfigurationPanel({
                         <div className="space-y-3">
                             <button
                                 onClick={() => setDeliveryType('standard')}
-                                className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'standard' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}
+                                className={`w-full p-4 rounded-lg border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'standard' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${deliveryType === 'standard' ? 'border-indigo-400 bg-indigo-400' : 'border-slate-600'}`}>
@@ -306,7 +368,7 @@ export function ConfigurationPanel({
                             </button>
                             <button
                                 onClick={() => setDeliveryType('fast')}
-                                className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'fast' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}
+                                className={`w-full p-4 rounded-lg border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'fast' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${deliveryType === 'fast' ? 'border-indigo-400 bg-indigo-400' : 'border-slate-600'}`}>
@@ -322,7 +384,7 @@ export function ConfigurationPanel({
                         </div>
                     </div>
 
-                    <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 flex justify-between items-center">
                         <div>
                             <p className="text-sm font-bold text-white">Professional Installation</p>
                             <p className="text-xs text-gray-400">+₹{INSTALLATION_COST}</p>
@@ -333,18 +395,18 @@ export function ConfigurationPanel({
                     <div className="pt-6 border-t border-slate-800">
                         <label className="text-sm font-bold text-white mb-3 block">Payment Scheme</label>
                         <div className="grid grid-cols-2 gap-2">
-                            <button onClick={() => setPaymentScheme('part')} className={`p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}>
+                            <button onClick={() => setPaymentScheme('part')} className={`p-3 rounded-lg border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}>
                                 <p className="font-bold text-white text-xs">Part Pay</p>
                                 <p className="text-[9px] text-gray-400">25% Advance</p>
                             </button>
-                            <button onClick={() => setPaymentScheme('full')} className={`p-3 rounded-xl border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}>
+                            <button onClick={() => setPaymentScheme('full')} className={`p-3 rounded-lg border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}>
                                 <p className="font-bold text-white text-xs">Full Pay</p>
                                 <p className="text-[9px] text-gray-400">100% Upfront</p>
                             </button>
                         </div>
 
                         {paymentScheme === 'part' && (
-                            <div className="mt-4 p-4 bg-slate-800/50 border border-slate-700 rounded-xl animate-in slide-in-from-top-2">
+                            <div className="mt-4 p-4 bg-slate-800/50 border border-slate-700 rounded-lg animate-in slide-in-from-top-2">
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Advance Amount</label>
                                     <span className="text-[10px] text-indigo-400 font-bold">MIN: ₹{Math.ceil(price * 0.25)}</span>
@@ -369,15 +431,15 @@ export function ConfigurationPanel({
             </div>
 
             <div className="p-5 border-t border-slate-800 bg-slate-900/80 space-y-4">
-                <div className="flex justify-between items-center bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/20 shadow-inner">
+                <div className="flex justify-between items-center bg-indigo-500/10 p-4 rounded-xl border border-indigo-500/20 shadow-inner">
                     <span className="text-white/60 font-bold text-sm tracking-widest uppercase">Total Payable</span>
                     {isPriceLoading ? (
                         <div className="flex items-center gap-2 text-indigo-400">
                             <Loader2 className="w-5 h-5 animate-spin" />
-                            <span className="text-sm font-black animate-pulse">Calculating...</span>
+                            <span className="text-sm font-bold animate-pulse">Calculating...</span>
                         </div>
                     ) : (
-                        <span className="text-3xl font-black text-indigo-400 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)]">₹{price}</span>
+                        <span className="text-3xl font-bold text-indigo-400 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)]">₹{price}</span>
                     )}
                 </div>
                 <button
@@ -394,7 +456,7 @@ export function ConfigurationPanel({
                         setShowReviewModal(true);
                     }}
                     disabled={isProcessing}
-                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                    className="w-full bg-indigo-600 text-white py-4 rounded-lg font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
                 >
                     Proceed to Review <ArrowRight size={20} />
                 </button>

@@ -146,10 +146,45 @@ export function useDesignState() {
         }
     }, []);
 
+    const mergeData = useCallback((newData: any) => {
+        setData(prev => {
+            const updated = { ...prev };
+
+            // Handle specialized additional_update_X keys from canvas
+            let hasComplexUpdate = false;
+            Object.keys(newData).forEach(key => {
+                if (key.startsWith('additional_update_')) {
+                    const idx = parseInt(key.replace('additional_update_', ''));
+                    const newArr = [...(prev.additionalText || [])];
+                    newArr[idx] = newData[key];
+                    updated.additionalText = newArr;
+                    hasComplexUpdate = true;
+                }
+            });
+
+            if (hasComplexUpdate) {
+                // Remove the special keys before merging the rest
+                const filtered = { ...newData };
+                Object.keys(filtered).forEach(k => {
+                    if (k.startsWith('additional_update_')) delete filtered[k];
+                });
+                return { ...updated, ...filtered };
+            }
+
+            // Normal merge
+            const result = { ...prev, ...newData };
+            if (newData.customFields) {
+                result.customFields = { ...(prev.customFields || {}), ...newData.customFields };
+            }
+            return result;
+        });
+    }, []);
+
     return {
         // State
         data,
         setData,
+        mergeData,
         design,
         setDesign,
         material,

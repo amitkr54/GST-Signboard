@@ -62,7 +62,6 @@ export function ProductCatalog() {
         <section id="products" className="py-20 relative">
             <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-12 text-center">
-                    <p className="text-sm font-bold text-indigo-400 mb-2 uppercase tracking-wider">Our Products</p>
                     <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">Browse Signage Products</h2>
                     <p className="text-lg text-indigo-100 max-w-3xl mx-auto">Professional signage solutions for every business need</p>
                 </div>

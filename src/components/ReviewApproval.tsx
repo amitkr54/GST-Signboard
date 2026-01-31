@@ -8,7 +8,7 @@ import { X, Download, ArrowRight } from 'lucide-react';
 
 const FabricPreview = dynamic(() => import('./FabricPreview').then(mod => mod.FabricPreview), {
     ssr: false,
-    loading: () => <div className="w-full h-full bg-slate-800 animate-pulse rounded-2xl flex items-center justify-center text-slate-500 font-bold uppercase tracking-widest">Loading Preview...</div>
+    loading: () => <div className="w-full h-full bg-slate-800 animate-pulse rounded-xl flex items-center justify-center text-slate-500 font-bold uppercase tracking-widest">Loading Preview...</div>
 });
 
 interface ReviewApprovalProps {
@@ -58,7 +58,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                     <div className="pl-2 sm:pl-0">
                         <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse" />
-                            <h2 className="text-lg sm:text-xl font-black text-white tracking-tighter uppercase tracking-[0.1em]">Verification</h2>
+                            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tighter uppercase tracking-[0.1em]">Verification</h2>
                         </div>
                         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-3.5 italic opacity-80">Final Press-Ready Check</p>
                     </div>
@@ -80,7 +80,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                                 ) : (
                                     <>
                                         <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest sm:block hidden">Design</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest sm:block hidden">Design</span>
                                     </>
                                 )}
                             </button>
@@ -99,7 +99,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                 <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8 overflow-y-auto custom-scrollbar">
                     {/* Left: Preview */}
                     <div className="space-y-4">
-                        <div className="bg-slate-950/40 rounded-[2rem] p-4 sm:p-6 border border-white/5 shadow-2xl">
+                        <div className="bg-slate-950/40 rounded-[1.5rem] p-4 sm:p-6 border border-white/5 shadow-2xl">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="p-2 bg-indigo-500/20 rounded-lg">
                                     <svg className="w-3 h-3 sm:w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -130,8 +130,8 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
 
                     {/* Right: Checklist and Actions */}
                     <div className="space-y-4 sm:space-y-5">
-                        <div className="bg-slate-800/30 backdrop-blur-sm rounded-[1.5rem] border border-white/5 p-4 sm:p-5 shadow-xl">
-                            <h3 className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-white/5 p-4 sm:p-5 shadow-xl">
+                            <h3 className="text-[9px] sm:text-[10px] font-bold text-white uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                 <span className="w-4 h-px bg-indigo-500" /> Checklist
                             </h3>
                             <ul className="space-y-2.5">
@@ -147,20 +147,20 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                         </div>
 
                         {hasEmptyFields && (
-                            <div className="bg-rose-500/5 border border-rose-500/10 rounded-xl p-3 sm:p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                            <div className="bg-rose-500/5 border border-rose-500/10 rounded-lg p-3 sm:p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                                 <div className="p-1.5 bg-rose-500/20 rounded-lg shrink-0">
                                     <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="font-black text-rose-400 text-[10px] uppercase tracking-widest leading-none">Missing Fields</p>
+                                    <p className="font-bold text-rose-400 text-[10px] uppercase tracking-widest leading-none">Missing Fields</p>
                                     <p className="text-[9px] text-slate-500 mt-0.5 font-bold leading-tight">Required info will be blank on your print.</p>
                                 </div>
                             </div>
                         )}
 
-                        <div className="bg-indigo-600/5 sm:bg-slate-800/30 backdrop-blur-sm rounded-[1.5rem] border border-indigo-500/10 sm:border-white/5 p-4 sm:p-5 shadow-xl transition-all hover:bg-indigo-600/10">
+                        <div className="bg-indigo-600/5 sm:bg-slate-800/30 backdrop-blur-sm rounded-xl border border-indigo-500/10 sm:border-white/5 p-4 sm:p-5 shadow-xl transition-all hover:bg-indigo-600/10">
                             <label className="flex items-center gap-3 cursor-pointer group">
                                 <div className="relative flex items-center">
                                     <input
@@ -169,13 +169,13 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                                         onChange={(e) => setIsApproved(e.target.checked)}
                                         className="peer sr-only"
                                     />
-                                    <div className="w-5 h-5 border-2 border-slate-700 rounded-lg group-hover:border-indigo-500/50 transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600 flex items-center justify-center shadow-inner">
+                                    <div className="w-5 h-5 border-2 border-slate-700 rounded-md group-hover:border-indigo-500/50 transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600 flex items-center justify-center shadow-inner">
                                         <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
                                             <path d="M5 13l4 4L19 7" />
                                         </svg>
                                     </div>
                                 </div>
-                                <span className="text-[11px] sm:text-xs text-slate-300 font-black uppercase tracking-tight leading-snug select-none group-hover:text-white transition-colors">
+                                <span className="text-[11px] sm:text-xs text-slate-300 font-bold uppercase tracking-tight leading-snug select-none group-hover:text-white transition-colors">
                                     Final Design Confirmation
                                 </span>
                             </label>
@@ -185,7 +185,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                             <button
                                 type="button"
                                 onClick={onEdit || onClose}
-                                className="py-3 px-5 rounded-xl font-black uppercase tracking-[0.15em] text-[10px] border border-white/10 text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+                                className="py-3 px-5 rounded-lg font-bold uppercase tracking-[0.15em] text-[10px] border border-white/10 text-slate-500 hover:text-white hover:bg-white/5 transition-all"
                             >
                                 Edit Design
                             </button>
@@ -193,7 +193,7 @@ export function ReviewApproval({ data, design, material, isOpen, onClose, onAppr
                                 type="button"
                                 onClick={onApprove}
                                 disabled={!isApproved}
-                                className={`py-3 px-5 rounded-xl font-black uppercase tracking-[0.15em] text-[10px] transition-all shadow-xl shadow-indigo-600/10 flex items-center justify-center gap-2 ${isApproved
+                                className={`py-3 px-5 rounded-lg font-bold uppercase tracking-[0.15em] text-[10px] transition-all shadow-xl shadow-indigo-600/10 flex items-center justify-center gap-2 ${isApproved
                                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white transform hover:-translate-y-0.5 active:scale-95'
                                     : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5'
                                     }`}

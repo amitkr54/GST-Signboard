@@ -21,9 +21,9 @@ const AdminHeader = ({ activeTab, setActiveTab, handleLogout }: AdminHeaderProps
                             <div className="flex items-center justify-center text-indigo-400 group-hover:text-white transition-colors">
                                 <Sparkles className="w-6 h-6 fill-current" />
                             </div>
-                            <span className="text-2xl font-black text-white tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
+                            <span className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
                                 SignagePro
-                                <span className="ml-2 text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">Admin</span>
+                                <span className="ml-2 text-[10px] font-semibold text-indigo-400 uppercase tracking-[0.2em] bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">Admin</span>
                             </span>
                         </Link>
 

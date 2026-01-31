@@ -100,7 +100,7 @@ function DesignContent() {
     const [advanceAmount, setAdvanceAmount] = useState<number>(0);
 
     // Canvas action registration
-    const [addTextFn, setAddTextFn] = useState<((type: 'heading' | 'subheading' | 'body') => void) | null>(null);
+    const [addTextFn, setAddTextFn] = useState<((type: 'heading' | 'subheading' | 'body', options?: { name?: string; text?: string }) => void) | null>(null);
     const [addIconFn, setAddIconFn] = useState<((iconName: string) => void) | null>(null);
     const [addShapeFn, setAddShapeFn] = useState<((type: 'rect' | 'circle' | 'line' | 'triangle') => void) | null>(null);
     const [addImageFn, setAddImageFn] = useState<((imageUrl: string) => void) | null>(null);
@@ -145,12 +145,94 @@ function DesignContent() {
         if (!canvas) return;
         const active = canvas.getActiveObject();
         if (active) {
+            // FIX: If we are mapping a template field, preserve the existing text by forcing an update to state
+            if (props.name && props.name.startsWith('template_')) {
+                const key = props.name.replace('template_', '');
+                let textToPreserve = '';
+
+                // Extract text from object
+                if (active.type.includes('text')) {
+                    textToPreserve = (active as any).text;
+                }
+
+                // If we found text, sync it to the corresponding data field locally
+                if (textToPreserve) {
+                    const newData = { ...designState.data };
+                    // Map key to data field
+                    if (key === 'company' || key === 'companyName') newData.companyName = textToPreserve;
+                    else if (key === 'address' || key === 'details') newData.address = textToPreserve;
+                    else if (key === 'mobile') newData.mobile = textToPreserve;
+                    else if (key === 'email') newData.email = textToPreserve;
+                    else if (key === 'website') newData.website = textToPreserve;
+                    else if (key === 'gstin') newData.gstin = textToPreserve;
+                    else if (key === 'cin') newData.cin = textToPreserve;
+                    else {
+                        // custom fields support
+                        if (!newData.customFields) newData.customFields = {};
+                        newData.customFields[key] = textToPreserve;
+                    }
+
+                    // Update state silently so that useCanvasTemplates sees the NEW data when it re-renders
+                    designState.setData(newData);
+                }
+            }
+
+            if (props.name && props.name.startsWith('template_')) {
+                // Persist as custom property for robustness
+                props.templateKey = props.name;
+            }
+
+            if (active.type === 'activeSelection' || active.type === 'group') {
+                (active as any).getObjects().forEach((obj: any) => {
+                    obj.set(props);
+                });
+            }
             active.set(props);
+
+            // CRITICAL FIX: Refresh textbox rendering when mapping to avoid layout issues
+            if (props.name && props.name.startsWith('template_') && active.type === 'textbox') {
+                // Force textbox to recalculate text wrapping/dimensions
+                (active as any).initDimensions?.();
+                active.setCoords();
+            }
+
+            active.setCoords();
+            console.log('DEBUG: Firing object:modified for', props); // DEBUG LOG
+            canvas.fire('object:modified', { target: active });
             canvas.requestRenderAll();
+
+
+            // Forces a re-sync after a short delay to ensure prop persistence
+            setTimeout(() => {
+                console.log('DEBUG: Forced re-sync check');
+                canvas.fire('object:modified', { target: active });
+
+                // CRITICAL: Manually scan canvas for mapped keys since syncLayers might not catch it
+                const objects = canvas.getObjects();
+                const actualObjects = objects.filter((obj: any) =>
+                    !obj.name?.startsWith('__') && obj.selectable !== false
+                );
+
+                console.log('[SMART MAPPING] Manual scan - Processing objects:', actualObjects.map((o: any) => ({
+                    type: o.type,
+                    name: o.name,
+                    templateKey: o.templateKey
+                })));
+
+                const usedKeys = actualObjects
+                    .map((obj: any) => obj.name || obj.templateKey)
+                    .filter((name: string) => name && name.startsWith('template_'));
+
+                if (usedKeys.length > 0) {
+                    console.log('[SMART MAPPING] Manual scan - Found keys:', usedKeys);
+                    setUsedTemplateKeys(Array.from(new Set(usedKeys)));
+                }
+            }, 100);
+
             // Re-sync template data immediately so user sees the result of mapping
             designState.setDesign({ ...designState.design });
             // Trigger a re-selection to update the UI
-            setSelectedObject({ ...active.toObject(['name', 'id', 'selectable', 'evented', 'editable']), __fabricObj: active });
+            setSelectedObject({ ...active.toObject(['name', 'templateKey', 'id', 'selectable', 'evented', 'editable']), __fabricObj: active });
         }
     }, [designState]);
 
@@ -167,7 +249,9 @@ function DesignContent() {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Sync text layers from canvas
+    const [usedTemplateKeys, setUsedTemplateKeys] = useState<string[]>([]);
+
+    // Sync text layers & used keys from canvas
     useEffect(() => {
         const getLabel = (name: string, text: string) => {
             if (!name) return 'Custom Text';
@@ -195,7 +279,14 @@ function DesignContent() {
         const syncLayers = () => {
             const canvas = (window as any).fabricCanvas;
             if (canvas) {
-                const layers = canvas.getObjects()
+                const objects = canvas.getObjects();
+
+                // 1. Sync Text Layers for Mobile Drawer
+                // DEBUG: Log all object names to see what's actually on the canvas
+                const allObjects = objects.map((o: any) => ({ type: o.type, name: o.name }));
+                console.log('DEBUG: All canvas objects:', JSON.stringify(allObjects));
+
+                const layers = objects
                     .filter((obj: any) => (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') && !obj.name?.startsWith('__'))
                     .map((obj: any) => ({
                         id: obj.id || Math.random().toString(36).substring(2, 9),
@@ -206,6 +297,71 @@ function DesignContent() {
                         color: obj.fill
                     }));
                 setTextLayers(layers);
+
+                // 2. Sync Used Template Keys for Admin Config
+                // Filter out guide objects and get all actual canvas objects
+                const actualObjects = objects.filter((obj: any) =>
+                    !obj.name?.startsWith('__') && // Not a guide
+                    obj.selectable !== false // Is selectable
+                );
+
+                // Log what we're actually processing
+                if (actualObjects.length > 0) {
+                    console.log('[SMART MAPPING] Processing objects:', actualObjects.map((o: any) => ({
+                        type: o.type,
+                        name: o.name,
+                        templateKey: o.templateKey
+                    })));
+                }
+
+                const usedKeys = (actualObjects
+                    .map((obj: any) => obj.name || obj.templateKey)
+                    .filter((name: string) => name && name.startsWith('template_'))) as string[];
+
+                const usedKeysSet = Array.from(new Set(usedKeys));
+                setUsedTemplateKeys(usedKeysSet);
+
+                // 3. Cleanup Unused Mappings
+                // If a key exists in data.customFields but is not present on canvas, remove it
+                const currentUsedKeyBases = new Set(usedKeysSet.map(k => k.replace('template_', '')));
+                designState.setData((prev: any) => {
+                    const currentCustomFields = prev.customFields || {};
+                    const currentCustomKeys = Object.keys(currentCustomFields);
+                    const unusedKeys = currentCustomKeys.filter(k =>
+                        !currentUsedKeyBases.has(k) &&
+                        !k.startsWith('additional_') // Don't clean up additional text lines here
+                    );
+
+                    // Standard fields cleanup map
+                    const standardToDataKey: Record<string, string> = {
+                        template_company: 'companyName',
+                        template_address: 'address',
+                        template_gstin: 'gstin',
+                        template_cin: 'cin',
+                        template_mobile: 'mobile',
+                        template_email: 'email',
+                        template_website: 'website',
+                        template_logo: 'logoUrl'
+                    };
+
+                    let hasStandardCleanup = false;
+                    const cleanedStandard: any = {};
+                    Object.entries(standardToDataKey).forEach(([tKey, dKey]) => {
+                        if (!usedKeysSet.includes(tKey) && prev[dKey]) {
+                            cleanedStandard[dKey] = '';
+                            hasStandardCleanup = true;
+                        }
+                    });
+
+                    if (unusedKeys.length > 0 || hasStandardCleanup) {
+                        console.log('[SMART MAPPING] Cleaning up unused fields:', { unusedKeys, hasStandardCleanup });
+                        const newCustomFields = { ...currentCustomFields };
+                        unusedKeys.forEach(k => delete newCustomFields[k]);
+                        return { ...prev, ...cleanedStandard, customFields: newCustomFields };
+                    }
+                    return prev;
+                });
+
                 return layers.length > 0;
             }
             return false;
@@ -217,6 +373,10 @@ function DesignContent() {
             canvas.on('object:removed', syncLayers);
             canvas.on('text:changed', syncLayers);
             canvas.on('object:modified', syncLayers);
+            // Ensure we sync on selection changes too, just in case
+            canvas.on('selection:created', syncLayers);
+            canvas.on('selection:updated', syncLayers);
+            canvas.on('selection:cleared', syncLayers);
 
             // Try syncing a few times with delay in case objects are still loading
             syncLayers();
@@ -227,6 +387,10 @@ function DesignContent() {
                 canvas.off('object:added', syncLayers);
                 canvas.off('object:removed', syncLayers);
                 canvas.off('text:changed', syncLayers);
+                canvas.off('object:modified', syncLayers);
+                canvas.off('selection:created', syncLayers);
+                canvas.off('selection:updated', syncLayers);
+                canvas.off('selection:cleared', syncLayers);
                 clearTimeout(timer1);
                 clearTimeout(timer2);
             };
@@ -424,11 +588,16 @@ function DesignContent() {
 
             // 2. Save Config
             const fabricConfig = canvas.toJSON([
-                'name', 'id', 'isBackground',
+                'name', 'id', 'isBackground', 'ignoreSafety',
                 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation',
                 'selectable', 'evented', 'editable',
                 'hasControls', 'hoverCursor', 'moveCursor'
             ]);
+
+            // Add metadata about used mapping keys so they are recognized as "valid" for this template
+            fabricConfig.metadata = {
+                usedTemplateKeys: usedTemplateKeys
+            };
             const canvasWidth = canvas.width || 1800;
             const canvasHeight = canvas.height || 900;
 
@@ -494,6 +663,7 @@ function DesignContent() {
                                 onAddIcon={registerAddIcon}
                                 onAddShape={registerAddShape}
                                 onAddImage={registerAddImage}
+                                onDataChange={designState.mergeData}
                                 onHistoryStateChange={setHistoryState}
                                 onHistoryAction={(fn) => onHistoryActionRef.current = fn}
                                 onFontWarningChange={setDynamicMissingFonts}
@@ -520,7 +690,7 @@ function DesignContent() {
                             <div className="space-y-4">
                                 <label className="text-xs font-bold text-white/50 block px-1">Delivery Speed</label>
                                 <div className="grid grid-cols-1 gap-3">
-                                    <button onClick={() => setDeliveryType('standard')} className={`p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'standard' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
+                                    <button onClick={() => setDeliveryType('standard')} className={`p-4 rounded-lg border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'standard' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
                                         <div className="flex items-center gap-3">
                                             <Truck className={`w-5 h-5 ${deliveryType === 'standard' ? 'text-indigo-400' : 'text-white/30'}`} />
                                             <div>
@@ -530,7 +700,7 @@ function DesignContent() {
                                         </div>
                                         <span className="text-[10px] font-bold text-indigo-400">Free</span>
                                     </button>
-                                    <button onClick={() => setDeliveryType('fast')} className={`p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'fast' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
+                                    <button onClick={() => setDeliveryType('fast')} className={`p-4 rounded-lg border-2 text-left transition-all flex items-center justify-between ${deliveryType === 'fast' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
                                         <div className="flex items-center gap-3">
                                             <div className="relative">
                                                 <Truck className={`w-5 h-5 ${deliveryType === 'fast' ? 'text-indigo-400' : 'text-white/30'}`} />
@@ -547,7 +717,7 @@ function DesignContent() {
                             </div>
 
                             {/* Professional Installation */}
-                            <div className="p-4 bg-white/5 rounded-xl border-2 border-white/5 flex justify-between items-center transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-500/10">
+                            <div className="p-4 bg-white/5 rounded-lg border-2 border-white/5 flex justify-between items-center transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-500/10">
                                 <div className="flex items-center gap-3">
                                     <Wrench className="w-5 h-5 text-indigo-400" />
                                     <div>
@@ -562,18 +732,18 @@ function DesignContent() {
                             <div className="space-y-4">
                                 <label className="text-xs font-bold text-white/50 block px-1">Payment Scheme</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => setPaymentScheme('part')} className={`p-4 rounded-xl border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
+                                    <button onClick={() => setPaymentScheme('part')} className={`p-4 rounded-lg border-2 text-left transition-all ${paymentScheme === 'part' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
                                         <p className="font-bold text-white text-xs">Part Pay</p>
                                         <p className="text-[9px] text-white/50">25% Advance</p>
                                     </button>
-                                    <button onClick={() => setPaymentScheme('full')} className={`p-4 rounded-xl border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
+                                    <button onClick={() => setPaymentScheme('full')} className={`p-4 rounded-lg border-2 text-left transition-all ${paymentScheme === 'full' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/5 bg-white/5'}`}>
                                         <p className="font-bold text-white text-xs">Full Pay</p>
                                         <p className="text-[9px] text-white/50">100% Upfront</p>
                                     </button>
                                 </div>
 
                                 {paymentScheme === 'part' && (
-                                    <div className="mt-3 p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl animate-in fade-in slide-in-from-top-2">
+                                    <div className="mt-3 p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg animate-in fade-in slide-in-from-top-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <label className="text-[10px] font-bold text-indigo-400">Advance Amount</label>
                                             <span className="text-[10px] text-white/50 font-bold text-right italic">MIN: ₹{Math.ceil(price * 0.25)}</span>
@@ -588,7 +758,7 @@ function DesignContent() {
                                                     const min = Math.ceil(price * 0.25);
                                                     if (parseFloat(e.target.value) < min) setAdvanceAmount(min);
                                                 }}
-                                                className="w-full bg-white/5 border border-indigo-500/30 rounded-lg py-2.5 pl-7 pr-3 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                                className="w-full bg-white/5 border border-indigo-500/30 rounded-md py-2.5 pl-7 pr-3 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                             />
                                         </div>
                                     </div>
@@ -596,8 +766,8 @@ function DesignContent() {
                             </div>
 
                             {/* Order Summary Integrated */}
-                            <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
-                                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                            <div className="p-6 bg-white/5 rounded-2xl border border-white/5 space-y-4">
+                                <h3 className="text-sm font-bold text-white flex items-center gap-2">
                                     <Sparkles className="w-4 h-4 text-indigo-400" />
                                     Order Summary
                                 </h3>
@@ -633,7 +803,7 @@ function DesignContent() {
                                                 <span className="text-xs font-bold animate-pulse">Calculating...</span>
                                             </div>
                                         ) : (
-                                            <span className="text-3xl font-black text-indigo-400">₹{paymentScheme === 'part' ? advanceAmount : price}</span>
+                                            <span className="text-3xl font-bold text-indigo-400">₹{paymentScheme === 'part' ? advanceAmount : price}</span>
                                         )}
                                     </div>
                                     {paymentScheme === 'part' && (
@@ -681,8 +851,9 @@ function DesignContent() {
                 >
                     <SignageForm
                         data={designState.data}
-                        onChange={designState.setData}
+                        onChange={designState.mergeData}
                         onLogoUpload={(file, url) => addImageFn?.(url)}
+                        usedTemplateKeys={usedTemplateKeys}
                     />
                 </MobileDrawer>
 
@@ -757,7 +928,7 @@ function DesignContent() {
                                     }
                                 }}
                                 className={cn(
-                                    "px-3 py-3 text-left rounded-lg border text-sm flex items-center justify-between transition-colors",
+                                    "px-3 py-3 text-left rounded-md border text-sm flex items-center justify-between transition-colors",
                                     designState.design.fontFamily === font
                                         ? "bg-indigo-500/20 border-indigo-500 text-white"
                                         : "bg-white/5 border-white/5 text-slate-300 active:bg-white/10"
@@ -934,6 +1105,7 @@ function DesignContent() {
                 </div>
 
                 <ConfigurationPanel
+                    data={designState.data}
                     design={designState.design}
                     setDesign={designState.setDesign}
                     material={designState.material}
@@ -958,6 +1130,7 @@ function DesignContent() {
                     selectedObject={selectedObject}
                     isAdmin={isAdmin}
                     onUpdateObject={handleUpdateObject}
+                    usedTemplateKeys={usedTemplateKeys}
                 />
             </div>
 

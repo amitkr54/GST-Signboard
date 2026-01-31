@@ -39,7 +39,7 @@ export function generateSVG(
         const fontSize = design.companyNameSize || 150; // Match DEFAULT_DESIGN
         const lineHeight = fontSize * LINE_HEIGHT_MULTIPLIER;
         const maxWidth = WIDTH - (PADDING * 2);
-        const lines = wrapText(data.companyName.toUpperCase(), fontSize, maxWidth, 'Arial', true);
+        const lines = wrapText(data.companyName, fontSize, maxWidth, 'Arial', true);
 
         const blockHeight = lines.length * lineHeight;
         elements.push({
@@ -60,10 +60,10 @@ export function generateSVG(
     // GSTIN & CIN
     if (data.gstin || data.cin) {
         let text = '';
-        if (data.gstin) text += `GSTIN: ${data.gstin}`;
+        if (data.gstin) text += data.gstin;
         if (data.cin) {
             if (text) text += '   |   ';
-            text += `CIN: ${data.cin}`;
+            text += data.cin;
         }
         elements.push({
             type: 'text',
@@ -80,8 +80,8 @@ export function generateSVG(
         // Label
         elements.push({
             type: 'text',
-            content: 'Address:',
-            height: detailLineHeight,
+            content: '', // Removed "Address:" label
+            height: 0, // No height for empty label
             fontSize: detailFontSize,
             bold: true
         });
@@ -111,7 +111,7 @@ export function generateSVG(
     if (data.mobile) {
         elements.push({
             type: 'text',
-            content: `Contact: ${data.mobile}`,
+            content: data.mobile,
             height: detailLineHeight,
             fontSize: detailFontSize,
             bold: true
@@ -216,7 +216,7 @@ function generateSVGWithGaps(
         const fontSize = design.companyNameSize || 150;
         const lineHeight = fontSize * LINE_HEIGHT_MULTIPLIER;
         const maxWidth = WIDTH - (PADDING * 2);
-        const lines = wrapText(data.companyName.toUpperCase(), fontSize, maxWidth, 'Arial', true);
+        const lines = wrapText(data.companyName, fontSize, maxWidth, 'Arial', true);
 
         lines.forEach(line => {
             elements.push({ type: 'text', content: line, height: lineHeight, fontSize, bold: true });
@@ -235,10 +235,10 @@ function generateSVGWithGaps(
     // GSTIN/CIN
     if (data.gstin || data.cin) {
         let text = '';
-        if (data.gstin) text += `GSTIN: ${data.gstin}`;
+        if (data.gstin) text += data.gstin;
         if (data.cin) {
             if (text) text += '   |   ';
-            text += `CIN: ${data.cin}`;
+            text += data.cin;
         }
         elements.push({ type: 'text', content: text, height: detailLineHeight, fontSize: detailFontSize, bold: true });
         totalHeight += detailLineHeight;
@@ -249,7 +249,7 @@ function generateSVGWithGaps(
 
     // Address
     if (data.address) {
-        elements.push({ type: 'text', content: 'Address:', height: detailLineHeight, fontSize: detailFontSize, bold: true });
+        elements.push({ type: 'text', content: '', height: 0, fontSize: detailFontSize, bold: true });
         totalHeight += detailLineHeight;
 
         const rawLines = data.address.split('\n');
@@ -269,7 +269,7 @@ function generateSVGWithGaps(
 
     // Contact
     if (data.mobile) {
-        elements.push({ type: 'text', content: `Contact: ${data.mobile}`, height: detailLineHeight, fontSize: detailFontSize, bold: true });
+        elements.push({ type: 'text', content: data.mobile, height: detailLineHeight, fontSize: detailFontSize, bold: true });
         totalHeight += detailLineHeight;
 
         elements.push({ type: 'gap', height: DETAILS_GAP });

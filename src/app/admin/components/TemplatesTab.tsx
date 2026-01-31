@@ -71,7 +71,7 @@ const TemplatesTab = ({
                         <div className="w-12 h-12 bg-indigo-500/20 rounded-2xl flex items-center justify-center border border-indigo-500/20">
                             <Plus className="w-6 h-6 text-indigo-400" />
                         </div>
-                        <h3 className="text-2xl font-black text-white">Add Template</h3>
+                        <h3 className="text-2xl font-bold text-white">Add Template</h3>
                     </div>
 
                     {selectedTemplateIds.length > 0 && (
@@ -90,7 +90,7 @@ const TemplatesTab = ({
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Template Title</label>
+                            <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 ml-1">Template Title</label>
                             <input
                                 type="text"
                                 name="name"
@@ -101,19 +101,19 @@ const TemplatesTab = ({
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Usage Type</label>
+                            <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 ml-1">Usage Type</label>
                             <div className="grid grid-cols-2 gap-3 p-1 bg-black/20 rounded-2xl border border-white/10">
                                 <button
                                     type="button"
                                     onClick={() => setTemplateType('universal')}
-                                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${templateType === 'universal' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+                                    className={`py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${templateType === 'universal' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
                                 >
                                     Universal
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setTemplateType('specific')}
-                                    className={`py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${templateType === 'specific' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+                                    className={`py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${templateType === 'specific' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
                                 >
                                     Specific
                                 </button>
@@ -123,7 +123,7 @@ const TemplatesTab = ({
 
                         {templateType === 'specific' && (
                             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Select Products</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 ml-1">Select Products</label>
                                 <div className="max-h-40 overflow-y-auto p-4 bg-black/20 rounded-2xl border border-white/10 space-y-2">
                                     {products.map(p => (
                                         <label key={p.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-white/5">
@@ -147,7 +147,7 @@ const TemplatesTab = ({
 
                         {templateType === 'specific' && (
                             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Category</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 ml-1">Category</label>
                                 <select
                                     name="category"
                                     value={templateCategory}
@@ -164,7 +164,7 @@ const TemplatesTab = ({
 
                         <div className="grid grid-cols-2 gap-4 relative">
                             <div>
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Width (in)</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 ml-1">Width (in)</label>
                                 <input
                                     type="number"
                                     name="width"
@@ -177,7 +177,7 @@ const TemplatesTab = ({
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Height (in)</label>
+                                <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 ml-1">Height (in)</label>
                                 <input
                                     type="number"
                                     name="height"
@@ -191,7 +191,7 @@ const TemplatesTab = ({
                             </div>
 
                             {ratio && (
-                                <div className="absolute -right-2 top-0 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1 bg-indigo-500 text-white text-[10px] font-black rounded-full shadow-lg shadow-indigo-500/20 animate-in zoom-in duration-300">
+                                <div className="absolute -right-2 top-0 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1 bg-indigo-500 text-white text-[10px] font-bold rounded-full shadow-lg shadow-indigo-500/20 animate-in zoom-in duration-300">
                                     <Hash className="w-3 h-3" />
                                     <span>RATIO {ratio}</span>
                                 </div>
@@ -199,12 +199,12 @@ const TemplatesTab = ({
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2 ml-1">Template File (SVG)</label>
+                            <label className="block text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-2 ml-1">Template File (SVG)</label>
                             <input
                                 type="file"
                                 name="file"
                                 accept=".svg"
-                                className="w-full text-sm text-slate-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-white/5 file:text-indigo-400 hover:file:bg-white/10 transition-all cursor-pointer bg-black/20 rounded-2xl border-2 border-dashed border-white/10 p-2"
+                                className="w-full text-sm text-slate-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-white/5 file:text-indigo-400 hover:file:bg-white/10 transition-all cursor-pointer bg-black/20 rounded-2xl border-2 border-dashed border-white/10 p-2"
                                 required
                             />
                         </div>
@@ -212,7 +212,7 @@ const TemplatesTab = ({
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-indigo-600 hover:bg-indigo-500 py-7 rounded-2xl font-black text-sm shadow-xl shadow-indigo-500/20 group relative overflow-hidden text-white"
+                            className="w-full bg-indigo-600 hover:bg-indigo-500 py-7 rounded-2xl font-bold text-sm shadow-xl shadow-indigo-500/20 group relative overflow-hidden text-white"
                         >
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                             {isLoading ? (
@@ -238,7 +238,7 @@ const TemplatesTab = ({
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-white/5 border-b border-white/10">
-                                    <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest w-12">
+                                    <th className="px-8 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest w-12">
                                         <input
                                             type="checkbox"
                                             checked={selectedTemplateIds.length === templates.length && templates.length > 0}
@@ -246,10 +246,10 @@ const TemplatesTab = ({
                                             className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-600 focus:ring-indigo-500"
                                         />
                                     </th>
-                                    <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest w-1/3">Preview</th>
-                                    <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Details</th>
-                                    <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest">Ratio</th>
-                                    <th className="px-8 py-4 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-right">Actions</th>
+                                    <th className="px-8 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest w-1/3">Preview</th>
+                                    <th className="px-8 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Details</th>
+                                    <th className="px-8 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Ratio</th>
+                                    <th className="px-8 py-4 text-[10px] font-bold text-indigo-300 uppercase tracking-widest text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
@@ -274,12 +274,12 @@ const TemplatesTab = ({
                                         </td>
                                         <td className="px-8 py-4 align-top pt-8">
                                             <div className="flex flex-col gap-2">
-                                                <span className="font-black text-xl text-white">{template.name}</span>
+                                                <span className="font-bold text-xl text-white">{template.name}</span>
                                                 <div className="flex flex-wrap gap-2">
-                                                    <span className="text-[10px] px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full font-black uppercase tracking-wider border border-indigo-500/20">
+                                                    <span className="text-[10px] px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full font-bold uppercase tracking-wider border border-indigo-500/20">
                                                         {template.category}
                                                     </span>
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border ${template.isUniversal ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/20 text-amber-400 border-amber-500/20'}`}>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${template.isUniversal ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/20 text-amber-400 border-amber-500/20'}`}>
                                                         {template.isUniversal ? 'Universal' : 'Specific'}
                                                     </span>
                                                 </div>
@@ -335,7 +335,7 @@ const TemplatesTab = ({
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-slate-900 rounded-3xl p-8 max-w-2xl w-full border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-2xl font-black text-white">Edit Template</h3>
+                            <h3 className="text-2xl font-bold text-white">Edit Template</h3>
                             <button
                                 onClick={() => setShowTemplateEditForm(false)}
                                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"

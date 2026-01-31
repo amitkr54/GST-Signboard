@@ -9,9 +9,16 @@ export function useCanvasObjectManagers(
     design?: any,
     saveHistory?: (canvas: fabric.Canvas | null) => void
 ) {
-    const addText = useCallback((type: 'heading' | 'subheading' | 'body') => {
+    const addText = useCallback((type: 'heading' | 'subheading' | 'body', options?: { name?: string; text?: string }) => {
         if (!canvas) return;
-        const textbox = new fabric.Textbox(type === 'heading' ? 'Heading' : 'Text', {
+
+        let label = type === 'heading' ? 'Heading' : 'Text';
+        if (options?.text) label = options.text;
+        else if (options?.name?.startsWith('template_')) {
+            label = options.name.replace('template_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        const textbox = new fabric.Textbox(label, {
             left: baseWidth / 2,
             top: baseHeight / 2,
             fontSize: type === 'heading' ? 80 : 40,
@@ -19,7 +26,7 @@ export function useCanvasObjectManagers(
             fill: design?.textColor || '#000000',
             originX: 'center',
             originY: 'center',
-            name: 'user_added_text',
+            name: options?.name || 'user_added_text',
             editable: true,
             objectCaching: false,
             borderColor: '#FF3333',

@@ -51,7 +51,7 @@ export default function AdminProductsPage() {
                 <div className="mb-8">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-4xl font-black text-gray-900 mb-2">Product Management</h1>
+                            <h1 className="text-4xl font-bold text-gray-900 mb-2">Product Management</h1>
                             <p className="text-gray-600">Manage your signage products catalog</p>
                         </div>
                         <Link href="/admin/products/new">

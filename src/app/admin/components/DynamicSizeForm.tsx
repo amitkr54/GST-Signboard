@@ -36,11 +36,11 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
-                <label className="text-sm font-black text-gray-700 uppercase tracking-wider">Available Sizes</label>
+                <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Available Sizes</label>
                 <button
                     type="button"
                     onClick={addSize}
-                    className="text-xs font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all"
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all"
                 >
                     <Plus className="w-3 h-3" /> Add Size
                 </button>
@@ -51,7 +51,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                     <div key={size.id} className="bg-gray-50 p-4 rounded-2xl border-2 border-gray-100 group relative animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="grid grid-cols-12 gap-3 items-end">
                             <div className="col-span-12 sm:col-span-4">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Label Name</label>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Label Name</label>
                                 <input
                                     type="text"
                                     value={size.name}
@@ -62,7 +62,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                 />
                             </div>
                             <div className="col-span-4 sm:col-span-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Width</label>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Width</label>
                                 <input
                                     type="number"
                                     value={size.dimensions.width}
@@ -72,7 +72,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                 />
                             </div>
                             <div className="col-span-4 sm:col-span-2 relative">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Height</label>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Height</label>
                                 <input
                                     type="number"
                                     value={size.dimensions.height}
@@ -84,7 +84,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                     const ratio = getSimplifiedRatio(size.dimensions.width, size.dimensions.height);
                                     if (!ratio) return null;
                                     return (
-                                        <div className="absolute -top-3 right-0 flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white text-[8px] font-black rounded-lg shadow-lg z-10 animate-in zoom-in duration-300">
+                                        <div className="absolute -top-3 right-0 flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white text-[8px] font-bold rounded-lg shadow-lg z-10 animate-in zoom-in duration-300">
                                             <Hash className="w-2.5 h-2.5" />
                                             <span>{ratio}</span>
                                         </div>
@@ -92,7 +92,7 @@ const DynamicSizeForm = ({ sizes, onChange }: DynamicSizeFormProps) => {
                                 })()}
                             </div>
                             <div className="col-span-4 sm:col-span-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Price X</label>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Price X</label>
                                 <input
                                     type="number"
                                     step="0.1"

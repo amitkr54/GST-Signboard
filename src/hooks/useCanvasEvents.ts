@@ -26,6 +26,7 @@ interface UseCanvasEventsProps {
     baseHeight: number;
     onSafetyChange?: (hasViolation: boolean) => void;
     onSelectionChange?: (obj: fabric.Object | null) => void;
+    onDataChange?: (data: any) => void;
 }
 
 export function useCanvasEvents({
@@ -40,7 +41,8 @@ export function useCanvasEvents({
     baseWidth,
     baseHeight,
     onSafetyChange,
-    onSelectionChange
+    onSelectionChange,
+    onDataChange
 }: UseCanvasEventsProps) {
     const handleBackgroundSnapping = useCallback((obj: fabric.Object) => {
         if (!(obj as any).isBackground && obj.name !== 'background') return;
@@ -132,7 +134,7 @@ export function useCanvasEvents({
 
         let violation = false;
         objects.forEach(obj => {
-            if (obj.name === 'safety_bleed_rect' || obj.name === 'safetyGuide' || obj.name === 'background' || (obj as any).isBackground || !obj.selectable) return;
+            if (obj.name === 'safety_bleed_rect' || obj.name === 'safetyGuide' || obj.name === 'background' || (obj as any).isBackground || (obj as any).ignoreSafety || !obj.selectable) return;
 
             // Convert viewport bounds to design units
             const bounds = obj.getBoundingRect();
@@ -311,27 +313,22 @@ export function useCanvasEvents({
         let selectionTimeout: NodeJS.Timeout | null = null;
 
         const handleSelection = (e?: any) => {
-            console.log('[DEBUG] handleSelection triggered', { type: e?.target?.type, name: e?.target?.name });
             if (selectionTimeout) {
-                console.log('[DEBUG] Clearing pending selection timeout');
                 clearTimeout(selectionTimeout);
                 selectionTimeout = null;
             }
             const active = canvasInstance.getActiveObject();
             const result = active || null;
-            console.log('[DEBUG] Setting selected object:', result?.type);
             setSelectedObject(result);
             onSelectionChange?.(result);
         };
 
         const handleCleared = (e?: any) => {
-            console.log('[DEBUG] handleCleared triggered');
             // Debounce the cleared event to avoid transient resets during double-clicks
             if (selectionTimeout) clearTimeout(selectionTimeout);
 
             selectionTimeout = setTimeout(() => {
                 const actuallyHasActive = !!canvasInstance.getActiveObject();
-                console.log('[DEBUG] selectionTimeout fired. actuallyHasActive:', actuallyHasActive);
                 if (!actuallyHasActive) {
                     setSelectedObject(null);
                     onSelectionChange?.(null);
@@ -357,7 +354,7 @@ export function useCanvasEvents({
                 const normalizedFontSize = (textObj.fontSize || 40) * oldScale;
 
                 const textbox = new fabric.Textbox(textObj.text || '', {
-                    ...(textObj.toObject(['name', 'selectable', 'evented', 'editable', 'id', 'fontFamily', 'fontWeight', 'fontStyle', 'fill', 'textAlign', 'angle', 'opacity', 'left', 'top', 'originX', 'originY'])),
+                    ...(textObj.toObject(['name', 'templateKey', 'selectable', 'evented', 'editable', 'id', 'fontFamily', 'fontWeight', 'fontStyle', 'fill', 'textAlign', 'angle', 'opacity', 'left', 'top', 'originX', 'originY'])),
                     fontSize: normalizedFontSize,
                     width: (textObj.width || 200) * oldScale,
                     scaleX: 1,
@@ -441,9 +438,30 @@ export function useCanvasEvents({
             obj.setCoords();
             checkSafetyArea(canvasInstance);
             canvasInstance.requestRenderAll();
+
+            // SYNC TO DATA STATE
+            const name = (obj as any).name;
+            if (name && name.startsWith('template_') && onDataChange) {
+                const key = name.replace('template_', '');
+                if (['company', 'companyName', 'address', 'details', 'mobile', 'email', 'website', 'gstin', 'cin'].includes(key)) {
+                    const dataKey = (key === 'company' || key === 'companyName') ? 'companyName' :
+                        (key === 'address' || key === 'details') ? 'address' : key;
+                    onDataChange({ [dataKey]: obj.text });
+                } else if (key.startsWith('additional_')) {
+                    const idx = parseInt(key.split('_')[1]);
+                    // Specialized handling for additionalText array
+                    // Since onDataChange currently handles shallow merges, we might need to be careful
+                    // But in page.tsx, designState.setData usually merges.
+                    onDataChange({ [`additional_update_${idx}`]: obj.text }); // Custom trigger or handle array in setData
+                    // Alternatively, let's just pass customFields for now if it's not a built-in
+                } else {
+                    // Custom field
+                    onDataChange({ customFields: { [key]: obj.text } });
+                }
+            }
         });
 
-        const json = JSON.stringify(canvasInstance.toJSON(['name', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'editable', 'id']));
+        const json = JSON.stringify(canvasInstance.toJSON(['name', 'templateKey', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'selectable', 'evented', 'editable', 'id', 'isBackground', 'ignoreSafety']));
         setInitialHistory(json);
 
         return () => {

@@ -148,9 +148,9 @@ export function FabricPreview({
         clipboard,
         setInitialHistory,
         baseWidth,
-        baseHeight,
         onSafetyChange: setHasSafetyViolation,
-        onSelectionChange: onObjectSelected
+        onSelectionChange: onObjectSelected,
+        onDataChange: onDataChange
     });
 
     // Template Mapping Hook
@@ -239,7 +239,10 @@ export function FabricPreview({
                 const isSupported = supportedLower.has(fontLow);
                 const isSystem = systemLower.has(fontLow);
 
-                if (!isSupported && !isSystem) {
+                // Check if the font is available in the browser/system
+                const isAvailable = document.fonts.check(`12px "${font}"`);
+
+                if (!isSupported && !isSystem && !isAvailable) {
                     console.warn(`[DEBUG] Object ${idx} (${obj.type}) uses unsupported font: "${font}"`, {
                         name: (obj as any).name,
                         text: (obj as any).text?.substring(0, 10)
@@ -591,17 +594,28 @@ export function FabricPreview({
                     (activeObject as any).name = !isCurrentlyBg ? 'background' : '';
 
                     if (!isCurrentlyBg) {
-                        // Move to bottom but above existing backgrounds
-                        const objects = canvas.getObjects();
-                        let lastBgIdx = -1;
-                        for (let i = 0; i < objects.length; i++) {
-                            if ((objects[i] as any).isBackground || objects[i].name === 'background') {
-                                lastBgIdx = i;
+                        // FIX: Enforce SINGLE background. Unmark all others.
+                        canvas.getObjects().forEach((obj: any) => {
+                            if (obj !== activeObject && (obj.name === 'background' || obj.isBackground)) {
+                                obj.set({ name: '', isBackground: false });
+                                // Optional: Remove if it was a system-generated placeholder? 
+                                // For now, just demoting it is safer so user doesn't lose data.
                             }
-                        }
-                        activeObject.moveTo(lastBgIdx + 1);
+                        });
+
+                        // Send to very bottom
+                        activeObject.sendToBack();
                     }
 
+                    saveHistory(canvas);
+                    checkSafetyArea(canvas);
+                    canvas.requestRenderAll();
+                }
+                break;
+            case 'toggle-safety-ignore':
+                if (activeObject) {
+                    const current = (activeObject as any).ignoreSafety;
+                    (activeObject as any).ignoreSafety = !current;
                     saveHistory(canvas);
                     checkSafetyArea(canvas);
                     canvas.requestRenderAll();
@@ -994,7 +1008,16 @@ export function FabricPreview({
                     let offsetX = 0;
                     let offsetY = 0;
 
-                    if (hasObjects && minX !== Infinity) {
+                    // FIX: Always prioritize the explicit background object for dimensions if it exists.
+                    // This prevents stray/outlier objects (like far-away lines) from expanding the bounds 
+                    // and causing the whole canvas to shrink.
+                    const bg = templateConfig.fabricConfig.objects.find((o: any) => o.name === 'background' || o.isBackground);
+
+                    if (bg?.width && bg?.height) {
+                        console.log('[TEMPLATE DEBUG] Found background object, using its dimensions.');
+                        templateWidth = bg.width * (bg.scaleX || 1);
+                        templateHeight = bg.height * (bg.scaleY || 1);
+                    } else if (hasObjects && minX !== Infinity) {
                         const contentWidth = maxX - minX;
                         const contentHeight = maxY - minY;
 
@@ -1005,13 +1028,6 @@ export function FabricPreview({
                             templateHeight = contentHeight;
                             offsetX = -minX; // We need to shift objects back to 0
                             offsetY = -minY;
-                        } else {
-                            // Fallback to standard background check if available
-                            const bg = templateConfig.fabricConfig.objects.find((o: any) => o.name === 'background' || o.isBackground);
-                            if (bg?.width && bg?.height) {
-                                templateWidth = bg.width * (bg.scaleX || 1);
-                                templateHeight = bg.height * (bg.scaleY || 1);
-                            }
                         }
                     }
 
@@ -1241,6 +1257,7 @@ export function FabricPreview({
                             isGroup={selectedObject?.type === 'group'}
                             isMultiple={selectedObject?.type === 'activeSelection'}
                             isBackground={!!(selectedObject as any)?.isBackground}
+                            isSafetyIgnored={!!(selectedObject as any)?.ignoreSafety}
                         />
                     )}
 
