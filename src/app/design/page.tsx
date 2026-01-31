@@ -320,19 +320,15 @@ function DesignContent() {
 
                 const usedKeysSet = Array.from(new Set(usedKeys));
                 setUsedTemplateKeys(usedKeysSet);
+                const currentUsedKeyBases = new Set(usedKeysSet.map(k => k.replace('template_', '')));
 
                 // 3. Cleanup Unused Mappings
-                // If a key exists in data.customFields but is not present on canvas, remove it
-                const currentUsedKeyBases = new Set(usedKeysSet.map(k => k.replace('template_', '')));
+                // Standard fields are pruned if not on canvas (Adaptive Form behavior)
+                // Custom fields/Additional text are preserved if they have values
                 designState.setData((prev: any) => {
                     const currentCustomFields = prev.customFields || {};
                     const currentCustomKeys = Object.keys(currentCustomFields);
-                    const unusedKeys = currentCustomKeys.filter(k =>
-                        !currentUsedKeyBases.has(k) &&
-                        !k.startsWith('additional_') // Don't clean up additional text lines here
-                    );
 
-                    // Standard fields cleanup map
                     const standardToDataKey: Record<string, string> = {
                         template_company: 'companyName',
                         template_address: 'address',
@@ -340,24 +336,51 @@ function DesignContent() {
                         template_cin: 'cin',
                         template_mobile: 'mobile',
                         template_email: 'email',
-                        template_website: 'website',
-                        template_logo: 'logoUrl'
+                        template_website: 'website'
                     };
 
-                    let hasStandardCleanup = false;
-                    const cleanedStandard: any = {};
+                    const updates: any = {};
+                    let hasUpdates = false;
+
+                    // Prune standard fields if they are in data but NOT on canvas
                     Object.entries(standardToDataKey).forEach(([tKey, dKey]) => {
                         if (!usedKeysSet.includes(tKey) && prev[dKey]) {
-                            cleanedStandard[dKey] = '';
-                            hasStandardCleanup = true;
+                            updates[dKey] = '';
+                            hasUpdates = true;
                         }
                     });
 
-                    if (unusedKeys.length > 0 || hasStandardCleanup) {
-                        console.log('[SMART MAPPING] Cleaning up unused fields:', { unusedKeys, hasStandardCleanup });
+                    // Prune ONLY empty unused custom fields
+                    const unusedEmptyKeys = currentCustomKeys.filter(k =>
+                        !currentUsedKeyBases.has(k) &&
+                        !k.startsWith('additional_') &&
+                        (!currentCustomFields[k] || currentCustomFields[k].trim() === '')
+                    );
+
+                    if (unusedEmptyKeys.length > 0) {
                         const newCustomFields = { ...currentCustomFields };
-                        unusedKeys.forEach(k => delete newCustomFields[k]);
-                        return { ...prev, ...cleanedStandard, customFields: newCustomFields };
+                        unusedEmptyKeys.forEach(k => delete newCustomFields[k]);
+                        updates.customFields = newCustomFields;
+                        hasUpdates = true;
+                    }
+
+                    // Prune unmapped additionalText lines
+                    if (prev.additionalText && prev.additionalText.length > 0) {
+                        const usedAdditionalIndices = usedKeysSet
+                            .filter(k => k.startsWith('template_additional_'))
+                            .map(k => parseInt(k.replace('template_additional_', '')));
+
+                        const maxUsedIdx = usedAdditionalIndices.length > 0 ? Math.max(...usedAdditionalIndices) : -1;
+
+                        // Keep only up to the max index mapped on canvas
+                        if (prev.additionalText.length > maxUsedIdx + 1) {
+                            updates.additionalText = prev.additionalText.slice(0, maxUsedIdx + 1);
+                            hasUpdates = true;
+                        }
+                    }
+
+                    if (hasUpdates) {
+                        return { ...prev, ...updates };
                     }
                     return prev;
                 });
